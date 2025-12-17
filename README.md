@@ -1,22 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VeilPass - The Private Way to Public Events
 
-## Getting Started
+![VeilPass](https://img.shields.io/badge/VeilPass-Encrypted%20Ticketing-blue)
+![Built with Next.js](https://img.shields.io/badge/Next.js-14-black)
+![Zama fhEVM](https://img.shields.io/badge/Zama-fhEVM-purple)
+![Base Sepolia](https://img.shields.io/badge/Network-Base%20Sepolia-blue)
+![License MIT](https://img.shields.io/badge/License-MIT-green)
 
-First, run the development server:
+VeilPass is a production-ready encrypted ticketing dApp built for the **Zama Builder Track** at the December 2025 contest. It demonstrates real-world privacy-preserving applications using **Zama's fhEVM** (fully homomorphic encryption) for secure, confidential event management.
+
+**Tagline:** _"The Private Way to Public Events."_
+
+## 🎯 Key Features
+
+### 🔐 Privacy-First Architecture
+- **Encrypted Blind Auctions**: Bid amounts are encrypted on-chain; only winners' bids are revealed
+- **Homomorphic Pricing**: Ticket prices adjust based on encrypted demand WITHOUT revealing actual sales numbers
+- **Confidential Government ID Verification**: 5-check encrypted ID validation (authenticity, expiration, format, blacklist, age ≥18)
+- **MEV-Resistant Resales**: Encrypted intents prevent front-running on secondary markets
+
+### 🪙 Multi-Payment Support
+- **ETH Payments**: Direct Ethereum transactions
+- **USDC (Testnet)**: Test USDC for DeFi integration
+- **$ZAMA Tokens**: Used for fhEVM encryption/decryption operations
+
+### 👥 Role-Based Access Control
+- **Customers**: Buy tickets, redeem loyalty points, participate in resales, initiate disputes
+- **Sellers**: Create events, manage listings, view encrypted analytics, handle disputes
+- **Admins**: Approve sellers, verify IDs, scan tickets, audit logs, manage disputes
+
+### 💎 Loyalty & Rewards
+- **Points System**: 1 point per 100 wei spent
+- **Tier-Based Multipliers**: Gold tier = 1.5x point multiplier
+- **Referral Program**: 200 points per referred friend
+- **Redeemable Catalog**: VIP upgrades, discounts, account credits
+
+### 📱 Mobile & Desktop UX
+- **Smart Wallet Detection**: Mobile users auto-forced to Smart Wallet (email/passkey/Google login)
+- **Desktop Web3**: Full Coinbase Wallet SDK support
+- **Responsive Design**: Mobile-first, works perfectly on all devices
+- **Dark/Light Mode**: Full theme toggle with auto-detect
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js ≥ 18
+- npm or yarn
+- Base Sepolia testnet funds
+
+### Installation
 
 ```bash
+git clone https://github.com/yourusername/veilpass.git
+cd veilpass
+npm install
+cp .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📄 Pages
+
+| Route | Description |
+|-------|-------------|
+| `/` | Landing page with hero section |
+| `/dashboard` | Role-based dashboard |
+| `/events/[id]` | Event details with purchase |
+| `/tickets` | My tickets |
+| `/loyalty` | Loyalty rewards |
+| `/auctions` | Blind auctions |
+| `/disputes` | Dispute tracking |
+| `/sellers/register` | Seller registration |
+| `/admin/sellers` | Seller approvals |
+| `/admin/sellers/scan` | QR code scanner |
+| `/admin/audit` | Audit logs |
+
+## 🧪 Testing
+
+```bash
+npm run contracts:test
+npm run contracts:deploy
+```
+
+## 🔐 Zama fhEVM
+
+- Encrypted blind auctions with homomorphic computations
+- Privacy-preserving ID verification (5-point check)
+- MEV-resistant encrypted pricing
+
+## 📜 License
+
+MIT
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 

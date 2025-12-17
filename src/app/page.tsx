@@ -1,65 +1,430 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { ChevronRight, ChevronLeft, Zap, Shield, Users } from 'lucide-react';
+
+export default function HomePage() {
+  const [currentTestimonial, setCurrentTestimonial] = useState(0);
+  const [currentEventIndex, setCurrentEventIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentEventIndex((prev) => prev + 1);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const testimonials = [
+    {
+      name: 'Sarah Chen',
+      role: 'Event Organizer',
+      content: 'VeilPass changed how we manage ticket sales. Privacy and security are no longer afterthoughts.',
+      avatar: '👩‍💼',
+    },
+    {
+      name: 'Marcus Johnson',
+      role: 'Music Festival Director',
+      content: 'The encrypted auction system is genius. Our resale market has never been more secure.',
+      avatar: '👨‍💼',
+    },
+    {
+      name: 'Elena Rodriguez',
+      role: 'Ticket Collector',
+      content: 'Finally, a platform that respects my privacy while letting me enjoy live events.',
+      avatar: '👩‍🦰',
+    },
+  ];
+
+  const featuredEvents = [
+    { 
+      title: 'Berlin Techno Festival 2025', 
+      date: 'Sep 12-15, 2025', 
+      location: 'Berlin, Germany',
+      price: '0.25-0.85 ETH', 
+      zama: '+$ZAMA for Encryption',
+      capacity: '5,250 / 10,000',
+      status: 'Live Auction',
+      image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&h=400&fit=crop'
+    },
+    { 
+      title: 'Web3 Summit Europe', 
+      date: 'Oct 8-10, 2025', 
+      location: 'Lisbon, Portugal',
+      price: '0.5-2.0 ETH', 
+      zama: '+$ZAMA for Decryption',
+      capacity: '1,842 / 3,000',
+      status: 'Pre-Sale',
+      image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=500&h=400&fit=crop'
+    },
+    { 
+      title: 'London Stand-Up Comedy Night', 
+      date: 'Nov 22, 2025', 
+      location: 'London, UK',
+      price: '0.1-0.35 ETH', 
+      zama: '+$ZAMA for Verification',
+      capacity: '485 / 600',
+      status: 'Almost Sold',
+      image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&h=400&fit=crop'
+    },
+    { 
+      title: 'Paris Fashion Week 2025', 
+      date: 'Jan 20-27, 2025', 
+      location: 'Paris, France',
+      price: '1.5-5.0 ETH', 
+      zama: '+$ZAMA for Encryption',
+      capacity: '2,100 / 5,000',
+      status: 'Live Auction',
+      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&h=400&fit=crop'
+    },
+    { 
+      title: 'Tokyo Gaming Expo', 
+      date: 'Dec 28-30, 2025', 
+      location: 'Tokyo, Japan',
+      price: '0.3-0.9 ETH', 
+      zama: '+$ZAMA for Decryption',
+      capacity: '8,500 / 12,000',
+      status: 'Pre-Sale',
+      image: 'https://images.unsplash.com/photo-1538481143481-c8733cfe36a3?w=500&h=400&fit=crop'
+    },
+    { 
+      title: 'New York Art Basel', 
+      date: 'Feb 10-12, 2025', 
+      location: 'New York, USA',
+      price: '2.0-8.5 ETH', 
+      zama: '+$ZAMA for Verification',
+      capacity: '1,250 / 2,500',
+      status: 'Almost Sold',
+      image: 'https://images.unsplash.com/photo-1560169897-fc0cdbdfa4d5?w=500&h=400&fit=crop'
+    },
+    { 
+      title: 'Austin Film Festival', 
+      date: 'Mar 15-22, 2025', 
+      location: 'Austin, USA',
+      price: '0.15-0.45 ETH', 
+      zama: '+$ZAMA for Encryption',
+      capacity: '3,800 / 6,000',
+      status: 'Live Auction',
+      image: 'https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?w=500&h=400&fit=crop'
+    },
+    { 
+      title: 'Amsterdam Dance Festival', 
+      date: 'Apr 5-7, 2025', 
+      location: 'Amsterdam, Netherlands',
+      price: '0.35-0.95 ETH', 
+      zama: '+$ZAMA for Decryption',
+      capacity: '6,200 / 8,500',
+      status: 'Pre-Sale',
+      image: 'https://images.unsplash.com/photo-1478225061915-69a3109e96b3?w=500&h=400&fit=crop'
+    },
+    { 
+      title: 'Dubai Crypto Summit', 
+      date: 'May 12-14, 2025', 
+      location: 'Dubai, UAE',
+      price: '0.8-2.5 ETH', 
+      zama: '+$ZAMA for Verification',
+      capacity: '2,500 / 4,000',
+      status: 'Almost Sold',
+      image: 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=500&h=400&fit=crop'
+    },
+  ];
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <>
+      {/* Hero Section - Premium & Unique */}
+      <section className="relative min-h-screen pt-24 pb-20 px-4 overflow-hidden flex items-center">
+        {/* Animated gradient orbs background */}
+        <div className="absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-gradient-to-br from-blue-600/40 via-purple-600/30 to-transparent rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-gradient-to-tl from-pink-600/40 via-purple-600/30 to-transparent rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-gradient-to-r from-indigo-500/20 to-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+
+          {/* Grid overlay */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.02)_1px,transparent_1px)] bg-[size:50px_50px] dark:bg-[linear-gradient(rgba(255,255,255,.01)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.01)_1px,transparent_1px)]" />
+        </div>
+
+        <div className="max-w-6xl mx-auto w-full text-center">
+          {/* Badge with glow */}
+          <div className="inline-block mb-6 px-4 py-2 rounded-full bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 text-sm font-semibold border border-blue-200 dark:border-blue-800 shadow-lg shadow-blue-500/20">
+            🔒 Encrypted Privacy • Blockchain Verified • Zama fhEVM Powered
+          </div>
+
+          {/* Main heading with animated gradient */}
+          <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black mb-6 leading-tight">
+            <span className="inline-block bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent animate-pulse">
+              The Private Way
+            </span>
+            <br />
+            <span className="inline-block text-gray-900 dark:text-white">
+              to
+            </span>
+            {' '}
+            <span className="inline-block bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 bg-clip-text text-transparent animate-pulse" style={{ animationDelay: '0.5s' }}>
+              Public Events
+            </span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+
+          {/* Subtitle */}
+          <p className="text-lg sm:text-2xl text-gray-700 dark:text-gray-300 mb-12 max-w-3xl mx-auto leading-relaxed font-light">
+            Experience encrypted ticketing with <span className="font-bold text-blue-600 dark:text-blue-400">blind auctions</span>, <span className="font-bold text-purple-600 dark:text-purple-400">homomorphic pricing</span>, and <span className="font-bold text-pink-600 dark:text-pink-400">MEV-resistant resales</span>. Your privacy is our foundation.
           </p>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-20">
+            <Link
+              href="/events"
+              className="group relative px-8 py-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-lg overflow-hidden shadow-2xl shadow-blue-500/50 hover:shadow-blue-500/75 transition-all duration-300 hover:scale-105 inline-flex items-center justify-center gap-2"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <span className="relative flex items-center gap-2">
+                Explore Events <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </Link>
+            <Link
+              href="/auctions"
+              className="group px-8 py-4 rounded-xl border-2 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white font-bold text-lg hover:border-purple-500 dark:hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950/20 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/20"
+            >
+              🎯 Browse Auctions
+            </Link>
+          </div>
+
+          {/* Stats with animated counters */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-20">
+            {[
+              { label: 'Encrypted Tickets', value: '50K+' },
+              { label: 'Live Auctions', value: '1.2K+' },
+              { label: 'Protected Users', value: '25K+' },
+              { label: 'Privacy Score', value: '99.8%' },
+            ].map((stat, i) => (
+              <div
+                key={i}
+                className="p-6 rounded-xl bg-white/50 dark:bg-gray-900/50 backdrop-blur-md border border-gray-200 dark:border-gray-800 hover:border-purple-500 dark:hover:border-purple-500 transition-all group"
+              >
+                <div className="text-3xl font-black bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-300">
+                  {stat.value}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400 mt-2">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Featured Events Carousel - 3 Cards Continuous */}
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Featured Events</h2>
+            <div className="relative px-16">
+              {/* Carousel Container */}
+              <div className="overflow-hidden">
+                <div 
+                  className="flex gap-6 transition-transform duration-700 ease-out"
+                  style={{
+                    transform: `translateX(calc(-${(currentEventIndex % featuredEvents.length) * 33.33}% - ${(currentEventIndex % featuredEvents.length) * 1.5}rem))`
+                  }}
+                >
+                  {/* Infinite loop - duplicate all events 3 times */}
+                  {[...featuredEvents, ...featuredEvents, ...featuredEvents].map((event, i) => {
+                    const capacityPercent = (parseInt(event.capacity.split(' / ')[0].replace(',', '')) / parseInt(event.capacity.split(' / ')[1])) * 100;
+                    return (
+                      <div 
+                        key={i} 
+                        className="flex-shrink-0 w-full md:w-1/3 px-3 flex"
+                      >
+                        <div className="relative group bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden hover:border-purple-500 dark:hover:border-purple-500 transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/20 hover:-translate-y-1 flex flex-col w-full">
+                          {/* Image container */}
+                          <div className="relative h-48 w-full bg-gray-200 dark:bg-gray-800 overflow-hidden flex-shrink-0">
+                            <img 
+                              src={event.image} 
+                              alt={event.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              loading="lazy"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                          </div>
+
+                          {/* Gradient overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 via-purple-500/0 to-pink-500/0 group-hover:from-blue-500/10 group-hover:via-purple-500/10 group-hover:to-pink-500/10 transition-all duration-300 z-10 pointer-events-none" />
+
+                          {/* Content - grows to fill available space */}
+                          <div className="relative p-5 z-20 flex flex-col flex-grow">
+                            <div className="flex items-start justify-between mb-4 gap-3 flex-shrink-0">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-bold text-sm md:text-base mb-1 text-gray-900 dark:text-white line-clamp-2">{event.title}</h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-500 truncate">📍 {event.location}</p>
+                              </div>
+                              <span className={`text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap flex-shrink-0 ${
+                                event.status === 'Live Auction' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' :
+                                event.status === 'Pre-Sale' ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300' :
+                                'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300'
+                              }`}>
+                                {event.status}
+                              </span>
+                            </div>
+
+                            <div className="space-y-2 mb-4 pb-4 border-b border-gray-200 dark:border-gray-800 flex-grow">
+                              <p className="text-xs text-gray-600 dark:text-gray-400">📅 {event.date}</p>
+                              <div>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">🎫 {event.capacity}</p>
+                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                                  <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-1.5 rounded-full transition-all duration-300" style={{width: `${capacityPercent}%`}} />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 mt-auto flex-shrink-0">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Base ETH:</span>
+                                <span className="font-bold text-xs text-blue-600 dark:text-blue-400">{event.price}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Encryption:</span>
+                                <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold">{event.zama}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Navigation Buttons */}
+              <button
+                onClick={() => setCurrentEventIndex((prev) => prev - 1)}
+                className="absolute left-0 top-1/2 -translate-y-1/2 p-3 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-all hover:scale-110 shadow-lg z-20"
+                aria-label="Previous events"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <button
+                onClick={() => setCurrentEventIndex((prev) => prev + 1)}
+                className="absolute right-0 top-1/2 -translate-y-1/2 p-3 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-all hover:scale-110 shadow-lg z-20"
+                aria-label="Next events"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+
+              {/* Carousel Indicators */}
+              <div className="flex gap-2 justify-center mt-8">
+                {Array.from({ length: featuredEvents.length }).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentEventIndex(i)}
+                    className={`h-2 rounded-full transition-all ${
+                      i === currentEventIndex % featuredEvents.length
+                        ? 'bg-blue-600 w-8'
+                        : 'bg-gray-300 dark:bg-gray-700 w-2'
+                    }`}
+                    aria-label={`Go to event ${i + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 px-4 bg-gray-50 dark:bg-gray-900/50">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-4xl font-bold text-center mb-16 text-gray-900 dark:text-white">
+            Why Choose VeilPass?
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+            {[
+              {
+                icon: Shield,
+                title: 'Encrypted Everything',
+                desc: 'Your ticket data is encrypted on-chain using Zama fhEVM. Complete privacy guaranteed.',
+              },
+              {
+                icon: Zap,
+                title: 'Blind Auctions',
+                desc: 'Bid securely with encrypted amounts. No one knows your bid until auction closes.',
+              },
+              {
+                icon: Zap,
+                title: 'Fair Pricing',
+                desc: 'Dynamic pricing based on encrypted demand. Transparent, tamper-proof economics.',
+              },
+              {
+                icon: Users,
+                title: 'Community Trust',
+                desc: 'Government ID verification and dispute resolution. Safe for buyers and sellers.',
+              },
+            ].map((feature, i) => {
+              const Icon = feature.icon;
+              return (
+                <div key={i} className="flex gap-6">
+                  <div className="flex-shrink-0">
+                    <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600">
+                      <Icon className="h-6 w-6 text-white" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">{feature.title}</h3>
+                    <p className="text-gray-600 dark:text-gray-400">{feature.desc}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </main>
-    </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 px-4 bg-gradient-to-r from-blue-600 to-purple-600">
+        <div className="max-w-4xl mx-auto text-center text-white">
+          <h2 className="text-4xl font-bold mb-6">Ready to Experience Private Events?</h2>
+          <p className="text-xl mb-8 opacity-90">
+            Join thousands of users enjoying encrypted ticketing with VeilPass.
+          </p>
+          <Link
+            href="/dashboard"
+            className="inline-block px-8 py-4 rounded-lg bg-white text-purple-600 font-bold text-lg hover:shadow-xl transition-all hover:scale-105"
+          >
+            Get Started Now
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-gray-300 py-12 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+            <div>
+              <h3 className="font-bold text-white mb-4">VeilPass</h3>
+              <p className="text-sm">The private way to public events.</p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-white mb-4">Product</h4>
+              <ul className="space-y-2 text-sm">
+                <li><Link href="/events" className="hover:text-white transition">Events</Link></li>
+                <li><Link href="/auctions" className="hover:text-white transition">Auctions</Link></li>
+                <li><Link href="/loyalty" className="hover:text-white transition">Loyalty</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-white mb-4">For Creators</h4>
+              <ul className="space-y-2 text-sm">
+                <li><Link href="/sellers/register" className="hover:text-white transition">Become a Seller</Link></li>
+                <li><Link href="/dashboard" className="hover:text-white transition">Dashboard</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-white mb-4">Resources</h4>
+              <ul className="space-y-2 text-sm">
+                <li><a href="#" className="hover:text-white transition">Documentation</a></li>
+                <li><a href="#" className="hover:text-white transition">GitHub</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-gray-800 pt-8 text-sm text-center">
+            <p>&copy; 2025 VeilPass. Built with 🔒 and ❤️ for privacy.</p>
+          </div>
+        </div>
+      </footer>
+
+    </>
   );
 }
