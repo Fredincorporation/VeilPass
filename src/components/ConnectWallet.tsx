@@ -96,6 +96,10 @@ export function ConnectWallet() {
       // Store in localStorage so it persists across page refreshes
       localStorage.setItem('veilpass_account', userAccount);
       
+      // Dispatch custom event to notify other components (e.g., Dashboard)
+      const event = new Event('walletConnected');
+      window.dispatchEvent(event);
+      
       // Auto-redirect to dashboard after successful connection
       setTimeout(() => {
         router.push('/dashboard');

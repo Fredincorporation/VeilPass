@@ -28,6 +28,21 @@ export default function DashboardPage() {
       const role = getWalletRole(savedAccount);
       setUserRole(role);
     }
+
+    // Listen for wallet connection events and refresh the page
+    const handleWalletConnected = () => {
+      const updatedAccount = localStorage.getItem('veilpass_account');
+      if (updatedAccount && updatedAccount !== account) {
+        setAccount(updatedAccount);
+        const role = getWalletRole(updatedAccount);
+        setUserRole(role);
+        // Refresh the page to reload all data
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener('walletConnected', handleWalletConnected);
+    return () => window.removeEventListener('walletConnected', handleWalletConnected);
   }, []);
 
   const handleBroadcastChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLSelectElement>) => {
