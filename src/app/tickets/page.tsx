@@ -1,12 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Ticket, QrCode, Download, Share2, Calendar, MapPin, Users, Search, TrendingUp } from 'lucide-react';
+import { Ticket, QrCode, Download, Share2, Calendar, MapPin, Users, Search, TrendingUp, X, DollarSign } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
 
 export default function TicketsPage() {
   const { showSuccess, showInfo } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAuctionModal, setShowAuctionModal] = useState(false);
+  const [auctionForm, setAuctionForm] = useState({ listingPrice: '', minBid: '', reservePrice: '', duration: 24 });
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [tickets] = useState([
     {
       id: 'TK001',
@@ -57,8 +60,19 @@ export default function TicketsPage() {
     showSuccess(`"${eventName}" ticket link copied to clipboard`);
   };
 
-  const handleBidAuction = (ticketId: string, eventName: string) => {
-    showInfo(`Opening auction bidding for "${eventName}"...`);
+  const handleBidAuction = (ticket: any) => {
+    setSelectedTicket(ticket);
+    setShowAuctionModal(true);
+  };
+
+  const handleSubmitAuction = () => {
+    if (!auctionForm.listingPrice || !auctionForm.minBid) {
+      showInfo('Please fill in all required fields');
+      return;
+    }
+    showSuccess(`"${selectedTicket.event}" listed for ${auctionForm.duration}h auction starting at $${auctionForm.minBid}!`);
+    setShowAuctionModal(false);
+    setAuctionForm({ listingPrice: '', minBid: '', reservePrice: '', duration: 24 });
   };
 
   return (
@@ -179,7 +193,7 @@ export default function TicketsPage() {
 
                     {ticket.status !== 'active' && (
                       <button 
-                        onClick={() => handleBidAuction(ticket.id, ticket.event)}
+                        onClick={() => handleBidAuction(ticket)}
                         className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold flex items-center justify-center gap-2 transition-all duration-300 group/auction">
                         <TrendingUp className="w-4 h-4" />
                         List for Auction
@@ -198,6 +212,143 @@ export default function TicketsPage() {
             </div>
             <p className="text-gray-600 dark:text-gray-400 text-lg font-semibold mb-2">No tickets found</p>
             <p className="text-gray-500 dark:text-gray-500 text-sm">Try adjusting your search or browse events to purchase tickets</p>
+          </div>
+        )}
+
+        {/* Auction Modal */}
+        {showAuctionModal && selectedTicket && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-800 w-full max-w-md shadow-2xl">
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b-2 border-gray-200 dark:border-gray-800">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">List for Auction</h2>
+                <button
+                  onClick={() => setShowAuctionModal(false)}
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+                >
+                  <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 space-y-6">
+                {/* Ticket Info */}
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl p-4 space-y-2">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Event</p>
+                  <p className="font-bold text-gray-900 dark:text-white">{selectedTicket.event}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Original Price: <span className="font-semibold text-cyan-600 dark:text-cyan-400">${selectedTicket.price}</span></p>
+                </div>
+
+                {/* Form Fields */}
+                <div className="space-y-4">
+                  {/* Listing Price */}
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Listing Price (USD)</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+                      <input
+                        type="number"
+                        placeholder="Enter listing price"
+                        value={auctionForm.listingPrice}
+                        onChange={(e) => setAuctionForm({ ...auctionForm, listingPrice: e.target.value })}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 dark:focus:border-amber-400"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Minimum Bid */}
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Starting Bid (USD)</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+                      <input
+                        type="number"
+                        placeholder="Minimum starting bid"
+                        value={auctionForm.minBid}
+                        onChange={(e) => setAuctionForm({ ...auctionForm, minBid: e.target.value })}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 dark:focus:border-amber-400"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Reserve Price */}
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Reserve Price (USD) <span className="text-xs text-gray-500">Optional</span></label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+                      <input
+                        type="number"
+                        placeholder="Minimum acceptable offer"
+                        value={auctionForm.reservePrice}
+                        onChange={(e) => setAuctionForm({ ...auctionForm, reservePrice: e.target.value })}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 dark:focus:border-amber-400"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Auction Duration */}
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 block">Auction Duration</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      <button
+                        onClick={() => setAuctionForm({ ...auctionForm, duration: 24 })}
+                        className={`p-4 rounded-lg border-2 font-semibold transition-all ${
+                          auctionForm.duration === 24
+                            ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300'
+                            : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-amber-300 dark:hover:border-amber-600'
+                        }`}
+                      >
+                        <div className="text-lg">24hrs</div>
+                        <div className="text-xs opacity-75">1 day</div>
+                      </button>
+                      <button
+                        onClick={() => setAuctionForm({ ...auctionForm, duration: 48 })}
+                        className={`p-4 rounded-lg border-2 font-semibold transition-all ${
+                          auctionForm.duration === 48
+                            ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300'
+                            : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-amber-300 dark:hover:border-amber-600'
+                        }`}
+                      >
+                        <div className="text-lg">48hrs</div>
+                        <div className="text-xs opacity-75">2 days</div>
+                      </button>
+                      <button
+                        onClick={() => setAuctionForm({ ...auctionForm, duration: 72 })}
+                        className={`p-4 rounded-lg border-2 font-semibold transition-all ${
+                          auctionForm.duration === 72
+                            ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300'
+                            : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-amber-300 dark:hover:border-amber-600'
+                        }`}
+                      >
+                        <div className="text-lg">72hrs</div>
+                        <div className="text-xs opacity-75">3 days</div>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Info */}
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                  <p className="text-xs text-blue-700 dark:text-blue-300">💡 Tip: Set a starting bid lower than your listing price to attract more bidders.</p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 p-6 border-t-2 border-gray-200 dark:border-gray-800">
+                <button
+                  onClick={() => setShowAuctionModal(false)}
+                  className="flex-1 px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSubmitAuction}
+                  className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold transition"
+                >
+                  List for Auction
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

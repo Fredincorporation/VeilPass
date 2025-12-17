@@ -14,13 +14,10 @@ export default function SellerSettingsPage() {
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
 
   const [profileData, setProfileData] = useState({
-    email: 'john@example.com',
     businessName: 'John Events Co.',
   });
 
   const [notificationPrefs, setNotificationPrefs] = useState({
-    emailNotifications: true,
-    smsNotifications: false,
     newsAndUpdates: true,
     eventReminders: true,
   });
@@ -119,19 +116,6 @@ export default function SellerSettingsPage() {
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide mb-2">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={profileData.email}
-                    onChange={handleProfileChange}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:border-cyan-500 dark:focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 transition"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide mb-2">
                     Business Name
                   </label>
                   <input
@@ -169,8 +153,6 @@ export default function SellerSettingsPage() {
                             .trim()}
                         </p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {key === 'emailNotifications' && 'Receive notifications via email'}
-                          {key === 'smsNotifications' && 'Receive notifications via SMS'}
                           {key === 'newsAndUpdates' && 'Get news and feature updates'}
                           {key === 'eventReminders' && 'Reminders for upcoming events'}
                         </p>

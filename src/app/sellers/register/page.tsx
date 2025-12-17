@@ -7,7 +7,6 @@ export default function SellerRegisterPage() {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     businessName: '',
-    email: '',
     businessType: '',
     idDocument: null as File | null,
   });
@@ -94,18 +93,6 @@ export default function SellerRegisterPage() {
                   value={formData.businessName}
                   onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
                   placeholder="Your event company name"
-                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2 uppercase tracking-wide">Email Address</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="contact@yourcompany.com"
                   className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
                   required
                 />

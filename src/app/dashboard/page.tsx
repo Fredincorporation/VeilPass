@@ -2,13 +2,23 @@
 
 import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
+import { useTranslation } from '@/lib/translation-context';
 import { getWalletRole } from '@/lib/wallet-roles';
-import { Ticket, Gift, Gavel, UserPlus, LogOut, Calendar, Plus, BarChart3, Settings, AlertCircle, QrCode, Shield } from 'lucide-react';
+import { useToast } from '@/components/ToastContainer';
+import { Ticket, Gift, Gavel, UserPlus, LogOut, Calendar, Plus, BarChart3, Settings, AlertCircle, QrCode, Shield, Heart, Megaphone, Send, X } from 'lucide-react';
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
+  const { showSuccess, showError } = useToast();
   const [account, setAccount] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<'customer' | 'seller' | 'admin'>('customer');
   const [isClient, setIsClient] = useState(false);
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [broadcastForm, setBroadcastForm] = useState({
+    message: '',
+    userType: 'customer',
+  });
 
   useEffect(() => {
     setIsClient(true);
@@ -20,6 +30,31 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const handleBroadcastChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setBroadcastForm(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSendBroadcast = async () => {
+    if (!broadcastForm.message.trim()) {
+      showError('Please enter a message');
+      return;
+    }
+
+    setIsSending(true);
+    
+    setTimeout(() => {
+      const userTypeLabel = broadcastForm.userType === 'customer' ? 'Customers' : 'Sellers';
+      showSuccess(`Broadcast sent successfully to all ${userTypeLabel}!`);
+      setBroadcastForm({ message: '', userType: 'customer' });
+      setShowBroadcastModal(false);
+      setIsSending(false);
+    }, 1000);
+  };
+
   // Let DashboardLayout handle the display - don't return null here
   return (
     <DashboardLayout>
@@ -30,20 +65,20 @@ export default function DashboardPage() {
           <>
             {/* Stats Cards - Display Only */}
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Your Statistics</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('dashboard.stats', 'Your Statistics')}</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-6 border border-blue-200 dark:border-blue-700">
-                  <p className="text-sm font-medium text-blue-600 dark:text-blue-300 uppercase tracking-wide mb-2">Active Tickets</p>
+                  <p className="text-sm font-medium text-blue-600 dark:text-blue-300 uppercase tracking-wide mb-2">{t('dashboard.active_tickets', 'Active Tickets')}</p>
                   <p className="text-4xl font-bold text-blue-900 dark:text-blue-100">3</p>
                   <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">Pending events</p>
                 </div>
                 <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-6 border border-purple-200 dark:border-purple-700">
-                  <p className="text-sm font-medium text-purple-600 dark:text-purple-300 uppercase tracking-wide mb-2">Loyalty Points</p>
+                  <p className="text-sm font-medium text-purple-600 dark:text-purple-300 uppercase tracking-wide mb-2">{t('dashboard.loyalty_points', 'Loyalty Points')}</p>
                   <p className="text-4xl font-bold text-purple-900 dark:text-purple-100">5,450</p>
                   <p className="text-xs text-purple-600 dark:text-purple-400 mt-2">Available to redeem</p>
                 </div>
                 <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-6 border border-green-200 dark:border-green-700">
-                  <p className="text-sm font-medium text-green-600 dark:text-green-300 uppercase tracking-wide mb-2">Total Spent</p>
+                  <p className="text-sm font-medium text-green-600 dark:text-green-300 uppercase tracking-wide mb-2">{t('dashboard.total_spent', 'Total Spent')}</p>
                   <p className="text-4xl font-bold text-green-900 dark:text-green-100">$1,240</p>
                   <p className="text-xs text-green-600 dark:text-green-400 mt-2">All time spending</p>
                 </div>
@@ -52,7 +87,7 @@ export default function DashboardPage() {
 
             {/* Action Cards - Clickable */}
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('dashboard.quick_actions', 'Quick Actions')}</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <a href="/tickets" className="group relative overflow-hidden bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]">
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 to-blue-500/0 group-hover:from-blue-500/5 group-hover:to-blue-500/10 transition-all" />
@@ -63,8 +98,8 @@ export default function DashboardPage() {
                       </div>
                       <span className="text-2xl group-hover:translate-x-1 transition-transform">→</span>
                     </div>
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">My Tickets</h3>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm">View and manage all your event tickets</p>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{t('dashboard.my_tickets', 'My Tickets')}</h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">{t('dashboard.view_manage_tickets', 'View and manage all your event tickets')}</p>
                   </div>
                 </a>
 
@@ -77,8 +112,8 @@ export default function DashboardPage() {
                       </div>
                       <span className="text-2xl group-hover:translate-x-1 transition-transform">→</span>
                     </div>
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Loyalty Rewards</h3>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm">Redeem your loyalty points</p>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">{t('dashboard.loyalty_rewards', 'Loyalty Rewards')}</h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">{t('dashboard.redeem_points', 'Redeem your loyalty points')}</p>
                   </div>
                 </a>
 
@@ -91,8 +126,36 @@ export default function DashboardPage() {
                       </div>
                       <span className="text-2xl group-hover:translate-x-1 transition-transform">→</span>
                     </div>
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">Blind Auctions</h3>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm">Bid on exclusive tickets</p>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">{t('dashboard.blind_auctions', 'Blind Auctions')}</h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">{t('dashboard.bid_exclusive', 'Bid on exclusive tickets')}</p>
+                  </div>
+                </a>
+
+                <a href="/wishlist" className="group relative overflow-hidden bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-red-500 dark:hover:border-red-400 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]">
+                  <div className="absolute inset-0 bg-gradient-to-r from-red-500/0 to-red-500/0 group-hover:from-red-500/5 group-hover:to-red-500/10 transition-all" />
+                  <div className="p-6 relative">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg group-hover:bg-red-200 dark:group-hover:bg-red-800/50 transition-colors">
+                        <Heart className="w-6 h-6 text-red-600 dark:text-red-400" />
+                      </div>
+                      <span className="text-2xl group-hover:translate-x-1 transition-transform">→</span>
+                    </div>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">{t('dashboard.my_wishlist', 'My Wishlist')}</h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">{t('dashboard.view_saved', 'View events you\'ve saved')}</p>
+                  </div>
+                </a>
+
+                <a href="/settings" className="group relative overflow-hidden bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-teal-500 dark:hover:border-teal-400 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]">
+                  <div className="absolute inset-0 bg-gradient-to-r from-teal-500/0 to-teal-500/0 group-hover:from-teal-500/5 group-hover:to-teal-500/10 transition-all" />
+                  <div className="p-6 relative">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="p-3 bg-teal-100 dark:bg-teal-900/30 rounded-lg group-hover:bg-teal-200 dark:group-hover:bg-teal-800/50 transition-colors">
+                        <Settings className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                      </div>
+                      <span className="text-2xl group-hover:translate-x-1 transition-transform">→</span>
+                    </div>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{t('settings.title', 'Settings')}</h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">{t('dashboard.view_saved', 'Manage account and preferences')}</p>
                   </div>
                 </a>
 
@@ -119,8 +182,8 @@ export default function DashboardPage() {
                       </div>
                       <span className="text-2xl group-hover:translate-x-1 transition-transform">→</span>
                     </div>
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">Raise a Dispute</h3>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm">Report an issue or file a complaint</p>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">{t('dashboard.raise_dispute', 'Raise a Dispute')}</h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">{t('dashboard.report_issue', 'Report an issue or file a complaint')}</p>
                   </div>
                 </a>
               </div>
@@ -133,7 +196,7 @@ export default function DashboardPage() {
           <>
             {/* Stats Cards - Display Only */}
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Your Statistics</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('dashboard.stats', 'Your Statistics')}</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20 rounded-lg p-6 border border-indigo-200 dark:border-indigo-700">
                   <p className="text-sm font-medium text-indigo-600 dark:text-indigo-300 uppercase tracking-wide mb-2">Events Created</p>
@@ -335,6 +398,19 @@ export default function DashboardPage() {
                   </div>
                 </a>
 
+                <button onClick={() => setShowBroadcastModal(true)} className="group relative overflow-hidden bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-purple-500 dark:hover:border-purple-400 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]">
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 to-purple-500/0 group-hover:from-purple-500/5 group-hover:to-purple-500/10 transition-all" />
+                  <div className="p-6 relative">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg group-hover:bg-purple-200 dark:group-hover:bg-purple-800/50 transition-colors">
+                        <Megaphone className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                      </div>
+                    </div>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors text-left">Send Broadcast</h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm text-left">Send news and promotions to users</p>
+                  </div>
+                </button>
+
                 <a href="/admin/settings" className="group relative overflow-hidden bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-400 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]">
                   <div className="absolute inset-0 bg-gradient-to-r from-orange-500/0 to-orange-500/0 group-hover:from-orange-500/5 group-hover:to-orange-500/10 transition-all" />
                   <div className="p-6 relative">
@@ -352,6 +428,92 @@ export default function DashboardPage() {
             </div>
           </>
         )}
+        </div>
+      )}
+
+      {/* Broadcast Modal */}
+      {showBroadcastModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-900 rounded-lg max-w-2xl w-full border-2 border-gray-200 dark:border-gray-800">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b-2 border-gray-200 dark:border-gray-800">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Megaphone className="w-6 h-6 text-purple-600" />
+                Send Broadcast Message
+              </h3>
+              <button
+                onClick={() => setShowBroadcastModal(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              {/* User Type Selection */}
+              <div>
+                <label className="block text-sm font-bold text-gray-900 dark:text-white mb-3">
+                  Send to:
+                </label>
+                <select
+                  name="userType"
+                  value={broadcastForm.userType}
+                  onChange={handleBroadcastChange}
+                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-semibold focus:outline-none focus:border-purple-600 transition-colors"
+                >
+                  <option value="customer">All Customers</option>
+                  <option value="seller">All Sellers</option>
+                </select>
+              </div>
+
+              {/* Message Input */}
+              <div>
+                <label className="block text-sm font-bold text-gray-900 dark:text-white mb-3">
+                  Message (HTML supported):
+                </label>
+                <textarea
+                  name="message"
+                  value={broadcastForm.message}
+                  onChange={handleBroadcastChange}
+                  placeholder="Type your broadcast message... You can use HTML tags like <b>, <i>, <u>, <a href=...>, etc."
+                  className="w-full h-40 px-4 py-3 rounded-lg border-2 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:border-purple-600 transition-colors resize-none"
+                />
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                  Character count: {broadcastForm.message.length}
+                </p>
+              </div>
+
+              {/* Preview */}
+              {broadcastForm.message && (
+                <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg border-2 border-gray-300 dark:border-gray-700">
+                  <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Preview:</p>
+                  <div
+                    className="text-gray-900 dark:text-white text-sm"
+                    dangerouslySetInnerHTML={{ __html: broadcastForm.message }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 p-6 border-t-2 border-gray-200 dark:border-gray-800">
+              <button
+                onClick={() => setShowBroadcastModal(false)}
+                className="px-6 py-3 rounded-lg border-2 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendBroadcast}
+                disabled={isSending}
+                className="px-6 py-3 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold transition-all duration-300 flex items-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                {isSending ? 'Sending...' : 'Send Broadcast'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </DashboardLayout>

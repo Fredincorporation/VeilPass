@@ -1,17 +1,24 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Lock, Search, Clock, Users, Zap, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Lock, Search, Clock, Users, Zap, ChevronRight, X, DollarSign } from 'lucide-react';
+import { useToast } from '@/components/ToastContainer';
 
 export default function AuctionsPage() {
+  const { showSuccess, showInfo } = useToast();
   const [activeFilter, setActiveFilter] = useState('all');
+  const [showBidModal, setShowBidModal] = useState(false);
+  const [selectedAuction, setSelectedAuction] = useState<any>(null);
+  const [bidAmount, setBidAmount] = useState('');
+  const [timeState, setTimeState] = useState<{[key: number]: {timeLeft: string; progress: number}}>({});
 
   const auctions = [
     {
       id: 1,
       title: 'Summer Music Fest - Front Row',
       encryptedBid: '****...',
-      timeLeft: '2h 30m',
+      endTime: new Date(Date.now() + 2.5 * 60 * 60 * 1000), // 2h 30m from now
+      totalDuration: 2.5 * 60 * 60 * 1000, // 2h 30m total
       bids: 12,
       minBid: 250,
     },
@@ -19,11 +26,65 @@ export default function AuctionsPage() {
       id: 2,
       title: 'Tech Conference - VIP Pass',
       encryptedBid: '****...',
-      timeLeft: '5h 15m',
+      endTime: new Date(Date.now() + 5.25 * 60 * 60 * 1000), // 5h 15m from now
+      totalDuration: 5.25 * 60 * 60 * 1000, // 5h 15m total
       bids: 8,
       minBid: 500,
     },
   ];
+
+  useEffect(() => {
+    const updateTimers = () => {
+      const now = new Date().getTime();
+      const newTimeState: {[key: number]: {timeLeft: string; progress: number}} = {};
+
+      auctions.forEach((auction) => {
+        const timeRemaining = auction.endTime.getTime() - now;
+        
+        if (timeRemaining <= 0) {
+          newTimeState[auction.id] = { timeLeft: 'Ended', progress: 0 };
+        } else {
+          // Calculate time left
+          const hours = Math.floor(timeRemaining / (1000 * 60 * 60));
+          const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+          
+          // Calculate progress percentage
+          const progress = ((auction.totalDuration - timeRemaining) / auction.totalDuration) * 100;
+          
+          newTimeState[auction.id] = {
+            timeLeft: `${hours}h ${minutes}m`,
+            progress: Math.max(0, Math.min(100, progress)),
+          };
+        }
+      });
+
+      setTimeState(newTimeState);
+    };
+
+    updateTimers();
+    const interval = setInterval(updateTimers, 1000); // Update every second
+    return () => clearInterval(interval);
+  }, []);
+
+  const handlePlaceBid = (auction: any) => {
+    setSelectedAuction(auction);
+    setBidAmount('');
+    setShowBidModal(true);
+  };
+
+  const handleSubmitBid = () => {
+    if (!bidAmount) {
+      showInfo('Please enter a bid amount');
+      return;
+    }
+    if (parseInt(bidAmount) < selectedAuction.minBid) {
+      showInfo(`Bid must be at least $${selectedAuction.minBid}`);
+      return;
+    }
+    showSuccess(`Encrypted bid of $${bidAmount} placed on "${selectedAuction.title}"!`);
+    setShowBidModal(false);
+    setBidAmount('');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-950 dark:to-black pt-24 pb-20">
@@ -56,7 +117,7 @@ export default function AuctionsPage() {
         {/* Auction Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {auctions.map((auction) => {
-            const timeProgress = 100 - Math.random() * 40;
+            const time = timeState[auction.id] || { timeLeft: 'Loading...', progress: 0 };
             return (
               <div
                 key={auction.id}
@@ -92,10 +153,10 @@ export default function AuctionsPage() {
                         <Clock className="w-4 h-4 text-red-600 dark:text-red-400" />
                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Time Left</span>
                       </div>
-                      <span className="text-sm font-bold text-red-600 dark:text-red-400">{auction.timeLeft}</span>
+                      <span className="text-sm font-bold text-red-600 dark:text-red-400">{time.timeLeft}</span>
                     </div>
                     <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
-                      <div className="bg-gradient-to-r from-red-500 to-orange-500 h-2 rounded-full" style={{ width: `${timeProgress}%` }} />
+                      <div className="bg-gradient-to-r from-red-500 to-orange-500 h-2 rounded-full transition-all duration-300" style={{ width: `${time.progress}%` }} />
                     </div>
                   </div>
 
@@ -118,7 +179,7 @@ export default function AuctionsPage() {
                   </div>
 
                   {/* Action Button */}
-                  <button className="w-full px-4 py-3 rounded-lg bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-semibold transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/30 group/btn flex items-center justify-center gap-2">
+                  <button onClick={() => handlePlaceBid(auction)} className="w-full px-4 py-3 rounded-lg bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-semibold transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/30 group/btn flex items-center justify-center gap-2">
                     Place Encrypted Bid
                     <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
                   </button>
@@ -136,6 +197,81 @@ export default function AuctionsPage() {
             </div>
             <p className="text-lg font-semibold text-gray-600 dark:text-gray-400">No active auctions</p>
             <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">Check back soon for exclusive blind auctions</p>
+          </div>
+        )}
+
+        {/* Bid Modal */}
+        {showBidModal && selectedAuction && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-800 w-full max-w-md shadow-2xl">
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b-2 border-gray-200 dark:border-gray-800">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Place Encrypted Bid</h2>
+                <button
+                  onClick={() => setShowBidModal(false)}
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+                >
+                  <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 space-y-6">
+                {/* Auction Info */}
+                <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-xl p-4 space-y-2 border border-indigo-200 dark:border-indigo-800">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Auction</p>
+                  <p className="font-bold text-gray-900 dark:text-white line-clamp-2">{selectedAuction.title}</p>
+                  <div className="flex items-center gap-4 mt-3 pt-3 border-t border-indigo-200 dark:border-indigo-700">
+                    <div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Minimum Bid</p>
+                      <p className="font-bold text-indigo-600 dark:text-indigo-400">${selectedAuction.minBid}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Current Bids</p>
+                      <p className="font-bold text-indigo-600 dark:text-indigo-400">{selectedAuction.bids}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bid Amount Input */}
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Your Bid Amount (USD)</label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+                    <input
+                      type="number"
+                      placeholder={`Minimum $${selectedAuction.minBid}`}
+                      value={bidAmount}
+                      onChange={(e) => setBidAmount(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">Your bid will be encrypted and kept confidential</p>
+                </div>
+
+                {/* Security Info */}
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex gap-2">
+                  <Lock className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-blue-700 dark:text-blue-300">All bids are encrypted and hidden from other bidders until auction ends</p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 p-6 border-t-2 border-gray-200 dark:border-gray-800">
+                <button
+                  onClick={() => setShowBidModal(false)}
+                  className="flex-1 px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSubmitBid}
+                  className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-semibold transition"
+                >
+                  Place Bid
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

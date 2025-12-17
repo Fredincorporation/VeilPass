@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { ThemeSwitcher } from './ThemeSwitcher';
+import { LanguageSelector } from './LanguageSelector';
 import { ConnectWallet } from './ConnectWallet';
 import { Bell } from 'lucide-react';
 
@@ -33,7 +34,7 @@ export function Header() {
           </Link>
         </nav>
 
-        {/* Right side: Notifications + Theme + Connect Wallet */}
+        {/* Right side: Notifications + Language + Theme + Connect Wallet */}
         <div className="flex items-center gap-4">
           <Link
             href="/notifications"
@@ -43,6 +44,7 @@ export function Header() {
             <Bell className="w-5 h-5" />
             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
           </Link>
+          <LanguageSelector />
           <ThemeSwitcher />
           <ConnectWallet />
         </div>

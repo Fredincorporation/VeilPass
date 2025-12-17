@@ -174,7 +174,9 @@ export default function EventsPage() {
         {/* Events Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredEvents.map((event) => {
-            const capacityPercent = (parseInt(event.capacity.split(' / ')[0].replace(',', '')) / parseInt(event.capacity.split(' / ')[1])) * 100;
+            const available = parseInt(event.capacity.split(' / ')[0].replace(/,/g, ''));
+            const total = parseInt(event.capacity.split(' / ')[1].replace(/,/g, ''));
+            const capacityPercent = (available / total) * 100;
             return (
               <Link key={event.id} href={`/events/${event.id}`}>
                 <div className="group relative bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden hover:border-blue-500 dark:hover:border-blue-400 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/20 hover:-translate-y-2 cursor-pointer h-full flex flex-col">
@@ -247,8 +249,8 @@ export default function EventsPage() {
                         <span className="font-bold text-sm text-blue-600 dark:text-blue-400">{event.price}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Loyalty Points</span>
-                        <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold">+100 pts</span>
+                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Loyalty Rewards</span>
+                        <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold">+100 pts/$1K in ETH</span>
                       </div>
                     </div>
                   </div>
