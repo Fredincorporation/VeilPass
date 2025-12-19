@@ -5,13 +5,16 @@ import { useParams } from 'next/navigation';
 import { DollarSign, ShoppingCart, Lock, CheckCircle, Info, Users, Clock, MapPin, Heart, Share2 } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
 import { useEventDetail } from '@/hooks/useEventDetail';
+import { useEthPrice } from '@/hooks/useEthPrice';
 import { useWishlists, useAddToWishlist, useRemoveFromWishlist } from '@/hooks/useWishlists';
 import { formatDate, formatTime } from '@/lib/date-formatter';
+import { formatEth, ethToUsd } from '@/lib/currency-utils';
 
 export default function EventDetailPage() {
   const params = useParams();
   const eventId = params.eventId as string;
   const { showSuccess, showError, showWarning, showInfo } = useToast();
+  const { price: ethPrice } = useEthPrice();
   const [selectedTier, setSelectedTier] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [showDeFiModal, setShowDeFiModal] = useState(false);
@@ -266,8 +269,8 @@ export default function EventDetailPage() {
                           <CheckCircle className="w-6 h-6 text-blue-600 flex-shrink-0" />
                         )}
                       </div>
-                      <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-1">{tier.price.toFixed(4)} ETH</p>
-                      <p className="text-xs text-gray-500 mb-4">per ticket</p>
+                      <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-1">{formatEth(tier.price)}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-500 mb-4">{ethToUsd(tier.price)}</p>
                       <ul className="space-y-2">
                         {tier.features.map((feature, idx) => (
                           <li key={idx} className="flex items-start gap-2 text-xs text-gray-700 dark:text-gray-300">
@@ -289,9 +292,10 @@ export default function EventDetailPage() {
               {/* Price Section */}
               <div className="mb-8 pb-8 border-b border-gray-200 dark:border-gray-800">
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Price Per Ticket</p>
-                <p className="text-4xl font-bold text-gray-900 dark:text-white">
-                  {ticketPrice.toFixed(4)} <span className="text-lg font-semibold text-gray-500">ETH</span>
+                <p className="text-4xl font-bold text-gray-900 dark:text-white mb-1">
+                  {formatEth(ticketPrice)}
                 </p>
+                <p className="text-sm text-gray-600 dark:text-gray-500">{ethToUsd(ticketPrice)}</p>
               </div>
 
               {/* Quantity Selector */}
@@ -323,7 +327,10 @@ export default function EventDetailPage() {
               <div className="mb-8 pb-8 border-b border-gray-200 dark:border-gray-800 space-y-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">Unit price</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{ticketPrice.toFixed(4)} ETH</span>
+                  <div className="flex flex-col items-end gap-0.5">
+                    <span className="font-semibold text-gray-900 dark:text-white">{formatEth(ticketPrice)}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-500">{ethToUsd(ticketPrice)}</span>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">Quantity</span>
@@ -338,16 +345,24 @@ export default function EventDetailPage() {
               {/* Total */}
               <div className="mb-8 p-5 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800">
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Total</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">{totalPrice.toFixed(2)} ETH</p>
+                <div className="flex flex-col gap-1">
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">{formatEth(totalPrice)}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-500">{ethToUsd(totalPrice)}</p>
+                </div>
               </div>
 
               {/* Purchase Button */}
               <button
                 onClick={handlePurchase}
-                className="w-full px-6 py-4 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-lg hover:shadow-lg transition flex items-center justify-center gap-2 mb-4"
+                disabled={event?.status === 'Pre-Sale'}
+                className={`w-full px-6 py-4 rounded-lg text-white font-bold text-lg flex items-center justify-center gap-2 mb-4 transition ${
+                  event?.status === 'Pre-Sale'
+                    ? 'bg-gray-400 cursor-not-allowed opacity-60'
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg'
+                }`}
               >
                 <ShoppingCart className="w-5 h-5" />
-                Get Tickets
+                {event?.status === 'Pre-Sale' ? 'Coming Soon - Pre-Sale' : 'Get Tickets'}
               </button>
 
               {/* Trust Signals */}

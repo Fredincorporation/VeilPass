@@ -2,9 +2,12 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { BarChart3, Users, AlertCircle, FileText, Shield, CheckCircle } from 'lucide-react';
+import { BarChart3, Users, AlertCircle, FileText, Shield, CheckCircle, RotateCw } from 'lucide-react';
+import { useAdminStats } from '@/hooks/useAdminStats';
 
 export default function AdminPage() {
+  const { data: stats, isLoading, error, refetch } = useAdminStats();
+
   const adminSections = [
     {
       title: 'Event Approvals',
@@ -90,24 +93,72 @@ export default function AdminPage() {
 
         {/* Quick Stats */}
         <div className="mt-12 bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-800 p-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Platform Overview</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Platform Overview</h2>
+            <button
+              onClick={() => refetch()}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg transition-colors"
+            >
+              <RotateCw className="w-4 h-4" />
+              Refresh
+            </button>
+          </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {error && (
+            <div className="mb-6 p-4 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-100 rounded-lg">
+              Error loading stats: {error.message}
+            </div>
+          )}
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="text-center">
-              <div className="text-4xl font-bold text-indigo-600 dark:text-indigo-400 mb-2">—</div>
+              <div className="text-4xl font-bold text-indigo-600 dark:text-indigo-400 mb-2">
+                {isLoading ? (
+                  <span className="animate-pulse">—</span>
+                ) : stats ? (
+                  stats.totalUsers || 0
+                ) : (
+                  '0'
+                )}
+              </div>
               <p className="text-gray-600 dark:text-gray-400">Total Users</p>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-bold text-blue-600 dark:text-blue-400 mb-2">—</div>
-              <p className="text-gray-600 dark:text-gray-400">Active Sellers</p>
+              <div className="text-4xl font-bold text-blue-600 dark:text-blue-400 mb-2">
+                {isLoading ? (
+                  <span className="animate-pulse">—</span>
+                ) : stats ? (
+                  stats.totalTransactions || 0
+                ) : (
+                  '0'
+                )}
+              </div>
+              <p className="text-gray-600 dark:text-gray-400">Transactions</p>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-bold text-red-600 dark:text-red-400 mb-2">—</div>
-              <p className="text-gray-600 dark:text-gray-400">Open Disputes</p>
+              <div className="text-4xl font-bold text-red-600 dark:text-red-400 mb-2">
+                {isLoading ? (
+                  <span className="animate-pulse">—</span>
+                ) : stats ? (
+                  stats.openDisputes || 0
+                ) : (
+                  '0'
+                )}
+              </div>
+              <p className="text-gray-600 dark:text-gray-400">Active Disputes</p>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-bold text-green-600 dark:text-green-400 mb-2">—</div>
-              <p className="text-gray-600 dark:text-gray-400">Total Events</p>
+              <div className="text-4xl font-bold text-green-600 dark:text-green-400 mb-2">
+                {isLoading ? (
+                  <span className="animate-pulse">—</span>
+                ) : stats ? (
+                  `${stats.platformVolume || '0.0000'} ETH`
+                ) : (
+                  '0.0000 ETH'
+                )}
+              </div>
+              <p className="text-gray-600 dark:text-gray-400">Platform Volume</p>
             </div>
           </div>
         </div>

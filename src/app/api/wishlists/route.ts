@@ -6,11 +6,9 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const userAddress = url.searchParams.get('user');
 
+    // Return empty array if no user address provided
     if (!userAddress) {
-      return NextResponse.json(
-        { error: 'User address is required' },
-        { status: 400 }
-      );
+      return NextResponse.json([]);
     }
 
     const { data, error } = await supabase
@@ -19,15 +17,19 @@ export async function GET(request: NextRequest) {
       .eq('user_address', userAddress)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      // If table doesn't exist yet, return empty array instead of error
+      if (error.code === '42P01') {
+        return NextResponse.json([]);
+      }
+      throw error;
+    }
 
     return NextResponse.json(data || []);
   } catch (error: any) {
     console.error('Error fetching wishlists:', error);
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+    // Return empty array on error instead of 500 to prevent cascading failures
+    return NextResponse.json([], { status: 200 });
   }
 }
 

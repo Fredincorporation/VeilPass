@@ -4,12 +4,15 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Search, ChevronRight, Zap, Users, Calendar, MapPin } from 'lucide-react';
 import { useEvents } from '@/hooks/useEvents';
+import { useEthPrice } from '@/hooks/useEthPrice';
 import { formatDate } from '@/lib/date-formatter';
+import { formatEth, ethToUsd } from '@/lib/currency-utils';
 
 export default function EventsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const { data: events = [], isLoading, error } = useEvents();
+  const { price: ethPrice } = useEthPrice();
 
   const filteredEvents = events.filter((event: any) => {
     const matchesSearch =
@@ -171,11 +174,14 @@ export default function EventsPage() {
 
                     {/* Price Info */}
                     <div className="space-y-2 mt-auto flex-shrink-0">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col gap-1">
                         <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Base Price</span>
-                        <span className="font-bold text-sm text-blue-600 dark:text-blue-400">{event.base_price} ETH</span>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-bold text-sm text-blue-600 dark:text-blue-400">{formatEth(event.base_price)}</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-500">{ethToUsd(event.base_price)}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-800">
                         <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Loyalty Rewards</span>
                         <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold">+100 pts/$1K in ETH</span>
                       </div>

@@ -1,63 +1,28 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Gavel, Search, Filter, MessageSquare, CheckCircle, XCircle, Clock, Eye, MessageCircle } from 'lucide-react';
+import { Gavel, Search, Filter, MessageSquare, CheckCircle, XCircle, Clock, MessageCircle } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
 import { useAdminDisputes, useUpdateDisputeStatus } from '@/hooks/useAdmin';
+import { useDisputeMessages, useSendDisputeMessage } from '@/hooks/useDisputeMessages';
+import { useWalletAuthentication } from '@/hooks/useWalletAuthentication';
 
 export default function AdminDisputesPage() {
   const { showSuccess, showError, showInfo } = useToast();
+  const { userAddress } = useWalletAuthentication();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedDispute, setSelectedDispute] = useState<number | null>(null);
   const [resolution, setResolution] = useState('');
+  const [messageText, setMessageText] = useState('');
 
   // Fetch disputes from database
-  const { data: dbDisputes = [], isLoading } = useAdminDisputes(filterStatus === 'all' ? undefined : filterStatus);
+  const { data: disputes = [], isLoading } = useAdminDisputes(filterStatus === 'all' ? undefined : filterStatus);
   const { mutate: updateDisputeStatus } = useUpdateDisputeStatus();
-
-  // Fallback to mock data if no database disputes
-  const [disputes, setDisputes] = useState(dbDisputes.length > 0 ? dbDisputes : [
-    {
-      id: 1,
-      ticket_id: 'TK123',
-      event: 'Summer Music Fest',
-      status: 'OPEN' as const,
-      reason: 'Ticket not received',
-      description: 'I did not receive my ticket confirmation email',
-      claimant: 'john.doe@example.com',
-      seller: 'Event Promoter Inc',
-      created_at: '2025-01-15',
-      priority: 'HIGH',
-      amount: '$285',
-    },
-    {
-      id: 2,
-      ticket_id: 'TK456',
-      event: 'Comedy Night',
-      status: 'UNDER_REVIEW' as const,
-      reason: 'Event cancelled',
-      description: 'Event was cancelled without proper notice',
-      claimant: 'sarah.smith@example.com',
-      seller: 'Comedy Org LLC',
-      created_at: '2025-01-12',
-      priority: 'MEDIUM',
-      amount: '$150',
-    },
-    {
-      id: 3,
-      ticket_id: 'TK789',
-      event: 'Art Expo 2025',
-      status: 'OPEN' as const,
-      reason: 'Quality issue',
-      description: 'Physical ticket has printing defect',
-      claimant: 'mike.wilson@example.com',
-      seller: 'Art Events Co',
-      created_at: '2025-01-10',
-      priority: 'LOW',
-      amount: '$95',
-    },
-  ]);
+  
+  // Fetch messages for selected dispute
+  const { data: messages = [], isLoading: messagesLoading } = useDisputeMessages(selectedDispute);
+  const { mutate: sendMessage } = useSendDisputeMessage();
 
   const filteredDisputes = disputes.filter(dispute => {
     const matchesSearch = String(dispute.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -70,11 +35,11 @@ export default function AdminDisputesPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'OPEN':
-        return 'from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20 border-red-300 dark:border-red-800';
-      case 'UNDER_REVIEW':
-        return 'from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-300 dark:border-amber-800';
+        return 'from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-300 dark:border-blue-800';
       case 'RESOLVED':
         return 'from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-300 dark:border-green-800';
+      case 'REJECTED':
+        return 'from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20 border-red-300 dark:border-red-800';
       default:
         return 'from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-gray-300 dark:border-gray-700';
     }
@@ -99,20 +64,60 @@ export default function AdminDisputesPage() {
       return;
     }
 
-    setDisputes(disputes.map(d => 
-      d.id === disputeId 
-        ? { ...d, status: action === 'approve' ? 'RESOLVED' : 'REJECTED' }
-        : d
-    ));
+    const newStatus = action === 'approve' ? 'RESOLVED' : 'REJECTED';
+    
+    updateDisputeStatus(
+      {
+        id: disputeId,
+        status: newStatus,
+        resolution: resolution.trim(),
+      },
+      {
+        onSuccess: () => {
+          if (action === 'approve') {
+            showSuccess(`Dispute ${disputeId} has been resolved - refund approved`);
+          } else {
+            showSuccess(`Dispute ${disputeId} has been rejected - claimant notified`);
+          }
+          setSelectedDispute(null);
+          setResolution('');
+        },
+        onError: () => {
+          showError('Failed to update dispute status');
+        },
+      }
+    );
+  };
 
-    if (action === 'approve') {
-      showSuccess(`Dispute ${disputeId} has been resolved - refund approved`);
-    } else {
-      showError(`Dispute ${disputeId} has been rejected - claimant notified`);
+  const handleSendMessage = () => {
+    if (!messageText.trim()) {
+      showError('Please enter a message');
+      return;
     }
 
-    setSelectedDispute(null);
-    setResolution('');
+    if (!selectedDispute) {
+      showError('No dispute selected');
+      return;
+    }
+
+    sendMessage(
+      {
+        dispute_id: selectedDispute,
+        sender_address: userAddress || '0x0000000000000000000000000000000000000000',
+        sender_role: 'admin',
+        message: messageText.trim(),
+        is_status_change: false,
+      },
+      {
+        onSuccess: () => {
+          showSuccess('Message sent successfully');
+          setMessageText('');
+        },
+        onError: () => {
+          showError('Failed to send message');
+        },
+      }
+    );
   };
 
   return (
@@ -146,7 +151,7 @@ export default function AdminDisputesPage() {
             {/* Status Filter */}
             <div className="flex gap-2 items-center flex-wrap">
               <Filter className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-              {['all', 'OPEN', 'UNDER_REVIEW', 'RESOLVED'].map(status => (
+              {['all', 'OPEN', 'RESOLVED', 'REJECTED'].map(status => (
                 <button
                   key={status}
                   onClick={() => setFilterStatus(status)}
@@ -167,7 +172,12 @@ export default function AdminDisputesPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Disputes List */}
           <div className="lg:col-span-2 space-y-4">
-            {filteredDisputes.length > 0 ? (
+            {isLoading ? (
+              <div className="text-center py-16">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+                <p className="text-gray-600 dark:text-gray-400 text-lg font-semibold">Loading disputes...</p>
+              </div>
+            ) : filteredDisputes.length > 0 ? (
               filteredDisputes.map((dispute) => (
                 <div
                   key={dispute.id}
@@ -189,27 +199,23 @@ export default function AdminDisputesPage() {
                     </div>
                     <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 ${
                       dispute.status === 'OPEN'
+                        ? 'bg-blue-600 text-white'
+                        : dispute.status === 'REJECTED'
                         ? 'bg-red-600 text-white'
-                        : dispute.status === 'UNDER_REVIEW'
-                        ? 'bg-amber-600 text-white'
                         : 'bg-green-600 text-white'
                     }`}>
                       {dispute.status === 'OPEN' && <Clock className="w-3 h-3" />}
-                      {dispute.status === 'UNDER_REVIEW' && <Eye className="w-3 h-3" />}
+                      {dispute.status === 'REJECTED' && <XCircle className="w-3 h-3" />}
                       {dispute.status === 'RESOLVED' && <CheckCircle className="w-3 h-3" />}
                       {dispute.status.replace(/_/g, ' ')}
                     </span>
                   </div>
 
                   {/* Details */}
-                  <div className="grid grid-cols-3 gap-4 mb-4 pb-4 border-b border-gray-300 dark:border-gray-700">
+                  <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-gray-300 dark:border-gray-700">
                     <div>
                       <p className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Ticket ID</p>
                       <p className="text-sm font-mono font-semibold text-gray-900 dark:text-white">{dispute.ticket_id}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Amount</p>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{dispute.amount}</p>
                     </div>
                     <div>
                       <p className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Created</p>
@@ -245,9 +251,9 @@ export default function AdminDisputesPage() {
             )}
           </div>
 
-          {/* Details Sidebar */}
-          {selectedDispute && filteredDisputes.find(d => d.id === selectedDispute) && (
-            <div className="bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-800 p-6 h-fit sticky top-24">
+          {/* Details Sidebar - Only show for OPEN disputes */}
+          {selectedDispute && filteredDisputes.find(d => d.id === selectedDispute)?.status === 'OPEN' && (
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-800 p-6 h-fit sticky top-24 max-h-[80vh] overflow-y-auto flex flex-col">
               <div className="mb-6">
                 <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">Dispute Details</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">ID: {selectedDispute}</p>
@@ -260,6 +266,70 @@ export default function AdminDisputesPage() {
                     {filteredDisputes.find(d => d.id === selectedDispute)?.description}
                   </p>
                 </div>
+              </div>
+
+              {/* Messages Section */}
+              <div className="mb-6 pb-6 border-b border-gray-200 dark:border-gray-800 flex-grow">
+                <h4 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4" />
+                  Messages ({messages.length})
+                </h4>
+                
+                {messagesLoading ? (
+                  <div className="text-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">Loading messages...</p>
+                  </div>
+                ) : messages.length > 0 ? (
+                  <div className="space-y-3 max-h-48 overflow-y-auto">
+                    {messages.map((msg: any) => (
+                      <div
+                        key={msg.id}
+                        className={`p-3 rounded-lg text-sm ${
+                          msg.sender_role === 'admin'
+                            ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+                            : 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                            msg.sender_role === 'admin'
+                              ? 'bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200'
+                              : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+                          }`}>
+                            {msg.sender_role === 'admin' ? 'Admin' : 'User'}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {new Date(msg.created_at).toLocaleDateString()} {new Date(msg.created_at).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <p className="text-gray-700 dark:text-gray-300">{msg.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-gray-500 text-center py-4">No messages yet</p>
+                )}
+              </div>
+
+              {/* Send Message Form */}
+              <div className="mb-6 pb-6 border-b border-gray-200 dark:border-gray-800">
+                <label className="text-sm font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4" />
+                  Send Message
+                </label>
+                <textarea
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  placeholder="Send a message to the user..."
+                  className="w-full px-3 py-2 rounded-lg border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition resize-none text-sm h-20"
+                />
+                <button
+                  onClick={handleSendMessage}
+                  className="w-full mt-2 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-all text-sm"
+                >
+                  Send Message
+                </button>
               </div>
 
               {/* Resolution Form */}

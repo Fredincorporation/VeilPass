@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Heart, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
 import { useWishlists, useRemoveFromWishlist } from '@/hooks/useWishlists';
@@ -30,14 +30,16 @@ export default function WishlistPage() {
   const [account, setAccount] = useState<string | null>(null);
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
+  const [isAccountLoaded, setIsAccountLoaded] = useState(false);
 
-  // Fetch user's wishlisted events from database
-  const { data: wishlists = [], isLoading } = useWishlists(account || '');
+  // Fetch user's wishlisted events from database - only when account is loaded
+  const { data: wishlists = [], isLoading } = useWishlists(isAccountLoaded && account ? account : '');
   const { mutate: removeFromWishlist } = useRemoveFromWishlist();
 
   useEffect(() => {
     const savedAccount = localStorage.getItem('veilpass_account');
     setAccount(savedAccount);
+    setIsAccountLoaded(true);
   }, []);
 
   // Fetch event details for wishlisted items
@@ -73,7 +75,7 @@ export default function WishlistPage() {
     };
 
     fetchEventDetails();
-  }, [wishlists]);
+  }, [JSON.stringify(wishlists)]);
 
   const filteredItems = wishlistItems.filter((item: any) => {
     const eventTitle = item.event?.title || '';

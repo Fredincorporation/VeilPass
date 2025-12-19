@@ -7,7 +7,9 @@ import { getWalletRole } from '@/lib/wallet-roles';
 import { useToast } from '@/components/ToastContainer';
 import { useWalletAuthentication } from '@/hooks/useWalletAuthentication';
 import { useSellerStats } from '@/hooks/useSellerStats';
-import { Ticket, Gift, Gavel, UserPlus, LogOut, Calendar, Plus, BarChart3, Settings, AlertCircle, QrCode, Shield, Heart, Megaphone, Send, X, CheckCircle, Users } from 'lucide-react';
+import { useCustomerStats } from '@/hooks/useCustomerStats';
+import { useAdminStats } from '@/hooks/useAdminStats';
+import { Ticket, Gift, Gavel, UserPlus, LogOut, Calendar, Plus, BarChart3, Settings, AlertCircle, QrCode, Shield, Heart, Megaphone, Send, X, CheckCircle, Users, RotateCw } from 'lucide-react';
 
 export default function DashboardPage() {
   const { t } = useTranslation();
@@ -27,6 +29,10 @@ export default function DashboardPage() {
   const { data: sellerStats, isLoading: isSellerStatsLoading } = useSellerStats(
     userRole === 'seller' ? account : null
   );
+  const { data: customerStats, isLoading: isCustomerStatsLoading } = useCustomerStats(
+    userRole === 'customer' ? account : null
+  );
+  const { data: adminStats, isLoading: isAdminStatsLoading, refetch } = useAdminStats();
 
   useEffect(() => {
     setIsClient(true);
@@ -92,7 +98,7 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-6 border border-blue-200 dark:border-blue-700">
                   <p className="text-sm font-medium text-blue-600 dark:text-blue-300 uppercase tracking-wide mb-2">{t('dashboard.active_tickets', 'Active Tickets')}</p>
-                  <p className="text-4xl font-bold text-blue-900 dark:text-blue-100">{isUserLoading ? '-' : '3'}</p>
+                  <p className="text-4xl font-bold text-blue-900 dark:text-blue-100">{isCustomerStatsLoading ? '-' : (customerStats?.activeTickets || 0)}</p>
                   <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">Pending events</p>
                 </div>
                 <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-6 border border-purple-200 dark:border-purple-700">
@@ -102,7 +108,14 @@ export default function DashboardPage() {
                 </div>
                 <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-6 border border-green-200 dark:border-green-700">
                   <p className="text-sm font-medium text-green-600 dark:text-green-300 uppercase tracking-wide mb-2">{t('dashboard.total_spent', 'Total Spent')}</p>
-                  <p className="text-4xl font-bold text-green-900 dark:text-green-100">$1,240</p>
+                  <div className="space-y-1">
+                    <p className="text-3xl font-bold text-green-900 dark:text-green-100">
+                      {isCustomerStatsLoading ? '-' : (customerStats?.totalSpent?.eth || '0.0000 ETH')}
+                    </p>
+                    <p className="text-lg font-semibold text-green-700 dark:text-green-200">
+                      {isCustomerStatsLoading ? '-' : (customerStats?.totalSpent?.usd || '$0.00')}
+                    </p>
+                  </div>
                   <p className="text-xs text-green-600 dark:text-green-400 mt-2">All time spending</p>
                 </div>
               </div>
@@ -233,7 +246,14 @@ export default function DashboardPage() {
                 </div>
                 <div className="bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/20 dark:to-teal-800/20 rounded-lg p-6 border border-teal-200 dark:border-teal-700">
                   <p className="text-sm font-medium text-teal-600 dark:text-teal-300 uppercase tracking-wide mb-2">Revenue</p>
-                  <p className="text-4xl font-bold text-teal-900 dark:text-teal-100">{isSellerStatsLoading ? '-' : `${sellerStats?.totalRevenue || 0} ETH`}</p>
+                  <div className="space-y-1">
+                    <p className="text-3xl font-bold text-teal-900 dark:text-teal-100">
+                      {isSellerStatsLoading ? '-' : (sellerStats?.totalRevenue?.eth || '0.0000 ETH')}
+                    </p>
+                    <p className="text-lg font-semibold text-teal-700 dark:text-teal-200">
+                      {isSellerStatsLoading ? '-' : (sellerStats?.totalRevenue?.usd || '$0.00')}
+                    </p>
+                  </div>
                   <p className="text-xs text-teal-600 dark:text-teal-400 mt-2">Total earned</p>
                 </div>
               </div>
@@ -336,27 +356,45 @@ export default function DashboardPage() {
           <>
             {/* Stats Cards - Display Only */}
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Platform Overview</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Platform Overview</h2>
+                <button
+                  onClick={() => refetch()}
+                  disabled={isAdminStatsLoading}
+                  className="flex items-center gap-2 px-3 py-1 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg transition-colors"
+                >
+                  <RotateCw className="w-4 h-4" />
+                  Refresh
+                </button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-6 border border-blue-200 dark:border-blue-700">
                   <p className="text-sm font-medium text-blue-600 dark:text-blue-300 uppercase tracking-wide mb-2">Total Users</p>
-                  <p className="text-4xl font-bold text-blue-900 dark:text-blue-100">1,234</p>
-                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">+42 this month</p>
+                  <p className="text-4xl font-bold text-blue-900 dark:text-blue-100">
+                    {isAdminStatsLoading ? <span className="animate-pulse">—</span> : adminStats?.totalUsers || 0}
+                  </p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">Active on platform</p>
                 </div>
                 <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-6 border border-green-200 dark:border-green-700">
                   <p className="text-sm font-medium text-green-600 dark:text-green-300 uppercase tracking-wide mb-2">Transactions</p>
-                  <p className="text-4xl font-bold text-green-900 dark:text-green-100">5,678</p>
+                  <p className="text-4xl font-bold text-green-900 dark:text-green-100">
+                    {isAdminStatsLoading ? <span className="animate-pulse">—</span> : adminStats?.totalTransactions || 0}
+                  </p>
                   <p className="text-xs text-green-600 dark:text-green-400 mt-2">Total processed</p>
                 </div>
                 <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-lg p-6 border border-red-200 dark:border-red-700">
                   <p className="text-sm font-medium text-red-600 dark:text-red-300 uppercase tracking-wide mb-2">Active Disputes</p>
-                  <p className="text-4xl font-bold text-red-900 dark:text-red-100">12</p>
+                  <p className="text-4xl font-bold text-red-900 dark:text-red-100">
+                    {isAdminStatsLoading ? <span className="animate-pulse">—</span> : adminStats?.openDisputes || 0}
+                  </p>
                   <p className="text-xs text-red-600 dark:text-red-400 mt-2">Pending resolution</p>
                 </div>
                 <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-6 border border-purple-200 dark:border-purple-700">
                   <p className="text-sm font-medium text-purple-600 dark:text-purple-300 uppercase tracking-wide mb-2">Platform Volume</p>
-                  <p className="text-4xl font-bold text-purple-900 dark:text-purple-100">$98K</p>
-                  <p className="text-xs text-purple-600 dark:text-purple-400 mt-2">This month</p>
+                  <p className="text-4xl font-bold text-purple-900 dark:text-purple-100">
+                    {isAdminStatsLoading ? <span className="animate-pulse">—</span> : `${adminStats?.platformVolume || '0.0000'} ETH`}
+                  </p>
+                  <p className="text-xs text-purple-600 dark:text-purple-400 mt-2">Total volume</p>
                 </div>
               </div>
             </div>

@@ -8,6 +8,13 @@ export interface RedeemableItem {
   description: string;
 }
 
+export interface LoyaltyActivity {
+  type: 'Earned' | 'Redeemed' | 'Referral Bonus' | 'Adjustment';
+  description: string;
+  points: number;
+  date: string;
+}
+
 /**
  * Fetch redeemable items (loyalty rewards)
  */
@@ -49,6 +56,22 @@ export function useRedemptionHistory(userAddress: string) {
     queryFn: async () => {
       if (!userAddress) return [];
       const { data } = await axios.get(`/api/loyalty/history?user=${userAddress}`);
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: !!userAddress,
+  });
+}
+
+/**
+ * Fetch loyalty activity history
+ */
+export function useLoyaltyActivity(userAddress: string | null) {
+  return useQuery<LoyaltyActivity[]>({
+    queryKey: ['loyaltyActivity', userAddress],
+    queryFn: async () => {
+      if (!userAddress) return [];
+      const { data } = await axios.get(`/api/loyalty/activity?address=${userAddress}`);
       return data;
     },
     staleTime: 5 * 60 * 1000,

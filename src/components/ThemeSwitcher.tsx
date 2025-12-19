@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTheme } from 'next-themes';
 
 interface ThemeSwitcherProps {
   className?: string;
@@ -6,19 +7,16 @@ interface ThemeSwitcherProps {
 
 export function ThemeSwitcher({ className = '' }: ThemeSwitcherProps) {
   const [mounted, setMounted] = useState(false);
-  const [theme, setTheme] = useState<string>('dark');
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     setMounted(true);
-    const currentTheme = localStorage.getItem('theme') || 'dark';
-    setTheme(currentTheme);
   }, []);
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
     localStorage.setItem('theme', newTheme);
-    document.documentElement.classList.toggle('dark', newTheme === 'dark');
   };
 
   if (!mounted) return null;

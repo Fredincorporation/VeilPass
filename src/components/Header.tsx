@@ -13,19 +13,28 @@ export function Header() {
   useEffect(() => {
     const checkNotifications = async () => {
       try {
-        const response = await fetch('/api/notifications');
+        // Get user address from localStorage if available
+        const userAddress = localStorage.getItem('veilpass_account');
+        const url = userAddress 
+          ? `/api/notifications?user=${encodeURIComponent(userAddress)}`
+          : '/api/notifications';
+        
+        const response = await fetch(url);
         if (response.ok) {
           const data = await response.json();
           setHasNotifications(Array.isArray(data) && data.length > 0);
+        } else {
+          setHasNotifications(false);
         }
       } catch (error) {
         console.error('Error checking notifications:', error);
+        setHasNotifications(false);
       }
     };
 
     checkNotifications();
-    // Check for new notifications every 30 seconds
-    const interval = setInterval(checkNotifications, 30000);
+    // Check for new notifications every 60 seconds to reduce API calls
+    const interval = setInterval(checkNotifications, 60000);
     return () => clearInterval(interval);
   }, []);
 

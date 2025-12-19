@@ -15,11 +15,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const userAddress = searchParams.get('user');
 
+    // If no user address, return empty array (user not logged in)
     if (!userAddress) {
-      return NextResponse.json(
-        { error: 'Missing user parameter' },
-        { status: 400 }
-      );
+      return NextResponse.json([]);
     }
 
     const { data, error } = await supabase
@@ -30,15 +28,14 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Notifications GET error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      // Return empty array on error so UI doesn't break
+      return NextResponse.json([]);
     }
 
     return NextResponse.json(data || []);
   } catch (error) {
     console.error('Notifications GET error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    // Return empty array on error instead of 500 so UI doesn't break
+    return NextResponse.json([]);
   }
 }

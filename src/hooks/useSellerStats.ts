@@ -4,7 +4,10 @@ import axios from 'axios';
 interface SellerStats {
   eventsCreated: number;
   ticketsSold: number;
-  totalRevenue: string;
+  totalRevenue: {
+    eth: string;
+    usd: string;
+  };
 }
 
 export function useSellerStats(sellerAddress: string | null) {
@@ -12,7 +15,7 @@ export function useSellerStats(sellerAddress: string | null) {
     queryKey: ['sellerStats', sellerAddress],
     queryFn: async () => {
       if (!sellerAddress) {
-        return { eventsCreated: 0, ticketsSold: 0, totalRevenue: '0' };
+        return { eventsCreated: 0, ticketsSold: 0, totalRevenue: { eth: '0.0000 ETH', usd: '$0.00' } };
       }
 
       try {
@@ -22,7 +25,7 @@ export function useSellerStats(sellerAddress: string | null) {
         return response.data;
       } catch (error) {
         console.error('Failed to fetch seller stats:', error);
-        return { eventsCreated: 0, ticketsSold: 0, totalRevenue: '0' };
+        return { eventsCreated: 0, ticketsSold: 0, totalRevenue: { eth: '0.0000 ETH', usd: '$0.00' } };
       }
     },
     enabled: !!sellerAddress,

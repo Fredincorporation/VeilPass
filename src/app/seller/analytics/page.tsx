@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { BarChart, LineChart, TrendingUp, DollarSign, Ticket, Calendar } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
 import { useSellerAnalytics } from '@/hooks/useSellerEvents';
+import { getDualCurrency } from '@/lib/currency-utils';
 
 export default function SalesAnalyticsPage() {
   const { showSuccess, showInfo } = useToast();
@@ -19,10 +20,14 @@ export default function SalesAnalyticsPage() {
   const { data: analytics, isLoading } = useSellerAnalytics(account || '');
 
   // Extract data from analytics or use defaults
+  const totalRevenueCurrency = getDualCurrency(analytics?.metrics?.totalRevenue || 0);
+  const avgRevenueCurrency = getDualCurrency(analytics?.metrics?.avgRevenuePerEvent || 0);
+
   const metrics = [
     {
       label: 'Total Revenue',
-      value: isLoading ? '-' : `${analytics?.metrics?.totalRevenue || 0} ETH`,
+      value: isLoading ? '-' : totalRevenueCurrency.eth,
+      subValue: isLoading ? '-' : totalRevenueCurrency.usd,
       change: '+0%',
       icon: DollarSign,
       color: 'from-green-500 to-emerald-600',
@@ -46,7 +51,8 @@ export default function SalesAnalyticsPage() {
     },
     {
       label: 'Avg. Revenue/Event',
-      value: isLoading ? '-' : `${analytics?.metrics?.avgRevenuePerEvent || 0} ETH`,
+      value: isLoading ? '-' : avgRevenueCurrency.eth,
+      subValue: isLoading ? '-' : avgRevenueCurrency.usd,
       change: '+0%',
       icon: TrendingUp,
       color: 'from-orange-500 to-red-600',
@@ -157,6 +163,9 @@ export default function SalesAnalyticsPage() {
                 </div>
                 <p className="text-gray-600 dark:text-gray-400 text-sm font-semibold mb-2">{metric.label}</p>
                 <p className="text-3xl font-bold text-gray-900 dark:text-white">{metric.value}</p>
+                {metric.subValue && (
+                  <p className="text-lg font-semibold text-gray-700 dark:text-gray-200 mt-1">{metric.subValue}</p>
+                )}
               </div>
             );
           })}

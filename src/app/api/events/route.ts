@@ -9,44 +9,22 @@ export async function GET(request: NextRequest) {
     let query = supabase.from('events').select('*');
     
     if (seller) {
+      // Debug log
+      console.log('Fetching events for seller:', seller);
       query = query.eq('organizer', seller);
     }
 
     const { data, error } = await query.order('created_at', { ascending: false });
 
-    if (error) throw error;
-
-    // Fetch business names for all organizers
-    if (data && data.length > 0) {
-      const organizers = [...new Set(data.map((e: any) => e.organizer))].filter(Boolean);
-      
-      let usersQuery = supabase.from('users').select('wallet_address, business_name');
-      if (organizers.length > 0) {
-        usersQuery = usersQuery.in('wallet_address', organizers);
-      }
-      
-      const { data: users } = await usersQuery;
-      const userMap = Object.fromEntries(
-        (users || []).map((u: any) => [u.wallet_address, u.business_name || u.wallet_address])
-      );
-
-      // Transform data to use business_name as organizer
-      const transformedData = data.map((event: any) => ({
-        ...event,
-        organizer: userMap[event.organizer] || event.organizer,
-        status: event.status === 'Live Auction' ? 'On Sale' : event.status,
-      }));
-
-      return NextResponse.json(transformedData);
+    if (error) {
+      console.error('Database error:', error);
+      throw error;
     }
 
-    // Transform old status values to new ones for backward compatibility
-    const transformedData = data?.map((event: any) => ({
-      ...event,
-      status: event.status === 'Live Auction' ? 'On Sale' : event.status,
-    })) || [];
+    console.log('Fetched events:', data?.length || 0, 'for seller:', seller);
 
-    return NextResponse.json(transformedData);
+    // Return data as-is without status transformation
+    return NextResponse.json(data || []);
   } catch (error: any) {
     console.error('Error fetching events:', error);
     return NextResponse.json(

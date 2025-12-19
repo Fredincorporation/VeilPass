@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Activity, Search, Filter, Download, Clock, User, Target, FileText } from 'lucide-react';
+import { Activity, Search, Filter, Download, Clock, User, Target, FileText, AlertCircle } from 'lucide-react';
 import { useAdminAuditLogs } from '@/hooks/useAdmin';
 
 export default function AuditPage() {
@@ -9,44 +9,7 @@ export default function AuditPage() {
   const [filterAction, setFilterAction] = useState('all');
 
   // Fetch audit logs from database
-  const { data: dbAuditLogs = [], isLoading } = useAdminAuditLogs();
-
-  // Fallback to mock data if no database logs
-  const auditLogs: any[] = dbAuditLogs.length > 0 ? dbAuditLogs : [
-    {
-      id: 1,
-      action: 'EVENT_CREATED',
-      actor: '0x3820...ba756b',
-      target: 'Summer Music Fest',
-      timestamp: '2025-01-15 14:30:00',
-      details: 'Event created with 1000 tickets',
-      icon: Activity,
-      color: 'from-blue-500 to-cyan-600',
-      textColor: 'text-blue-600 dark:text-blue-400',
-    },
-    {
-      id: 2,
-      action: 'TICKET_PURCHASED',
-      actor: '0xe0cb...7354774',
-      target: 'TK123',
-      timestamp: '2025-01-15 15:45:00',
-      details: 'Purchased for 285 ETH',
-      icon: Activity,
-      color: 'from-green-500 to-emerald-600',
-      textColor: 'text-green-600 dark:text-green-400',
-    },
-    {
-      id: 3,
-      action: 'SELLER_APPROVED',
-      actor: 'Admin-0x2f5...',
-      target: 'John Events Co.',
-      timestamp: '2025-01-14 09:20:00',
-      details: 'KYC verified and seller approved',
-      icon: Activity,
-      color: 'from-purple-500 to-indigo-600',
-      textColor: 'text-purple-600 dark:text-purple-400',
-    },
-  ];
+  const { data: auditLogs = [], isLoading, error } = useAdminAuditLogs();
 
   const filteredLogs = auditLogs.filter((log: any) => {
     const matchesSearch = log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -56,7 +19,7 @@ export default function AuditPage() {
     return matchesSearch && matchesFilter;
   });
 
-  const actionTypes = ['all', 'EVENT_CREATED', 'TICKET_PURCHASED', 'SELLER_APPROVED'];
+  const actionTypes = ['all', 'EVENT_CREATED', 'TICKET_PURCHASED', 'DISPUTE_CREATED', 'USER_REGISTERED'];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-950 dark:to-black pt-24">
@@ -107,7 +70,22 @@ export default function AuditPage() {
         </div>
 
         {/* Audit Logs Table */}
-        {filteredLogs.length > 0 ? (
+        {isLoading ? (
+          <div className="text-center py-16">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 mb-4 animate-pulse">
+              <Activity className="w-8 h-8 text-gray-500 dark:text-gray-400" />
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 text-lg font-semibold">Loading audit logs...</p>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-2xl p-8 flex items-start gap-4">
+            <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-1" />
+            <div>
+              <h3 className="font-bold text-red-900 dark:text-red-100 mb-1">Error loading audit logs</h3>
+              <p className="text-red-700 dark:text-red-300 text-sm">There was an issue fetching the audit logs. Please try again later.</p>
+            </div>
+          </div>
+        ) : filteredLogs.length > 0 ? (
           <div className="bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">

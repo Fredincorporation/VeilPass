@@ -6,7 +6,8 @@ import { Gift, Zap, TrendingUp, Users, ChevronRight, History } from 'lucide-reac
 import { getWalletRole } from '@/lib/wallet-roles';
 import { useToast } from '@/components/ToastContainer';
 import { useUser } from '@/hooks/useUser';
-import { useRedeemableItems } from '@/hooks/useLoyalty';
+import { useRedeemableItems, useLoyaltyActivity } from '@/hooks/useLoyalty';
+import { useLoyaltyStats } from '@/hooks/useLoyaltyStats';
 
 export default function LoyaltyPage() {
   const router = useRouter();
@@ -17,10 +18,17 @@ export default function LoyaltyPage() {
   // Fetch user data from database (includes loyalty points)
   const { data: user, isLoading } = useUser(account || '');
 
+  // Fetch loyalty stats (points earned, referrals, tier progress)
+  const { data: loyaltyStats, isLoading: isStatsLoading } = useLoyaltyStats(account);
+
   // Fetch redeemable items from database
   const { data: dbRedeemables = [] } = useRedeemableItems();
 
-  const points = user?.loyalty_points || 5450;
+  // Fetch loyalty activity history
+  const { data: activityData = [] } = useLoyaltyActivity(account);
+
+  const points = user?.loyalty_points || 0;
+  const tier = loyaltyStats?.currentTier || 'Silver';
   
   // Fallback to mock data if no database redeemables
   const [redeemable] = useState(dbRedeemables.length > 0 ? dbRedeemables : [
@@ -73,19 +81,21 @@ export default function LoyaltyPage() {
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-950 dark:to-black pt-24">
       <div className="max-w-7xl mx-auto px-4 py-12">
         {/* Points Hero */}
-        <div className="mb-12 bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-600 rounded-2xl p-8 text-white shadow-2xl">
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <p className="text-sm opacity-90 mb-2 uppercase tracking-wide font-semibold">Your Loyalty Points</p>
-              <h1 className="text-6xl font-bold mb-2">{points.toLocaleString()}</h1>
-              <p className="opacity-90 text-base">You're in the <span className="font-bold">GOLD TIER</span> - Earn 1.5x points on all purchases</p>
+        <div className="mb-12 bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-600 rounded-2xl p-6 sm:p-8 text-white shadow-2xl">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-4 sm:gap-6 mb-6">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs sm:text-sm opacity-90 mb-2 uppercase tracking-wide font-semibold">Your Loyalty Points</p>
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-2 break-words">{points.toLocaleString()}</h1>
+              <p className="opacity-90 text-sm sm:text-base leading-relaxed">
+                You're in the <span className="font-bold">{tier} TIER</span> - Earn 1.5x points on all purchases
+              </p>
             </div>
-            <div className="hidden sm:flex items-center justify-center w-20 h-20 bg-white/20 rounded-full">
-              <Zap className="w-10 h-10" />
+            <div className="hidden sm:flex items-center justify-center flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 bg-white/20 rounded-full">
+              <Zap className="w-8 h-8 sm:w-10 sm:h-10" />
             </div>
           </div>
-          <div className="flex gap-4">
-            <button className="px-6 py-2 rounded-lg bg-white text-purple-600 font-semibold hover:bg-gray-100 transition">
+          <div className="flex gap-2 sm:gap-4">
+            <button className="px-4 sm:px-6 py-2 rounded-lg bg-white text-purple-600 font-semibold hover:bg-gray-100 transition text-sm sm:text-base">
               Share Referral Link
             </button>
           </div>
@@ -103,7 +113,7 @@ export default function LoyaltyPage() {
             </div>
             <h3 className="font-bold text-lg mb-1 text-gray-900 dark:text-white">Points Earned</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">This month you've earned</p>
-            <p className="text-3xl font-bold text-blue-600">1,245 pts</p>
+            <p className="text-3xl font-bold text-blue-600">{isStatsLoading ? '-' : (loyaltyStats?.pointsEarnedThisMonth || 0).toLocaleString()} pts</p>
           </div>
 
           {/* Referral Rewards */}
@@ -116,7 +126,7 @@ export default function LoyaltyPage() {
             </div>
             <h3 className="font-bold text-lg mb-1 text-gray-900 dark:text-white">Friend Referrals</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">Friends who signed up</p>
-            <p className="text-3xl font-bold text-green-600">12 friends</p>
+            <p className="text-3xl font-bold text-green-600">{isStatsLoading ? '-' : (loyaltyStats?.referralCount || 0)} friends</p>
           </div>
 
           {/* Tier Progress */}
@@ -127,12 +137,17 @@ export default function LoyaltyPage() {
               </div>
               <span className="text-2xl group-hover:translate-x-1 transition-transform">→</span>
             </div>
-            <h3 className="font-bold text-lg mb-1 text-gray-900 dark:text-white">Gold Tier Progress</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-3 text-sm">Points to Platinum</p>
+            <h3 className="font-bold text-lg mb-1 text-gray-900 dark:text-white">{isStatsLoading ? '-' : tier} Tier Progress</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-3 text-sm">Points to next tier</p>
             <div className="h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 w-2/3" />
+              <div 
+                className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 transition-all" 
+                style={{ width: `${isStatsLoading ? 0 : (loyaltyStats?.tierProgress.percentage || 0)}%` }}
+              />
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">7,500 / 10,000 pts</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              {isStatsLoading ? '-' : `${(loyaltyStats?.tierProgress.current || 0).toLocaleString()} / ${(loyaltyStats?.tierProgress.required || 0).toLocaleString()} pts`}
+            </p>
           </div>
         </div>
 
@@ -194,29 +209,30 @@ export default function LoyaltyPage() {
           <h2 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white">Recent Activity</h2>
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
             <div className="divide-y divide-gray-200 dark:divide-gray-800">
-              {[
-                { type: 'Earned', description: 'Purchased ticket to "Summer Music Festival"', points: '+250', date: '2 days ago' },
-                { type: 'Redeemed', description: 'Redeemed 500 points for Event Discount', points: '-500', date: '1 week ago' },
-                { type: 'Referral Bonus', description: 'Friend Jessica signed up with your code', points: '+200', date: '2 weeks ago' },
-                { type: 'Earned', description: 'Purchased ticket to "Comedy Night"', points: '+175', date: '3 weeks ago' },
-              ].map((activity, idx) => (
-                <div key={idx} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900 dark:text-white">{activity.type}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{activity.description}</p>
+              {activityData.length > 0 ? (
+                activityData.map((activity, idx) => (
+                  <div key={idx} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900 dark:text-white">{activity.type}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{activity.description}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`font-bold text-lg ${
+                        activity.points >= 0
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        {activity.points >= 0 ? '+' : ''}{activity.points}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500">{activity.date}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className={`font-bold text-lg ${
-                      activity.points.startsWith('+')
-                        ? 'text-green-600 dark:text-green-400'
-                        : 'text-red-600 dark:text-red-400'
-                    }`}>
-                      {activity.points}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">{activity.date}</p>
-                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                  <p>No activity yet. Start purchasing tickets to earn points!</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>

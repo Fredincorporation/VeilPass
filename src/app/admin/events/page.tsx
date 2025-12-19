@@ -1,63 +1,87 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Calendar, MapPin, CheckCircle, XCircle, Loader } from 'lucide-react';
+import { Calendar, MapPin, CheckCircle, XCircle, Loader, X } from 'lucide-react';
 import { useEvents } from '@/hooks/useEvents';
+import { useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 
 export default function EventApprovalsPage() {
   const { data: allEvents = [] } = useEvents();
+  const queryClient = useQueryClient();
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [rejectionModal, setRejectionModal] = useState<{ isOpen: boolean; eventId: number | null; eventTitle: string; reason: string }>({
+    isOpen: false,
+    eventId: null,
+    eventTitle: '',
+    reason: '',
+  });
 
   // Filter only Pre-Sale events that need approval
-  const preeSaleEvents = allEvents.filter((event: any) => event.status === 'Pre-Sale');
+  const preeSaleEvents = allEvents.filter((event: any) => event.status === 'Pre-Sale' || event.status === 'draft');
 
   const handleApproveEvent = async (eventId: number, eventTitle: string) => {
     setApprovingId(eventId);
     try {
-      // Update event status to "On Sale"
-      const { data: events } = await axios.get('/api/events');
-      const event = events.find((e: any) => e.id === eventId);
+      await axios.put(`/api/admin/events/${eventId}`, { status: 'Live Auction' });
       
-      if (!event) {
-        setMessage({ type: 'error', text: 'Event not found' });
-        return;
-      }
-
-      // In a real app, you'd have an approve endpoint
-      // For now, we'll simulate the approval
       setMessage({ 
         type: 'success', 
-        text: `✓ Event "${eventTitle}" approved and is now On Sale!` 
+        text: `✓ Event "${eventTitle}" approved and is now live!` 
       });
 
-      // In production, you would call:
-      // await axios.post(`/api/admin/events/${eventId}/approve`);
+      // Invalidate and refetch events
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
       
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to approve event' });
+      console.error('Error approving event:', error);
     } finally {
       setApprovingId(null);
     }
   };
 
   const handleRejectEvent = async (eventId: number, eventTitle: string) => {
-    setRejectingId(eventId);
+    // Open modal for rejection reason
+    setRejectionModal({
+      isOpen: true,
+      eventId,
+      eventTitle,
+      reason: '',
+    });
+  };
+
+  const handleConfirmRejection = async () => {
+    if (!rejectionModal.eventId || !rejectionModal.reason.trim()) {
+      setMessage({ type: 'error', text: 'Please provide a rejection reason' });
+      return;
+    }
+
+    setRejectingId(rejectionModal.eventId);
     try {
-      setMessage({ 
-        type: 'error', 
-        text: `Event "${eventTitle}" rejected and removed from Pre-Sale.` 
+      await axios.put(`/api/admin/events/${rejectionModal.eventId}`, {
+        status: 'Rejected',
+        rejection_reason: rejectionModal.reason,
       });
 
-      // In production, you would call:
-      // await axios.post(`/api/admin/events/${eventId}/reject`);
-      
+      setMessage({
+        type: 'success',
+        text: `✓ Event "${rejectionModal.eventTitle}" has been rejected.`,
+      });
+
+      // Invalidate and refetch events
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
+
+      // Close modal
+      setRejectionModal({ isOpen: false, eventId: null, eventTitle: '', reason: '' });
+
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to reject event' });
+      console.error('Error rejecting event:', error);
     } finally {
       setRejectingId(null);
     }
@@ -224,10 +248,76 @@ export default function EventApprovalsPage() {
             <li>✓ Pre-Sale events are visible to customers for preview but cannot be purchased</li>
             <li>✓ Admins review event details and approve them to become <strong>On Sale</strong></li>
             <li>✓ Once approved, customers receive notifications and can purchase tickets</li>
-            <li>✓ Rejected events remain in Pre-Sale or can be archived</li>
+            <li>✓ Rejected events are marked as <strong>Rejected</strong> with a reason sent to the seller</li>
           </ul>
         </div>
       </div>
+
+      {/* Rejection Modal */}
+      {rejectionModal.isOpen && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                  <XCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Reject Event</h2>
+              </div>
+              <button
+                onClick={() => setRejectionModal({ isOpen: false, eventId: null, eventTitle: '', reason: '' })}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                Event: <span className="font-semibold text-gray-900 dark:text-white">{rejectionModal.eventTitle}</span>
+              </p>
+
+              <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                Reason for Rejection *
+              </label>
+              <textarea
+                value={rejectionModal.reason}
+                onChange={(e) => setRejectionModal({ ...rejectionModal, reason: e.target.value })}
+                placeholder="Enter the reason for rejecting this event..."
+                className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-lg focus:border-red-500 dark:focus:border-red-400 focus:outline-none dark:bg-gray-800 dark:text-white resize-none"
+                rows={4}
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">This reason will be sent to the seller.</p>
+            </div>
+
+            <div className="flex gap-3 p-6 border-t border-gray-200 dark:border-gray-800">
+              <button
+                onClick={() => setRejectionModal({ isOpen: false, eventId: null, eventTitle: '', reason: '' })}
+                className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-semibold rounded-lg transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmRejection}
+                disabled={rejectingId !== null || !rejectionModal.reason.trim()}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-semibold rounded-lg transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {rejectingId !== null ? (
+                  <>
+                    <Loader className="w-4 h-4 animate-spin" />
+                    Rejecting...
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-4 h-4" />
+                    Confirm Rejection
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, MapPin, Users, TrendingUp, Search, Filter, Plus, Edit, Eye, MoreVertical, Clock, Zap } from 'lucide-react';
+import { Calendar, MapPin, Users, TrendingUp, Search, Filter, Plus, Edit, Eye, MoreVertical, Clock, Zap, AlertCircle, X } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/components/ToastContainer';
 import { useSellerEvents } from '@/hooks/useSellerEvents';
@@ -10,18 +10,25 @@ import { formatDate, formatTime } from '@/lib/date-formatter';
 
 export default function SellerEventsPage() {
   const router = useRouter();
-  const { showSuccess, showInfo } = useToast();
+  const { showSuccess, showInfo, showError } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'upcoming' | 'ended'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'upcoming' | 'ended' | 'rejected'>('all');
   const [account, setAccount] = useState<string | null>(null);
-
-  // Fetch seller's events from database
-  const { data: dbEvents = [], isLoading } = useSellerEvents(account || '');
+  const [selectedRejection, setSelectedRejection] = useState<{ title: string; reason: string } | null>(null);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
     const savedAccount = localStorage.getItem('veilpass_account');
-    setAccount(savedAccount);
-  }, []);
+    if (savedAccount) {
+      setAccount(savedAccount);
+    } else {
+      showError('Please connect your wallet to view your events');
+    }
+  }, [showError]);
+
+  // Fetch seller's events from database - only when account is set and client-side
+  const { data: dbEvents = [], isLoading, error } = useSellerEvents(isClient && account ? account : '');
 
   // Use only database events - no mock data fallback
   const events = dbEvents;
@@ -34,12 +41,18 @@ export default function SellerEventsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'Pre-Sale':
+        return 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-300 dark:border-purple-800';
+      case 'Live Auction':
+        return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-800';
       case 'active':
         return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-800';
       case 'upcoming':
         return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-800';
       case 'ended':
         return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400 border-gray-300 dark:border-gray-700';
+      case 'Rejected':
+        return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-800';
       default:
         return 'bg-gray-100 dark:bg-gray-800';
     }
@@ -101,7 +114,7 @@ export default function SellerEventsPage() {
 
   const stats = {
     totalEvents: events.length,
-    activeEvents: events.filter((e: any) => e.status === 'On Sale').length,
+    activeEvents: events.filter((e: any) => e.status === 'Live Auction').length,
     totalRevenue: '$0',
     totalAttendees: 0,
   };
@@ -205,12 +218,35 @@ export default function SellerEventsPage() {
               >
                 Ended
               </button>
+              <button
+                onClick={() => setFilterStatus('rejected')}
+                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                  filterStatus === 'rejected'
+                    ? 'bg-red-500 text-white'
+                    : 'bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-700'
+                }`}
+              >
+                Rejected
+              </button>
             </div>
           </div>
         </div>
 
         {/* Events Grid */}
-        {filteredEvents.length > 0 ? (
+        {!isClient ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-gray-600 dark:text-gray-400">Loading...</div>
+          </div>
+        ) : isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-gray-600 dark:text-gray-400">Fetching your events...</div>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-800 rounded-xl p-6 text-red-700 dark:text-red-400">
+            <p className="font-semibold">Error loading events</p>
+            <p className="text-sm mt-1">{String(error)}</p>
+          </div>
+        ) : filteredEvents.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredEvents.map((event: any) => (
               <div
@@ -229,8 +265,12 @@ export default function SellerEventsPage() {
                   
                   {/* Status Badge */}
                   <div className="absolute top-3 right-3">
-                    <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-bold border-2 ${getStatusColor(event.status)}`}>
+                    <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-bold border-2 cursor-pointer hover:scale-110 transition-transform ${getStatusColor(event.status)}`}
+                          onClick={() => event.status === 'Rejected' && event.rejection_reason ? setSelectedRejection({ title: event.title, reason: event.rejection_reason }) : null}>
                       {event.status === 'active' && <Zap className="w-3 h-3 inline mr-1" />}
+                      {event.status === 'Rejected' && <AlertCircle className="w-3 h-3 inline mr-1" />}
+                      {event.status === 'Pre-Sale' && '⏳'}
+                      {event.status === 'Live Auction' && '🎉'}
                       {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
                     </span>
                   </div>
@@ -291,7 +331,7 @@ export default function SellerEventsPage() {
                   </div>
 
                   {/* Actions */}
-                  {event.status !== 'ended' && (
+                  {event.status !== 'ended' && event.status !== 'Rejected' && (
                     <div className="flex gap-2">
                       <button 
                         onClick={() => handleEditEvent(event.id, event.title)}
@@ -307,6 +347,19 @@ export default function SellerEventsPage() {
                       </button>
                     </div>
                   )}
+
+                  {/* Rejected Event Info */}
+                  {event.status === 'Rejected' && (
+                    <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-red-900 dark:text-red-200 mb-1">Event Rejected</p>
+                          <p className="text-xs text-red-700 dark:text-red-300">{event.rejection_reason || 'No reason provided'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -316,10 +369,67 @@ export default function SellerEventsPage() {
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 mb-4">
               <Calendar className="w-8 h-8 text-gray-500 dark:text-gray-400" />
             </div>
-            <p className="text-gray-600 dark:text-gray-400 text-lg font-semibold mb-2">No events found</p>
-            <p className="text-gray-500 dark:text-gray-500 text-sm">
-              {searchTerm ? 'Try adjusting your search' : 'Start creating events to get started'}
+            <p className="text-gray-600 dark:text-gray-400 text-lg font-semibold mb-2">
+              {searchTerm ? 'No events match your search' : 'You haven\'t created any events yet'}
             </p>
+            <p className="text-gray-500 dark:text-gray-500 text-sm mb-6">
+              {searchTerm ? 'Try adjusting your search criteria' : 'Click the "Create Event" button to get started'}
+            </p>
+            {!searchTerm && (
+              <button 
+                onClick={() => router.push('/seller/create-event')}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-semibold transition-all duration-300 hover:shadow-lg hover:scale-[1.02]">
+                <Plus className="w-5 h-5" />
+                Create Your First Event
+              </button>
+            )}
+          </div>
+        )
+
+        {/* Rejection Reason Modal */}
+        {selectedRejection && (
+          <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                    <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Rejection Reason</h2>
+                </div>
+                <button
+                  onClick={() => setSelectedRejection(null)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="p-6">
+                <p className="text-gray-700 dark:text-gray-300 mb-4">
+                  Event: <span className="font-semibold text-gray-900 dark:text-white">{selectedRejection.title}</span>
+                </p>
+
+                <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-lg p-4">
+                  <p className="text-sm text-red-900 dark:text-red-200 whitespace-pre-wrap">
+                    {selectedRejection.reason}
+                  </p>
+                </div>
+
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
+                  You can resubmit this event for approval after addressing the issues mentioned above.
+                </p>
+              </div>
+
+              <div className="flex gap-3 p-6 border-t border-gray-200 dark:border-gray-800">
+                <button
+                  onClick={() => setSelectedRejection(null)}
+                  className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-semibold rounded-lg transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

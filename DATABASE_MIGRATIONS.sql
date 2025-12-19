@@ -178,6 +178,46 @@ CREATE INDEX IF NOT EXISTS idx_ticket_tiers_event_id ON ticket_tiers(event_id);
 CREATE INDEX IF NOT EXISTS idx_ticket_tiers_display_order ON ticket_tiers(display_order);
 
 -- ============================================================================
+-- Wishlists Table for User Event Wishlists
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS wishlists (
+  id BIGSERIAL PRIMARY KEY,
+  user_address VARCHAR(42) NOT NULL,
+  event_id BIGINT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_wishlists_event FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+  CONSTRAINT fk_wishlists_user FOREIGN KEY (user_address) REFERENCES users(wallet_address) ON DELETE CASCADE,
+  CONSTRAINT unique_user_event_wishlist UNIQUE(user_address, event_id)
+);
+
+-- Create indexes for faster queries
+CREATE INDEX IF NOT EXISTS idx_wishlists_user_address ON wishlists(user_address);
+CREATE INDEX IF NOT EXISTS idx_wishlists_event_id ON wishlists(event_id);
+CREATE INDEX IF NOT EXISTS idx_wishlists_created_at ON wishlists(created_at DESC);
+
+-- ============================================================================
+-- Loyalty Transactions Table for Loyalty Points History
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS loyalty_transactions (
+  id BIGSERIAL PRIMARY KEY,
+  user_address VARCHAR(42) NOT NULL,
+  type VARCHAR(50) NOT NULL DEFAULT 'earned',
+  amount INTEGER NOT NULL,
+  description TEXT NOT NULL,
+  reference_id INTEGER,
+  reference_type VARCHAR(50),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_loyalty_transactions_user FOREIGN KEY (user_address) REFERENCES users(wallet_address) ON DELETE CASCADE
+);
+
+-- Create indexes for faster queries
+CREATE INDEX IF NOT EXISTS idx_loyalty_transactions_user_address ON loyalty_transactions(user_address);
+CREATE INDEX IF NOT EXISTS idx_loyalty_transactions_type ON loyalty_transactions(type);
+CREATE INDEX IF NOT EXISTS idx_loyalty_transactions_created_at ON loyalty_transactions(created_at DESC);
+
+-- ============================================================================
 -- NOTES:
 -- - capacity: Integer representing max tickets for the event
 -- - tickets_sold: Auto-calculated count of active tickets
@@ -193,5 +233,7 @@ CREATE INDEX IF NOT EXISTS idx_ticket_tiers_display_order ON ticket_tiers(displa
 -- - language_preference: User's language choice (en|es|fr|etc)
 -- - user_preferences: Notification & general user preferences
 -- - platform_settings: Admin-controlled platform configuration
+-- - wishlists: User's wishlisted events with unique constraints
 -- ============================================================================
+
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getDualCurrency } from '@/lib/currency-utils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,7 +9,7 @@ export async function GET(request: NextRequest) {
 
     if (!supabaseUrl || !supabaseKey) {
       return NextResponse.json(
-        { eventsCreated: 0, ticketsSold: 0, totalRevenue: '0' },
+        { eventsCreated: 0, ticketsSold: 0, totalRevenue: { eth: '0.0000 ETH', usd: '$0.00' } },
         { status: 200 }
       );
     }
@@ -37,25 +38,31 @@ export async function GET(request: NextRequest) {
     
     // Calculate total tickets sold and revenue
     let totalTicketsSold = 0;
-    let totalRevenue = 0;
+    let totalRevenueEth = 0;
 
     events?.forEach(event => {
       const ticketsSold = event.tickets_sold || 0;
       const basePrice = event.base_price || 0;
       
       totalTicketsSold += ticketsSold;
-      totalRevenue += basePrice * ticketsSold;
+      totalRevenueEth += basePrice * ticketsSold;
     });
+
+    // Get both ETH and USD representations
+    const currencyData = getDualCurrency(totalRevenueEth);
 
     return NextResponse.json({
       eventsCreated,
       ticketsSold: totalTicketsSold,
-      totalRevenue: totalRevenue.toFixed(2),
+      totalRevenue: {
+        eth: currencyData.eth,
+        usd: currencyData.usd,
+      },
     });
   } catch (error) {
     console.error('Error fetching seller stats:', error);
     return NextResponse.json(
-      { eventsCreated: 0, ticketsSold: 0, totalRevenue: '0' },
+      { eventsCreated: 0, ticketsSold: 0, totalRevenue: { eth: '0.0000 ETH', usd: '$0.00' } },
       { status: 200 }
     );
   }

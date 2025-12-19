@@ -13,41 +13,9 @@ export default function AdminSellersPage() {
 
   // Fetch sellers from database
   const { data: dbSellers = [], isLoading } = useAdminSellers(filterStatus === 'all' ? undefined : filterStatus);
-  const { mutate: approveSeller } = useApproveSeller();
 
-  // Fallback to mock data if no database sellers
-  const [sellers] = useState<any[]>(dbSellers.length > 0 ? dbSellers : [
-    {
-      id: 'S001',
-      name: 'John Events',
-      email: 'john@example.com',
-      status: 'PENDING',
-      kycStatus: 'NOT_VERIFIED',
-      submittedAt: '2025-01-15',
-      businessType: 'Concert Promoter',
-      location: 'New York, USA',
-    },
-    {
-      id: 'S002',
-      name: 'Sarah Concerts',
-      email: 'sarah@example.com',
-      status: 'APPROVED',
-      kycStatus: 'VERIFIED',
-      submittedAt: '2025-01-10',
-      businessType: 'Event Organizer',
-      location: 'Los Angeles, USA',
-    },
-    {
-      id: 'S003',
-      name: 'Tech Events Co.',
-      email: 'tech@example.com',
-      status: 'PENDING',
-      kycStatus: 'VERIFIED',
-      submittedAt: '2025-01-12',
-      businessType: 'Conference Organizer',
-      location: 'San Francisco, USA',
-    },
-  ]);
+  // Use live data from database
+  const sellers = dbSellers;
 
   const filteredSellers = sellers.filter(seller => {
     const matchesSearch = seller.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -126,7 +94,14 @@ export default function AdminSellersPage() {
         </div>
 
         {/* Sellers Grid */}
-        {filteredSellers.length > 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin">
+              <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full"></div>
+            </div>
+            <p className="ml-4 text-gray-600 dark:text-gray-400">Loading sellers...</p>
+          </div>
+        ) : filteredSellers.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredSellers.map((seller) => (
               <div

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { useTheme } from 'next-themes';
 
 interface ThemeContextType {
@@ -15,15 +15,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-    // Load theme preference from localStorage
-    const savedTheme = localStorage.getItem('theme-mode') || 'auto';
-    setThemeMode(savedTheme as 'light' | 'dark' | 'auto');
-  }, []);
-
-  const setThemeMode = async (mode: 'light' | 'dark' | 'auto') => {
-    localStorage.setItem('theme-mode', mode);
+  const setThemeMode = useCallback(async (mode: 'light' | 'dark' | 'auto') => {
+    localStorage.setItem('theme', mode);
     setTheme(mode);
     
     // Save to database if user is logged in
@@ -42,7 +35,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         console.error('Failed to save theme preference:', error);
       }
     }
-  };
+  }, [setTheme]);
+
+  useEffect(() => {
+    setMounted(true);
+    // Load theme preference from localStorage
+    const savedTheme = (localStorage.getItem('theme') || 'auto') as 'light' | 'dark' | 'auto';
+    setTheme(savedTheme);
+  }, [setTheme]);
 
   const value: ThemeContextType = {
     theme: theme || 'auto',

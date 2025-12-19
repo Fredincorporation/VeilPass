@@ -20,7 +20,7 @@ export function useWishlists(userAddress: string) {
       return data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: !!userAddress,
+    enabled: userAddress !== '', // Only run if we have a non-empty user address
   });
 }
 
