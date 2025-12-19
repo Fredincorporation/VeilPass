@@ -5,14 +5,25 @@ import { useRouter } from 'next/navigation';
 import { Gift, Zap, TrendingUp, Users, ChevronRight, History } from 'lucide-react';
 import { getWalletRole } from '@/lib/wallet-roles';
 import { useToast } from '@/components/ToastContainer';
+import { useUser } from '@/hooks/useUser';
+import { useRedeemableItems } from '@/hooks/useLoyalty';
 
 export default function LoyaltyPage() {
   const router = useRouter();
   const { showSuccess, showWarning } = useToast();
-  const [points] = useState(5450);
   const [isClient, setIsClient] = useState(false);
   const [account, setAccount] = useState<string | null>(null);
-  const [redeemable] = useState([
+
+  // Fetch user data from database (includes loyalty points)
+  const { data: user, isLoading } = useUser(account || '');
+
+  // Fetch redeemable items from database
+  const { data: dbRedeemables = [] } = useRedeemableItems();
+
+  const points = user?.loyalty_points || 5450;
+  
+  // Fallback to mock data if no database redeemables
+  const [redeemable] = useState(dbRedeemables.length > 0 ? dbRedeemables : [
     {
       id: 1,
       title: 'Event Discount (10%)',

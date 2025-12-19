@@ -3,13 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-declare global {
-  interface Window {
-    ethereum?: any;
-    coinbaseWalletExtension?: any;
-  }
-}
-
 /**
  * ConnectWallet using ONLY the Coinbase Wallet browser extension
  * NO SDK, NO mocks - direct extension provider only

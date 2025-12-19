@@ -1,13 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings, Save, RotateCcw, Database, Shield, Bell, DollarSign, Globe, Lock, Eye, EyeOff, Check } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
+import { usePlatformSettings, useUpdatePlatformSettings } from '@/hooks/usePlatformSettings';
 
 export default function AdminSettingsPage() {
   const { showSuccess, showError } = useToast();
   const [activeTab, setActiveTab] = useState('general');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Fetch platform settings from database
+  const { data: dbSettings, isLoading } = usePlatformSettings();
+  const { mutate: updateSettings } = useUpdatePlatformSettings();
 
   const [settings, setSettings] = useState({
     general: {
@@ -28,33 +33,78 @@ export default function AdminSettingsPage() {
       sessionTimeout: 30,
       requireKYC: true,
     },
-    notifications: {
-      emailNotifications: true,
-      pushNotifications: true,
-      newSellerNotifications: true,
-      disputeNotifications: true,
-    },
     features: {
       enableAuctions: true,
-      enableLoyaltyProgram: true,
-      enableSocialSharing: true,
-      enableTicketTransfer: true,
+      enableDisputes: true,
+      enableLoyalty: true,
     },
   });
+
+  // Load settings from database when available
+  useEffect(() => {
+    if (dbSettings) {
+      setSettings({
+        general: {
+          platformName: dbSettings.platform_name || 'VeilPass',
+          platformVersion: dbSettings.platform_version || '1.0.0',
+          maintenanceMode: dbSettings.maintenance_mode || false,
+          maintenanceMessage: dbSettings.maintenance_message || '',
+        },
+        fees: {
+          platformFeePercentage: dbSettings.platform_fee_percentage || 2.5,
+          minimumTicketPrice: dbSettings.minimum_ticket_price || 0.05,
+          maximumTicketPrice: dbSettings.maximum_ticket_price || 1000,
+          payoutThreshold: dbSettings.payout_threshold || 100,
+        },
+        security: {
+          enableTwoFactor: dbSettings.enable_two_factor ?? true,
+          maxLoginAttempts: dbSettings.max_login_attempts || 5,
+          sessionTimeout: dbSettings.session_timeout || 30,
+          requireKYC: dbSettings.require_kyc ?? true,
+        },
+        features: {
+          enableAuctions: dbSettings.enable_auctions ?? true,
+          enableDisputes: dbSettings.enable_disputes ?? true,
+          enableLoyalty: dbSettings.enable_loyalty ?? true,
+        },
+      });
+    }
+  }, [dbSettings]);
 
   const tabs = [
     { id: 'general', label: 'General', icon: Globe },
     { id: 'fees', label: 'Fees & Pricing', icon: DollarSign },
     { id: 'security', label: 'Security', icon: Shield },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'features', label: 'Features', icon: Settings },
   ];
 
   const handleSave = async () => {
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    showSuccess('System settings updated successfully');
+    try {
+      updateSettings({
+        platform_name: settings.general.platformName,
+        platform_version: settings.general.platformVersion,
+        maintenance_mode: settings.general.maintenanceMode,
+        maintenance_message: settings.general.maintenanceMessage,
+        platform_fee_percentage: settings.fees.platformFeePercentage,
+        minimum_ticket_price: settings.fees.minimumTicketPrice,
+        maximum_ticket_price: settings.fees.maximumTicketPrice,
+        payout_threshold: settings.fees.payoutThreshold,
+        enable_two_factor: settings.security.enableTwoFactor,
+        max_login_attempts: settings.security.maxLoginAttempts,
+        session_timeout: settings.security.sessionTimeout,
+        require_kyc: settings.security.requireKYC,
+        enable_auctions: settings.features.enableAuctions,
+        enable_disputes: settings.features.enableDisputes,
+        enable_loyalty: settings.features.enableLoyalty,
+      });
+      showSuccess('System settings updated successfully');
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      showError('Failed to save settings');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleReset = () => {
@@ -282,31 +332,6 @@ export default function AdminSettingsPage() {
                       }`} />
                     </button>
                   </div>
-                </div>
-              )}
-
-              {/* Notifications */}
-              {activeTab === 'notifications' && (
-                <div className="space-y-4">
-                  {Object.entries(settings.notifications).map(([key, value]) => (
-                    <div key={key} className="flex items-center justify-between p-4 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 hover:border-orange-300 dark:hover:border-orange-700 transition">
-                      <div>
-                        <p className="font-semibold text-gray-900 dark:text-white capitalize">
-                          {key.replace(/([A-Z])/g, ' $1').trim()}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleToggle('notifications', key)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          value ? 'bg-orange-600' : 'bg-gray-300 dark:bg-gray-600'
-                        }`}
-                      >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          value ? 'translate-x-6' : 'translate-x-1'
-                        }`} />
-                      </button>
-                    </div>
-                  ))}
                 </div>
               )}
 

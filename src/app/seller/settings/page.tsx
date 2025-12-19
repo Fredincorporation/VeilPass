@@ -1,50 +1,88 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Save, X, Loader, Check, Bell, Shield, LogOut } from 'lucide-react';
+import { Settings, Bell, Shield, LogOut } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
+import { useUpdateUser } from '@/hooks/useUser';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { useUserPreferences, useUpdateUserPreferences } from '@/hooks/useUserPreferences';
 
 export default function SellerSettingsPage() {
   const router = useRouter();
   const { showSuccess, showError } = useToast();
   const [activeTab, setActiveTab] = useState('profile');
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
+  const [account, setAccount] = useState<string | null>(null);
+
+  // Update user mutation
+  const { mutate: updateUser } = useUpdateUser();
+
+  // Fetch user profile and preferences from database
+  const { data: userProfile } = useUserProfile(account || undefined);
+  const { data: dbPreferences } = useUserPreferences(account || undefined);
+  const { mutate: updatePreferences } = useUpdateUserPreferences();
 
   const [profileData, setProfileData] = useState({
-    businessName: 'John Events Co.',
+    businessName: '',
   });
 
   const [notificationPrefs, setNotificationPrefs] = useState({
-    newsAndUpdates: true,
-    eventReminders: true,
+    news_and_updates: true,
+    event_reminders: true,
   });
+
+  useEffect(() => {
+    const savedAccount = localStorage.getItem('veilpass_account');
+    setAccount(savedAccount);
+  }, []);
+
+  // Load business name from database when profile loads
+  useEffect(() => {
+    if (userProfile?.business_name) {
+      setProfileData({ businessName: userProfile.business_name });
+    } else {
+      // Fallback to localStorage if not in database
+      const savedBusinessName = localStorage.getItem('veilpass_business_name') || '';
+      setProfileData({ businessName: savedBusinessName });
+    }
+  }, [userProfile]);
 
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setProfileData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleNotificationChange = (key: string) => {
-    setNotificationPrefs((prev) => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
-  };
+  // Load preferences from database when available
+  useEffect(() => {
+    if (dbPreferences) {
+      setNotificationPrefs({
+        news_and_updates: dbPreferences.news_and_updates ?? true,
+        event_reminders: dbPreferences.event_reminders ?? true,
+      });
+    }
+  }, [dbPreferences]);
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      setSaveStatus('success');
-      setIsSaving(false);
-      showSuccess('Settings saved successfully');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch (error) {
-      setIsSaving(false);
-      setSaveStatus('error');
-      showError('Failed to save settings');
-      setTimeout(() => setSaveStatus('idle'), 2000);
+  const handleNotificationChange = (key: string) => {
+    const newValue = !notificationPrefs[key as keyof typeof notificationPrefs];
+    setNotificationPrefs((prev) => ({ ...prev, [key as keyof typeof prev]: newValue }));
+    
+    // Show toast with formatted label
+    const labelMap: { [key: string]: string } = {
+      news_and_updates: 'News & Updates',
+      event_reminders: 'Event Reminders',
+    };
+    
+    const label = labelMap[key] || key;
+    const status = newValue ? 'enabled' : 'disabled';
+    showSuccess(`${label} ${status}`);
+    
+    // Save to database immediately
+    if (account) {
+      updatePreferences({
+        wallet_address: account,
+        [key]: newValue,
+      } as any);
     }
   };
 
@@ -118,13 +156,10 @@ export default function SellerSettingsPage() {
                   <label className="block text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide mb-2">
                     Business Name
                   </label>
-                  <input
-                    type="text"
-                    name="businessName"
-                    value={profileData.businessName}
-                    onChange={handleProfileChange}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:border-cyan-500 dark:focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 transition"
-                  />
+                  <div className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white">
+                    {profileData.businessName || 'Not set'}
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">This field was set during registration and cannot be changed.</p>
                 </div>
               </div>
             </div>
@@ -146,15 +181,13 @@ export default function SellerSettingsPage() {
                     <div className="flex items-center gap-3">
                       <Bell className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
                       <div>
-                        <p className="font-semibold text-gray-900 dark:text-white capitalize">
-                          {key
-                            .replace(/([A-Z])/g, ' $1')
-                            .toLowerCase()
-                            .trim()}
+                        <p className="font-semibold text-gray-900 dark:text-white">
+                          {key === 'news_and_updates' && 'News & Updates'}
+                          {key === 'event_reminders' && 'Event Reminders'}
                         </p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {key === 'newsAndUpdates' && 'Get news and feature updates'}
-                          {key === 'eventReminders' && 'Reminders for upcoming events'}
+                          {key === 'news_and_updates' && 'Get news and feature updates'}
+                          {key === 'event_reminders' && 'Reminders for upcoming events'}
                         </p>
                       </div>
                     </div>
@@ -177,40 +210,7 @@ export default function SellerSettingsPage() {
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="flex gap-4 mt-8">
-          <button
-            onClick={handleSave}
-            disabled={isSaving || saveStatus === 'success'}
-            className={`flex-1 px-6 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all ${
-              saveStatus === 'success'
-                ? 'bg-green-600 text-white'
-                : 'bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white disabled:opacity-50'
-            }`}
-          >
-            {isSaving ? (
-              <>
-                <Loader className="w-4 h-4 animate-spin" />
-                Saving...
-              </>
-            ) : saveStatus === 'success' ? (
-              <>
-                <Check className="w-4 h-4" />
-                Saved Successfully
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                Save Changes
-              </>
-            )}
-          </button>
 
-          <button className="px-6 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition-all flex items-center gap-2">
-            <X className="w-4 h-4" />
-            Discard
-          </button>
-        </div>
 
         {/* Account Actions */}
         <div className="mt-12 pt-8 border-t-2 border-gray-200 dark:border-gray-800">

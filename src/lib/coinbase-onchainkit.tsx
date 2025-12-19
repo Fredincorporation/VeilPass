@@ -16,8 +16,8 @@ export function CoinbaseOnchainKitProvider({ children }: { children: React.React
     (async () => {
       try {
         // dynamic import so build doesn't fail if package isn't installed yet
-        const onchainkit = await import('@coinbase/onchainkit');
-        const walletSdkModule = await import('@coinbase/wallet-sdk');
+        const onchainkit: any = await import('@coinbase/onchainkit');
+        const walletSdkModule: any = await import('@coinbase/wallet-sdk');
 
         // Best-effort: try to construct Wallet SDK and pass into OnchainKit provider
         // API shapes may vary; we attempt a safe instantiation and pass options as 'any'.

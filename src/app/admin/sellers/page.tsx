@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { CheckCircle, XCircle, Upload, FileCheck, Mail, Calendar, Search, Filter, MoreVertical, Eye } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
+import { useAdminSellers, useApproveSeller } from '@/hooks/useAdmin';
 
 export default function AdminSellersPage() {
   const { showSuccess, showError } = useToast();
@@ -10,7 +11,12 @@ export default function AdminSellersPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const [sellers] = useState([
+  // Fetch sellers from database
+  const { data: dbSellers = [], isLoading } = useAdminSellers(filterStatus === 'all' ? undefined : filterStatus);
+  const { mutate: approveSeller } = useApproveSeller();
+
+  // Fallback to mock data if no database sellers
+  const [sellers] = useState<any[]>(dbSellers.length > 0 ? dbSellers : [
     {
       id: 'S001',
       name: 'John Events',

@@ -1,63 +1,29 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell, Trash2, CheckCircle, AlertCircle, Info, Zap, Search, Filter } from 'lucide-react';
+import { useNotifications, useMarkNotificationAsRead, useDeleteNotification, Notification } from '@/hooks/useNotifications';
+import { formatRelativeTime } from '@/lib/date-formatter';
 
 export default function NotificationsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'unread' | 'read'>('all');
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: 'success',
-      title: 'Ticket Purchase Confirmed',
-      message: 'Your ticket for Summer Music Fest has been confirmed. Check your email for details.',
-      timestamp: '2 hours ago',
-      read: false,
-    },
-    {
-      id: 2,
-      type: 'alert',
-      title: 'Auction Ending Soon',
-      message: 'Your auction for Classic Vinyl Record ends in 24 hours. Current bid: $150',
-      timestamp: '5 hours ago',
-      read: false,
-    },
-    {
-      id: 3,
-      type: 'info',
-      title: 'Event Reminder',
-      message: 'Comedy Night at Theatre District starts tomorrow at 8 PM. See you there!',
-      timestamp: '1 day ago',
-      read: true,
-    },
-    {
-      id: 4,
-      type: 'success',
-      title: 'Loyalty Points Earned',
-      message: 'You earned 250 loyalty points from your recent purchase.',
-      timestamp: '2 days ago',
-      read: true,
-    },
-    {
-      id: 5,
-      type: 'alert',
-      title: 'Action Required',
-      message: 'Complete your seller verification to unlock auction features.',
-      timestamp: '3 days ago',
-      read: true,
-    },
-    {
-      id: 6,
-      type: 'info',
-      title: 'New Feature Available',
-      message: 'Ticket resale is now available for your upcoming events.',
-      timestamp: '4 days ago',
-      read: true,
-    },
-  ]);
+  const [account, setAccount] = useState<string | null>(null);
 
-  const filteredNotifications = notifications.filter((notif) => {
+  // Fetch user's notifications from database
+  const { data: dbNotifications = [], isLoading } = useNotifications(account || '');
+  const { mutate: markAsReadMutation } = useMarkNotificationAsRead();
+  const { mutate: deleteNotificationMutation } = useDeleteNotification();
+
+  useEffect(() => {
+    const savedAccount = localStorage.getItem('veilpass_account');
+    setAccount(savedAccount);
+  }, []);
+
+  // Use real database notifications
+  const notifications = dbNotifications;
+
+  const filteredNotifications = notifications.filter((notif: Notification) => {
     const matchesSearch =
       notif.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       notif.message.toLowerCase().includes(searchTerm.toLowerCase());
@@ -66,20 +32,26 @@ export default function NotificationsPage() {
     return matchesSearch && matchesFilter;
   });
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter((n: Notification) => !n.read).length;
 
   const toggleRead = (id: number) => {
-    setNotifications(
-      notifications.map((notif) => (notif.id === id ? { ...notif, read: !notif.read } : notif))
-    );
+    markAsReadMutation(id);
   };
 
   const deleteNotification = (id: number) => {
-    setNotifications(notifications.filter((notif) => notif.id !== id));
+    deleteNotificationMutation(id);
   };
 
   const markAllAsRead = () => {
-    setNotifications(notifications.map((notif) => ({ ...notif, read: true })));
+    notifications.forEach((notif: Notification) => {
+      if (!notif.read) {
+        markAsReadMutation(notif.id);
+      }
+    });
+  };
+
+  const formatTimestamp = (created_at: string) => {
+    return formatRelativeTime(created_at);
   };
 
   const getNotificationIcon = (type: string) => {
@@ -186,7 +158,7 @@ export default function NotificationsPage() {
         {/* Notifications List */}
         {filteredNotifications.length > 0 ? (
           <div className="space-y-3">
-            {filteredNotifications.map((notification) => (
+            {filteredNotifications.map((notification: Notification) => (
               <div
                 key={notification.id}
                 className={`group relative bg-white dark:bg-gray-900 rounded-xl border-2 p-4 transition-all duration-300 cursor-pointer ${
@@ -210,7 +182,7 @@ export default function NotificationsPage() {
                       )}
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{notification.message}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">{notification.timestamp}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500">{formatTimestamp(notification.created_at)}</p>
                   </div>
 
                   {/* Actions */}

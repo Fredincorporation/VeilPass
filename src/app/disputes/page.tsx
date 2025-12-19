@@ -1,57 +1,287 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AlertCircle, Clock, CheckCircle, XCircle, Search, Filter, Plus } from 'lucide-react';
+import { useDisputes, useCreateDispute, useUpdateDispute } from '@/hooks/useDisputes';
+import { useDisputeMessages, useSendDisputeMessage } from '@/hooks/useDisputeMessages';
+import { useWalletAuthentication } from '@/hooks/useWalletAuthentication';
+import { useToast } from '@/components/ToastContainer';
+import { formatDate, formatDateTime, formatRelativeTime } from '@/lib/date-formatter';
+
+// Dispute Card Component - Separated to allow proper hook usage
+function DisputeCard({
+  dispute,
+  isAdmin,
+  onViewReason,
+  onOpenMessages,
+  getStatusColor,
+  getStatusIcon,
+  getStatusBadgeColor,
+  getLastAdminMessage,
+  hasUnrepliedMessages,
+}: any) {
+  // Hooks can now be safely called here (not in a loop)
+  const { data: disputeMessages = [] } = useDisputeMessages(dispute.id);
+  
+  const lastAdminMsg = getLastAdminMessage(disputeMessages);
+  const hasUnread = hasUnrepliedMessages(disputeMessages);
+
+  return (
+    <div
+      className={`group relative bg-white dark:bg-gray-900 rounded-xl border-2 p-6 transition-all duration-300 hover:shadow-lg hover:scale-[1.01] ${getStatusColor(
+        dispute.status
+      )}`}
+    >
+      <div className="flex items-start justify-between mb-4 pb-4 border-b border-gray-200 dark:border-gray-800">
+        <div className="flex items-start gap-4">
+          <div className="pt-1">{getStatusIcon(dispute.status)}</div>
+          <div>
+            <div className="flex items-center gap-3">
+              <h3 className="font-bold text-lg text-gray-900 dark:text-white">Ticket ID: {dispute.ticket_id}</h3>
+              <span className={`px-3 py-1 rounded-full font-semibold text-sm ${getStatusBadgeColor(dispute.status)}`}>
+                {dispute.status}
+              </span>
+            </div>
+            <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
+              <span className="font-mono">Dispute ID: {dispute.id}</span>
+              <span>Reason: {dispute.reason}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+        <div>
+          <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Status</p>
+          <p className="font-semibold text-gray-900 dark:text-white">{dispute.status}</p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Timeline</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Created: {formatDate(dispute.created_at)} • Updated: {formatDate(dispute.updated_at)}
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Description</p>
+        <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{dispute.description || 'No description provided'}</p>
+      </div>
+
+      {/* Last Admin Message Section */}
+      {lastAdminMsg && (
+        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-2">Last Message from Admin</p>
+          <p className="text-gray-700 dark:text-gray-300 text-sm mb-2">{lastAdminMsg.message}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {formatDateTime(lastAdminMsg.created_at)}
+          </p>
+        </div>
+      )}
+
+      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800 flex gap-3">
+        {dispute.status === 'REJECTED' && (
+          <button
+            onClick={() => onViewReason(dispute)}
+            className="px-4 py-2 rounded-lg border-2 border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 font-semibold hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+          >
+            View Reason
+          </button>
+        )}
+
+        {/* Open Messages Button - Show for all users except RESOLVED */}
+        {dispute.status !== 'RESOLVED' && (
+          <button
+            onClick={() => onOpenMessages(dispute)}
+            className="px-4 py-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-semibold hover:bg-blue-200 dark:hover:bg-blue-900/50 transition flex items-center gap-2"
+          >
+            Messages
+            {hasUnread && (
+              <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
+                1
+              </span>
+            )}
+          </button>
+        )}
+
+        {/* Add Update Button - Only for Admins */}
+        {isAdmin && (
+          <button
+            onClick={() => onOpenMessages(dispute)}
+            className="px-4 py-2 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-semibold hover:bg-amber-200 dark:hover:bg-amber-900/50 transition"
+          >
+            Add Update
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function DisputesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'open' | 'resolved' | 'rejected'>('all');
   const [showModal, setShowModal] = useState(false);
+  const [showReasonModal, setShowReasonModal] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [selectedDispute, setSelectedDispute] = useState<any>(null);
+  const [account, setAccount] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    ticketId: '',
-    eventName: '',
     reason: '',
     description: '',
   });
+  const [messageData, setMessageData] = useState({
+    message: '',
+    status: 'OPEN',
+  });
 
-  const [disputes, setDisputes] = useState([
-    {
-      id: 'D001',
-      ticketId: 'TK123',
-      event: 'Summer Music Fest',
-      status: 'OPEN',
-      reason: 'Ticket not received',
-      description: 'I did not receive my ticket confirmation email',
-      createdAt: '2025-01-15',
-      updatedAt: '2025-01-15',
-    },
-    {
-      id: 'D002',
-      ticketId: 'TK456',
-      event: 'Comedy Night',
-      status: 'RESOLVED',
-      reason: 'Event cancelled',
-      description: 'Event was cancelled without notice',
-      createdAt: '2025-01-10',
-      updatedAt: '2025-01-12',
-    },
-    {
-      id: 'D003',
-      ticketId: 'TK789',
-      event: 'Art Expo 2025',
-      status: 'OPEN',
-      reason: 'Quality issue',
-      description: 'Physical ticket has printing defect',
-      createdAt: '2025-01-08',
-      updatedAt: '2025-01-15',
-    },
-  ]);
+  // Fetch user's disputes from database
+  const { data: disputes = [], isLoading } = useDisputes(account || '');
+  const { mutate: createDispute } = useCreateDispute();
+  const { mutate: updateDispute } = useUpdateDispute();
+  const { showSuccess, showError } = useToast();
+  
+  // Get user role for admin check
+  const { user } = useWalletAuthentication(account);
+  const isAdmin = user?.role === 'admin';
+  
+  // Fetch messages for selected dispute
+  const { data: messages = [] } = useDisputeMessages(selectedDispute?.id || null);
+  const { mutate: sendMessage } = useSendDisputeMessage();
 
-  const filteredDisputes = disputes.filter((dispute) => {
+  useEffect(() => {
+    const savedAccount = localStorage.getItem('veilpass_account');
+    setAccount(savedAccount);
+    console.log('[DisputesPage] Loaded account:', savedAccount);
+  }, []);
+
+  // Debug hook to log disputes updates
+  useEffect(() => {
+    console.log('[DisputesPage] Disputes updated:', disputes, 'Loading:', isLoading);
+  }, [disputes, isLoading]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!account) {
+      showError('Please connect your wallet first');
+      return;
+    }
+
+    if (!formData.reason) {
+      showError('Please fill in all required fields');
+      return;
+    }
+
+    // Generate a ticket ID (can be anything - will be converted to UUID on backend)
+    const generatedTicketId = `TICKET-${Date.now()}`;
+
+    // Call the mutation to create dispute
+    createDispute(
+      {
+        user_address: account,
+        ticket_id: generatedTicketId,
+        reason: formData.reason,
+        description: formData.description,
+      } as any,
+      {
+        onSuccess: () => {
+          showSuccess('Dispute created successfully!');
+          setFormData({ reason: '', description: '' });
+          setShowModal(false);
+        },
+        onError: () => {
+          showError('Failed to create dispute. Please try again.');
+        },
+      }
+    );
+  };
+
+  const handleViewReason = (dispute: any) => {
+    setSelectedDispute(dispute);
+    setShowReasonModal(true);
+  };
+
+  const handleOpenMessages = (dispute: any) => {
+    setSelectedDispute(dispute);
+    setMessageData({ message: '', status: dispute.status });
+    setShowMessageModal(true);
+  };
+
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedDispute || !messageData.message.trim()) {
+      showError('Please enter a message');
+      return;
+    }
+
+    if (!account) {
+      showError('Please connect your wallet first');
+      return;
+    }
+
+    const isStatusChange = messageData.status !== selectedDispute.status;
+
+    // Send message to database
+    sendMessage(
+      {
+        dispute_id: selectedDispute.id,
+        sender_address: account,
+        sender_role: isAdmin ? 'admin' : 'user',
+        message: messageData.message,
+        status: isStatusChange ? messageData.status : null,
+        is_status_change: isStatusChange,
+      } as any,
+      {
+        onSuccess: () => {
+          // If admin changed status, update the dispute
+          if (isAdmin && isStatusChange) {
+            updateDispute(
+              {
+                id: selectedDispute.id,
+                status: messageData.status,
+              },
+              {
+                onSuccess: () => {
+                  showSuccess('Message sent and status updated!');
+                  setSelectedDispute({ ...selectedDispute, status: messageData.status });
+                  setMessageData({ message: '', status: messageData.status });
+                },
+                onError: () => {
+                  showError('Failed to update dispute status.');
+                },
+              }
+            );
+          } else {
+            showSuccess('Message sent successfully!');
+            setMessageData({ message: '', status: messageData.status });
+          }
+        },
+        onError: () => {
+          showError('Failed to send message. Please try again.');
+        },
+      }
+    );
+  };
+
+  const getLastAdminMessage = (messages: any[]) => {
+    return messages
+      .filter((m) => m.sender_role === 'admin')
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+  };
+
+  const hasUnrepliedMessages = (messages: any[]) => {
+    if (messages.length === 0) return false;
+    const lastMessage = messages[messages.length - 1];
+    return lastMessage.sender_role === 'admin' && !isAdmin;
+  };
+
+  const filteredDisputes = disputes.filter((dispute: any) => {
     const matchesSearch =
-      dispute.event.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dispute.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dispute.ticketId.toLowerCase().includes(searchTerm.toLowerCase());
+      dispute.ticket_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      dispute.id?.toString().includes(searchTerm.toLowerCase()) ||
+      dispute.reason?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter =
       filterStatus === 'all' || dispute.status === filterStatus.toUpperCase();
     return matchesSearch && matchesFilter;
@@ -94,23 +324,6 @@ export default function DisputesPage() {
       default:
         return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400';
     }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newDispute = {
-      id: `D${Math.floor(Math.random() * 10000)}`,
-      ticketId: formData.ticketId,
-      event: formData.eventName,
-      status: 'OPEN',
-      reason: formData.reason,
-      description: formData.description,
-      createdAt: new Date().toISOString().split('T')[0],
-      updatedAt: new Date().toISOString().split('T')[0],
-    };
-    setDisputes([newDispute, ...disputes]);
-    setFormData({ ticketId: '', eventName: '', reason: '', description: '' });
-    setShowModal(false);
   };
 
   return (
@@ -200,60 +413,19 @@ export default function DisputesPage() {
         {/* Disputes List */}
         {filteredDisputes.length > 0 ? (
           <div className="space-y-4">
-            {filteredDisputes.map((dispute) => (
-              <div
+            {filteredDisputes.map((dispute: any) => (
+              <DisputeCard
                 key={dispute.id}
-                className={`group relative bg-white dark:bg-gray-900 rounded-xl border-2 p-6 transition-all duration-300 hover:shadow-lg hover:scale-[1.01] ${getStatusColor(
-                  dispute.status
-                )}`}
-              >
-                <div className="flex items-start justify-between mb-4 pb-4 border-b border-gray-200 dark:border-gray-800">
-                  <div className="flex items-start gap-4">
-                    <div className="pt-1">{getStatusIcon(dispute.status)}</div>
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-bold text-lg text-gray-900 dark:text-white">{dispute.event}</h3>
-                        <span className={`px-3 py-1 rounded-full font-semibold text-sm ${getStatusBadgeColor(dispute.status)}`}>
-                          {dispute.status}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
-                        <span className="font-mono">Dispute ID: {dispute.id}</span>
-                        <span>Ticket: {dispute.ticketId}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                  <div>
-                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Reason</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">{dispute.reason}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Timeline</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Created: {dispute.createdAt} • Updated: {dispute.updatedAt}
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Description</p>
-                  <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{dispute.description}</p>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800 flex gap-3">
-                  <button className="px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-                    View Details
-                  </button>
-                  {dispute.status === 'OPEN' && (
-                    <button className="px-4 py-2 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-semibold hover:bg-amber-200 dark:hover:bg-amber-900/50 transition">
-                      Add Update
-                    </button>
-                  )}
-                </div>
-              </div>
+                dispute={dispute}
+                isAdmin={isAdmin}
+                onViewReason={handleViewReason}
+                onOpenMessages={handleOpenMessages}
+                getStatusColor={getStatusColor}
+                getStatusIcon={getStatusIcon}
+                getStatusBadgeColor={getStatusBadgeColor}
+                getLastAdminMessage={getLastAdminMessage}
+                hasUnrepliedMessages={hasUnrepliedMessages}
+              />
             ))}
           </div>
         ) : (
@@ -267,6 +439,8 @@ export default function DisputesPage() {
             </p>
           </div>
         )}
+
+
 
         {/* Raise Dispute Modal */}
         {showModal && (
@@ -283,34 +457,6 @@ export default function DisputesPage() {
               </div>
 
               <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                <div>
-                  <label className="block text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide mb-2">
-                    Ticket ID
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.ticketId}
-                    onChange={(e) => setFormData({ ...formData, ticketId: e.target.value })}
-                    placeholder="e.g., TK001"
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-red-500 dark:focus:border-red-400 focus:ring-2 focus:ring-red-500/20 transition"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide mb-2">
-                    Event Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.eventName}
-                    onChange={(e) => setFormData({ ...formData, eventName: e.target.value })}
-                    placeholder="e.g., Summer Music Fest"
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-red-500 dark:focus:border-red-400 focus:ring-2 focus:ring-red-500/20 transition"
-                  />
-                </div>
-
                 <div>
                   <label className="block text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide mb-2">
                     Reason
@@ -357,6 +503,150 @@ export default function DisputesPage() {
                     className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-red-500 to-orange-600 hover:from-red-600 hover:to-orange-700 text-white font-semibold transition-all duration-300 hover:shadow-lg"
                   >
                     Submit Dispute
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* View Reason Modal */}
+        {showReasonModal && selectedDispute && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden">
+              <div className="p-8 space-y-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Rejection Reason</h2>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">Dispute #{selectedDispute.id}</p>
+                  </div>
+                  <button
+                    onClick={() => setShowReasonModal(false)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded">
+                  <p className="text-gray-900 dark:text-white font-semibold text-lg mb-2">Reason:</p>
+                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{selectedDispute.reason}</p>
+                </div>
+
+                {selectedDispute.description && (
+                  <div>
+                    <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase mb-2">Additional Details</p>
+                    <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{selectedDispute.description}</p>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => setShowReasonModal(false)}
+                  className="w-full px-4 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold transition"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Message Center Modal */}
+        {showMessageModal && selectedDispute && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="w-full max-w-2xl bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+              {/* Header */}
+              <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex items-start justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Message Center</h2>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">Dispute #{selectedDispute.id} • Status: {selectedDispute.status}</p>
+                </div>
+                <button
+                  onClick={() => setShowMessageModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Messages Area */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {messages.length === 0 ? (
+                  <p className="text-center text-gray-500 dark:text-gray-400 py-8">No messages yet. Start the conversation!</p>
+                ) : (
+                  messages.map((msg: any) => (
+                    <div
+                      key={msg.id}
+                      className={`flex ${msg.sender_role === 'admin' ? 'justify-start' : 'justify-end'}`}
+                    >
+                      <div
+                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                          msg.sender_role === 'admin'
+                            ? 'bg-blue-100 dark:bg-blue-900/30 text-gray-900 dark:text-white'
+                            : 'bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white'
+                        }`}
+                      >
+                        <p className="font-semibold text-xs mb-1 opacity-75">{msg.sender_role === 'admin' ? 'Admin' : 'You'}</p>
+                        <p className="text-sm">{msg.message}</p>
+                        {msg.is_status_change && (
+                          <p className="text-xs mt-2 font-semibold text-blue-600 dark:text-blue-400">
+                            Status changed to: {msg.status}
+                          </p>
+                        )}
+                        <p className="text-xs mt-2 opacity-50">{formatDateTime(msg.created_at)}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Input Area */}
+              <form onSubmit={handleSendMessage} className="p-6 border-t border-gray-200 dark:border-gray-800 space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide mb-2">
+                    Your Message
+                  </label>
+                  <textarea
+                    value={messageData.message}
+                    onChange={(e) => setMessageData({ ...messageData, message: e.target.value })}
+                    placeholder="Type your message here..."
+                    rows={3}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition resize-none"
+                  />
+                </div>
+
+                {/* Admin Status Change Option */}
+                {isAdmin && (
+                  <div>
+                    <label className="block text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide mb-2">
+                      Update Status (Optional)
+                    </label>
+                    <select
+                      value={messageData.status}
+                      onChange={(e) => setMessageData({ ...messageData, status: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition"
+                    >
+                      <option value={selectedDispute.status}>No Change</option>
+                      <option value="OPEN">Open</option>
+                      <option value="RESOLVED">Resolved</option>
+                      <option value="REJECTED">Rejected</option>
+                    </select>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowMessageModal(false)}
+                    className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold transition-all duration-300 hover:shadow-lg"
+                  >
+                    Send Message
                   </button>
                 </div>
               </form>

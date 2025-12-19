@@ -1,15 +1,61 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart, LineChart, TrendingUp, DollarSign, Ticket, Calendar } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
+import { useSellerAnalytics } from '@/hooks/useSellerEvents';
 
 export default function SalesAnalyticsPage() {
   const { showSuccess, showInfo } = useToast();
   const [dateRange, setDateRange] = useState('month');
+  const [account, setAccount] = useState<string | null>(null);
 
-  // Mock data for charts
-  const revenueData = [
+  useEffect(() => {
+    const savedAccount = localStorage.getItem('veilpass_account');
+    setAccount(savedAccount);
+  }, []);
+
+  // Fetch seller analytics from database
+  const { data: analytics, isLoading } = useSellerAnalytics(account || '');
+
+  // Extract data from analytics or use defaults
+  const metrics = [
+    {
+      label: 'Total Revenue',
+      value: isLoading ? '-' : `${analytics?.metrics?.totalRevenue || 0} ETH`,
+      change: '+0%',
+      icon: DollarSign,
+      color: 'from-green-500 to-emerald-600',
+      textColor: 'text-green-600 dark:text-green-400',
+    },
+    {
+      label: 'Tickets Sold',
+      value: isLoading ? '-' : (analytics?.metrics?.ticketsSold || 0).toLocaleString(),
+      change: '+0',
+      icon: Ticket,
+      color: 'from-blue-500 to-cyan-600',
+      textColor: 'text-blue-600 dark:text-blue-400',
+    },
+    {
+      label: 'Active Events',
+      value: isLoading ? '-' : (analytics?.metrics?.activeEvents || 0),
+      change: '+0',
+      icon: Calendar,
+      color: 'from-purple-500 to-indigo-600',
+      textColor: 'text-purple-600 dark:text-purple-400',
+    },
+    {
+      label: 'Avg. Revenue/Event',
+      value: isLoading ? '-' : `${analytics?.metrics?.avgRevenuePerEvent || 0} ETH`,
+      change: '+0%',
+      icon: TrendingUp,
+      color: 'from-orange-500 to-red-600',
+      textColor: 'text-orange-600 dark:text-orange-400',
+    },
+  ];
+
+  // Use real data from analytics or fallback to mock
+  const revenueData = analytics?.revenueData || [
     { month: 'Jan', revenue: 2400 },
     { month: 'Feb', revenue: 1398 },
     { month: 'Mar', revenue: 9800 },
@@ -18,23 +64,14 @@ export default function SalesAnalyticsPage() {
     { month: 'Jun', revenue: 3800 },
   ];
 
-  const ticketsData = [
-    { month: 'Jan', sold: 124 },
-    { month: 'Feb', sold: 98 },
-    { month: 'Mar', sold: 245 },
-    { month: 'Apr', sold: 178 },
-    { month: 'May', sold: 189 },
-    { month: 'Jun', sold: 156 },
-  ];
-
-  const topEvents = [
+  const topEvents = analytics?.topEvents || [
     { id: 1, title: 'Summer Music Festival', revenue: 24500, tickets: 1200 },
     { id: 2, title: 'Tech Conference 2024', revenue: 18900, tickets: 950 },
     { id: 3, title: 'Comedy Night', revenue: 12300, tickets: 680 },
     { id: 4, title: 'Art Exhibition Opening', revenue: 9800, tickets: 520 },
   ];
 
-  const recentTransactions = [
+  const recentTransactions = analytics?.recentTransactions || [
     { id: 1, event: 'Summer Music Festival', tickets: 25, amount: 1250, date: '2024-01-15' },
     { id: 2, event: 'Tech Conference 2024', tickets: 18, amount: 1800, date: '2024-01-14' },
     { id: 3, event: 'Comedy Night', tickets: 12, amount: 600, date: '2024-01-13' },
@@ -42,40 +79,11 @@ export default function SalesAnalyticsPage() {
     { id: 5, event: 'Summer Music Festival', tickets: 15, amount: 750, date: '2024-01-11' },
   ];
 
-  const metrics = [
-    {
-      label: 'Total Revenue',
-      value: '$45,690',
-      change: '+12.5%',
-      icon: DollarSign,
-      color: 'from-green-500 to-emerald-600',
-      textColor: 'text-green-600 dark:text-green-400',
-    },
-    {
-      label: 'Tickets Sold',
-      value: '1,340',
-      change: '+8.2%',
-      icon: Ticket,
-      color: 'from-blue-500 to-cyan-600',
-      textColor: 'text-blue-600 dark:text-blue-400',
-    },
-    {
-      label: 'Active Events',
-      value: '4',
-      change: '+2',
-      icon: Calendar,
-      color: 'from-purple-500 to-indigo-600',
-      textColor: 'text-purple-600 dark:text-purple-400',
-    },
-    {
-      label: 'Avg. Revenue/Event',
-      value: '$11,423',
-      change: '+4.3%',
-      icon: TrendingUp,
-      color: 'from-orange-500 to-red-600',
-      textColor: 'text-orange-600 dark:text-orange-400',
-    },
-  ];
+  // Generate tickets data from revenue data proportionally
+  const ticketsData = revenueData.map((data: any) => ({
+    month: data.month,
+    sold: Math.ceil(data.revenue / (Math.max(...revenueData.map((d: any) => d.revenue)) / 250)), // Scale proportionally
+  }));
 
   // Helper function to calculate chart heights
   const getBarHeight = (value: number, max: number) => (value / max) * 100;
@@ -94,8 +102,8 @@ export default function SalesAnalyticsPage() {
     }, 2000);
   };
 
-  const maxRevenue = Math.max(...revenueData.map((d) => d.revenue));
-  const maxTickets = Math.max(...ticketsData.map((d) => d.sold));
+  const maxRevenue = Math.max(...revenueData.map((d: any) => d.revenue));
+  const maxTickets = Math.max(...ticketsData.map((d: any) => d.sold));
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-950 dark:to-black pt-24">
@@ -163,7 +171,7 @@ export default function SalesAnalyticsPage() {
               Revenue Trend
             </h2>
             <div className="flex items-end justify-between h-64 gap-2">
-              {revenueData.map((data, index) => (
+              {revenueData.map((data: any, index: number) => (
                 <div key={index} className="flex-1 flex flex-col items-center gap-2">
                   <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden h-48 flex items-end">
                     <div
@@ -194,7 +202,7 @@ export default function SalesAnalyticsPage() {
 
                 {/* Line chart */}
                 <polyline
-                  points={ticketsData.map((data, i) => `${(i / (ticketsData.length - 1)) * 100},${getLineY(data.sold, maxTickets)}`).join(' ')}
+                  points={ticketsData.map((data: any, i: number) => `${(i / (ticketsData.length - 1)) * 100},${getLineY(data.sold, maxTickets)}`).join(' ')}
                   fill="none"
                   stroke="url(#blueGradient)"
                   strokeWidth="1.5"
@@ -210,14 +218,14 @@ export default function SalesAnalyticsPage() {
                 </defs>
 
                 {/* Data points */}
-                {ticketsData.map((data, i) => (
+                {ticketsData.map((data: any, i: number) => (
                   <circle key={i} cx={(i / (ticketsData.length - 1)) * 100} cy={getLineY(data.sold, maxTickets)} r="1.5" fill="#0ea5e9" />
                 ))}
               </svg>
 
               {/* Month labels */}
               <div className="absolute bottom-0 left-0 right-0 flex justify-between px-4 text-xs font-semibold text-gray-600 dark:text-gray-400">
-                {ticketsData.map((data) => (
+                {ticketsData.map((data: any) => (
                   <span key={data.month}>{data.month}</span>
                 ))}
               </div>
@@ -232,7 +240,7 @@ export default function SalesAnalyticsPage() {
             Top Events by Revenue
           </h2>
           <div className="space-y-4">
-            {topEvents.map((event, index) => (
+            {topEvents.map((event: any, index: number) => (
               <div
                 key={event.id}
                 className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 transition-all"
@@ -282,7 +290,7 @@ export default function SalesAnalyticsPage() {
                 </tr>
               </thead>
               <tbody>
-                {recentTransactions.map((transaction, index) => (
+                {recentTransactions.map((transaction: any, index: number) => (
                   <tr
                     key={transaction.id}
                     className={`border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all ${

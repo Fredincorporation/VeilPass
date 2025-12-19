@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, Search, Clock, Users, Zap, ChevronRight, X, DollarSign } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
+import { useAuctions } from '@/hooks/useAuctions';
 
 export default function AuctionsPage() {
   const { showSuccess, showInfo } = useToast();
@@ -12,26 +13,11 @@ export default function AuctionsPage() {
   const [bidAmount, setBidAmount] = useState('');
   const [timeState, setTimeState] = useState<{[key: number]: {timeLeft: string; progress: number}}>({});
 
-  const auctions = [
-    {
-      id: 1,
-      title: 'Summer Music Fest - Front Row',
-      encryptedBid: '****...',
-      endTime: new Date(Date.now() + 2.5 * 60 * 60 * 1000), // 2h 30m from now
-      totalDuration: 2.5 * 60 * 60 * 1000, // 2h 30m total
-      bids: 12,
-      minBid: 250,
-    },
-    {
-      id: 2,
-      title: 'Tech Conference - VIP Pass',
-      encryptedBid: '****...',
-      endTime: new Date(Date.now() + 5.25 * 60 * 60 * 1000), // 5h 15m from now
-      totalDuration: 5.25 * 60 * 60 * 1000, // 5h 15m total
-      bids: 8,
-      minBid: 500,
-    },
-  ];
+  // Fetch auctions from database
+  const { data: dbAuctions = [], isLoading } = useAuctions(activeFilter === 'all' ? undefined : activeFilter);
+
+  // Use only database auctions - no mock data fallback
+  const auctions: any[] = dbAuctions;
 
   useEffect(() => {
     const updateTimers = () => {

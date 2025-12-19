@@ -127,6 +127,25 @@ export function getSavedLanguage(): string | null {
 export function setSavedLanguage(language: string): void {
   if (typeof localStorage !== 'undefined') {
     localStorage.setItem('veilpass_language', language);
+    
+    // Save to database if user is logged in
+    const account = localStorage.getItem('veilpass_account');
+    if (account) {
+      try {
+        fetch('/api/user', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet_address: account,
+            language_preference: language,
+          }),
+        }).catch(error => {
+          console.error('Failed to save language preference:', error);
+        });
+      } catch (error) {
+        console.error('Failed to save language preference:', error);
+      }
+    }
   }
 }
 

@@ -1,81 +1,32 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, MapPin, Users, TrendingUp, Search, Filter, Plus, Edit, Eye, MoreVertical, Clock, Zap } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/components/ToastContainer';
+import { useSellerEvents } from '@/hooks/useSellerEvents';
+import { formatDate, formatTime } from '@/lib/date-formatter';
 
 export default function SellerEventsPage() {
   const router = useRouter();
   const { showSuccess, showInfo } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'upcoming' | 'ended'>('all');
+  const [account, setAccount] = useState<string | null>(null);
 
-  const [events] = useState([
-    {
-      id: 'EV001',
-      title: 'Summer Music Festival',
-      date: '2025-06-15',
-      time: '6:00 PM',
-      location: 'Central Park, NYC',
-      ticketsSold: 245,
-      revenue: '$12,450',
-      status: 'active',
-      capacity: 500,
-      image: 'https://images.unsplash.com/photo-1511379938547-c1f69b13d835?w=600&h=400&fit=crop',
-      category: 'Music',
-      attendees: '245/500',
-      occupancy: 49,
-    },
-    {
-      id: 'EV002',
-      title: 'Comedy Night Live',
-      date: '2025-07-22',
-      time: '8:00 PM',
-      location: 'Theatre District, NYC',
-      ticketsSold: 128,
-      revenue: '$6,400',
-      status: 'upcoming',
-      capacity: 300,
-      image: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&h=400&fit=crop',
-      category: 'Comedy',
-      attendees: '128/300',
-      occupancy: 43,
-    },
-    {
-      id: 'EV003',
-      title: 'Art Exhibition 2025',
-      date: '2025-05-10',
-      time: '10:00 AM',
-      location: 'Museum of Modern Art',
-      ticketsSold: 89,
-      revenue: '$4,450',
-      status: 'ended',
-      capacity: 200,
-      image: 'https://images.unsplash.com/photo-1579783902614-e3fb5141b0cb?w=600&h=400&fit=crop',
-      category: 'Art',
-      attendees: '89/200',
-      occupancy: 45,
-    },
-    {
-      id: 'EV004',
-      title: 'Tech Conference 2025',
-      date: '2025-08-05',
-      time: '9:00 AM',
-      location: 'Convention Center, NYC',
-      ticketsSold: 342,
-      revenue: '$17,100',
-      status: 'active',
-      capacity: 600,
-      image: 'https://images.unsplash.com/photo-1540575467063-178f50002cbc?w=600&h=400&fit=crop',
-      category: 'Conference',
-      attendees: '342/600',
-      occupancy: 57,
-    },
-  ]);
+  // Fetch seller's events from database
+  const { data: dbEvents = [], isLoading } = useSellerEvents(account || '');
 
-  const filteredEvents = events.filter((event) => {
+  useEffect(() => {
+    const savedAccount = localStorage.getItem('veilpass_account');
+    setAccount(savedAccount);
+  }, []);
+
+  // Use only database events - no mock data fallback
+  const events = dbEvents;
+
+  const filteredEvents = events.filter((event: any) => {
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'all' || event.status === filterStatus;
     return matchesSearch && matchesFilter;
@@ -94,6 +45,43 @@ export default function SellerEventsPage() {
     }
   };
 
+  // Helper function to format ISO date string to display format
+  const formatEventDate = (dateString: string) => {
+    return formatDate(dateString);
+  };
+
+  // Helper function to extract time from ISO date string
+  const formatEventTime = (dateString: string) => {
+    return formatTime(dateString);
+  };
+
+  // Helper function to get attendees count (placeholder - will be calculated from bids/tickets)
+  const getAttendees = (event: any) => {
+    // For now, return 0 as we don't have ticket/bid data in events table
+    // This can be updated when ticket system is fully integrated
+    return event.tickets_sold || 0;
+  };
+
+  // Helper function to calculate revenue (base_price * attendees or tickets sold)
+  const getRevenue = (event: any) => {
+    const basePrice = event.base_price || 0;
+    const ticketsSold = event.tickets_sold || 0;
+    const revenue = basePrice * ticketsSold;
+    return `${revenue.toFixed(2)} ETH`;
+  };
+
+  // Helper function to get occupancy percentage (placeholder)
+  const getOccupancy = (event: any) => {
+    // Calculate occupancy based on tickets sold vs capacity
+    const capacity = event.capacity || 0;
+    const ticketsSold = event.tickets_sold || 0;
+    
+    if (capacity === 0) return 0;
+    
+    const occupancy = Math.round((ticketsSold / capacity) * 100);
+    return Math.min(occupancy, 100); // Cap at 100%
+  };
+
   const getOccupancyColor = (occupancy: number) => {
     if (occupancy >= 80) return 'from-red-500 to-pink-600';
     if (occupancy >= 60) return 'from-orange-500 to-red-600';
@@ -103,19 +91,19 @@ export default function SellerEventsPage() {
 
   const handleEditEvent = (eventId: string, eventTitle: string) => {
     showInfo(`Opening edit for "${eventTitle}"...`);
-    // TODO: Navigate to edit event page
+    router.push(`/seller/events/edit/${encodeURIComponent(eventTitle)}`);
   };
 
   const handleViewEvent = (eventId: string, eventTitle: string) => {
     showInfo(`Opening event details for "${eventTitle}"...`);
-    // TODO: Navigate to event details page
+    router.push(`/seller/events/view/${encodeURIComponent(eventTitle)}`);
   };
 
   const stats = {
     totalEvents: events.length,
-    activeEvents: events.filter(e => e.status === 'active').length,
-    totalRevenue: `$${events.reduce((sum, e) => sum + parseInt(e.revenue.replace(/[$,]/g, '')), 0).toLocaleString()}`,
-    totalAttendees: events.reduce((sum, e) => sum + e.ticketsSold, 0),
+    activeEvents: events.filter((e: any) => e.status === 'On Sale').length,
+    totalRevenue: '$0',
+    totalAttendees: 0,
   };
 
   return (
@@ -224,7 +212,7 @@ export default function SellerEventsPage() {
         {/* Events Grid */}
         {filteredEvents.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredEvents.map((event) => (
+            {filteredEvents.map((event: any) => (
               <div
                 key={event.id}
                 className="group relative bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-800 overflow-hidden hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300"
@@ -264,11 +252,11 @@ export default function SellerEventsPage() {
                   <div className="space-y-2 mb-4 pb-4 border-b border-gray-200 dark:border-gray-800">
                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                       <Calendar className="w-4 h-4 text-indigo-500" />
-                      <span>{event.date}</span>
+                      <span>{formatEventDate(event.date)}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                       <Clock className="w-4 h-4 text-indigo-500" />
-                      <span>{event.time}</span>
+                      <span>{formatEventTime(event.date)}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                       <MapPin className="w-4 h-4 text-indigo-500" />
@@ -280,12 +268,12 @@ export default function SellerEventsPage() {
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">Occupancy</p>
-                      <span className="text-xs font-bold text-gray-900 dark:text-white">{event.occupancy}%</span>
+                      <span className="text-xs font-bold text-gray-900 dark:text-white">{getOccupancy(event)}%</span>
                     </div>
                     <div className="h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
                       <div
-                        className={`h-full bg-gradient-to-r ${getOccupancyColor(event.occupancy)} transition-all`}
-                        style={{ width: `${event.occupancy}%` }}
+                        className={`h-full bg-gradient-to-r ${getOccupancyColor(getOccupancy(event))} transition-all`}
+                        style={{ width: `${getOccupancy(event)}%` }}
                       />
                     </div>
                   </div>
@@ -294,11 +282,11 @@ export default function SellerEventsPage() {
                   <div className="grid grid-cols-2 gap-3 mb-6">
                     <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
                       <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-1">Attendees</p>
-                      <p className="text-sm font-bold text-blue-900 dark:text-blue-100">{event.attendees}</p>
+                      <p className="text-sm font-bold text-blue-900 dark:text-blue-100">{getAttendees(event)}</p>
                     </div>
                     <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
                       <p className="text-xs font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide mb-1">Revenue</p>
-                      <p className="text-sm font-bold text-green-900 dark:text-green-100">{event.revenue}</p>
+                      <p className="text-sm font-bold text-green-900 dark:text-green-100">{getRevenue(event)}</p>
                     </div>
                   </div>
 

@@ -1,62 +1,68 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Gavel, Search, Filter, MessageSquare, CheckCircle, XCircle, Clock, Eye, MessageCircle } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
+import { useAdminDisputes, useUpdateDisputeStatus } from '@/hooks/useAdmin';
 
 export default function AdminDisputesPage() {
   const { showSuccess, showError, showInfo } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [selectedDispute, setSelectedDispute] = useState<string | null>(null);
+  const [selectedDispute, setSelectedDispute] = useState<number | null>(null);
   const [resolution, setResolution] = useState('');
 
-  const [disputes, setDisputes] = useState([
+  // Fetch disputes from database
+  const { data: dbDisputes = [], isLoading } = useAdminDisputes(filterStatus === 'all' ? undefined : filterStatus);
+  const { mutate: updateDisputeStatus } = useUpdateDisputeStatus();
+
+  // Fallback to mock data if no database disputes
+  const [disputes, setDisputes] = useState(dbDisputes.length > 0 ? dbDisputes : [
     {
-      id: 'D001',
-      ticketId: 'TK123',
+      id: 1,
+      ticket_id: 'TK123',
       event: 'Summer Music Fest',
-      status: 'OPEN',
+      status: 'OPEN' as const,
       reason: 'Ticket not received',
       description: 'I did not receive my ticket confirmation email',
       claimant: 'john.doe@example.com',
       seller: 'Event Promoter Inc',
-      createdAt: '2025-01-15',
+      created_at: '2025-01-15',
       priority: 'HIGH',
       amount: '$285',
     },
     {
-      id: 'D002',
-      ticketId: 'TK456',
+      id: 2,
+      ticket_id: 'TK456',
       event: 'Comedy Night',
-      status: 'UNDER_REVIEW',
+      status: 'UNDER_REVIEW' as const,
       reason: 'Event cancelled',
       description: 'Event was cancelled without proper notice',
       claimant: 'sarah.smith@example.com',
       seller: 'Comedy Org LLC',
-      createdAt: '2025-01-12',
+      created_at: '2025-01-12',
       priority: 'MEDIUM',
       amount: '$150',
     },
     {
-      id: 'D003',
-      ticketId: 'TK789',
+      id: 3,
+      ticket_id: 'TK789',
       event: 'Art Expo 2025',
-      status: 'OPEN',
+      status: 'OPEN' as const,
       reason: 'Quality issue',
       description: 'Physical ticket has printing defect',
       claimant: 'mike.wilson@example.com',
       seller: 'Art Events Co',
-      createdAt: '2025-01-10',
+      created_at: '2025-01-10',
       priority: 'LOW',
       amount: '$95',
     },
   ]);
 
   const filteredDisputes = disputes.filter(dispute => {
-    const matchesSearch = dispute.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = String(dispute.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
                           dispute.event.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          dispute.ticketId.toLowerCase().includes(searchTerm.toLowerCase());
+                          String(dispute.ticket_id).toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'all' || dispute.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
@@ -87,7 +93,7 @@ export default function AdminDisputesPage() {
     }
   };
 
-  const handleResolve = (disputeId: string, action: 'approve' | 'reject') => {
+  const handleResolve = (disputeId: number, action: 'approve' | 'reject') => {
     if (!resolution.trim() && action === 'approve') {
       showError('Please enter a resolution note');
       return;
@@ -199,7 +205,7 @@ export default function AdminDisputesPage() {
                   <div className="grid grid-cols-3 gap-4 mb-4 pb-4 border-b border-gray-300 dark:border-gray-700">
                     <div>
                       <p className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Ticket ID</p>
-                      <p className="text-sm font-mono font-semibold text-gray-900 dark:text-white">{dispute.ticketId}</p>
+                      <p className="text-sm font-mono font-semibold text-gray-900 dark:text-white">{dispute.ticket_id}</p>
                     </div>
                     <div>
                       <p className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Amount</p>
@@ -207,7 +213,7 @@ export default function AdminDisputesPage() {
                     </div>
                     <div>
                       <p className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Created</p>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{dispute.createdAt}</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{dispute.created_at}</p>
                     </div>
                   </div>
 

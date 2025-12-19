@@ -3,10 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronRight, ChevronLeft, Zap, Shield, Users } from 'lucide-react';
+import { useEvents } from '@/hooks/useEvents';
+import { formatDate } from '@/lib/date-formatter';
 
 export default function HomePage() {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
+  const { data: allEvents = [] } = useEvents();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -36,98 +39,8 @@ export default function HomePage() {
     },
   ];
 
-  const featuredEvents = [
-    { 
-      title: 'Berlin Techno Festival 2025', 
-      date: 'Sep 12-15, 2025', 
-      location: 'Berlin, Germany',
-      price: '0.25-0.85 ETH', 
-      zama: '+$ZAMA for Encryption',
-      capacity: '5,250 / 10,000',
-      status: 'Live Auction',
-      image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&h=400&fit=crop'
-    },
-    { 
-      title: 'Web3 Summit Europe', 
-      date: 'Oct 8-10, 2025', 
-      location: 'Lisbon, Portugal',
-      price: '0.5-2.0 ETH', 
-      zama: '+$ZAMA for Decryption',
-      capacity: '1,842 / 3,000',
-      status: 'Pre-Sale',
-      image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=500&h=400&fit=crop'
-    },
-    { 
-      title: 'London Stand-Up Comedy Night', 
-      date: 'Nov 22, 2025', 
-      location: 'London, UK',
-      price: '0.1-0.35 ETH', 
-      zama: '+$ZAMA for Verification',
-      capacity: '485 / 600',
-      status: 'Almost Sold',
-      image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&h=400&fit=crop'
-    },
-    { 
-      title: 'Paris Fashion Week 2025', 
-      date: 'Jan 20-27, 2025', 
-      location: 'Paris, France',
-      price: '1.5-5.0 ETH', 
-      zama: '+$ZAMA for Encryption',
-      capacity: '2,100 / 5,000',
-      status: 'Live Auction',
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&h=400&fit=crop'
-    },
-    { 
-      title: 'Tokyo Gaming Expo', 
-      date: 'Dec 28-30, 2025', 
-      location: 'Tokyo, Japan',
-      price: '0.3-0.9 ETH', 
-      zama: '+$ZAMA for Decryption',
-      capacity: '8,500 / 12,000',
-      status: 'Pre-Sale',
-      image: 'https://images.unsplash.com/photo-1538481143481-c8733cfe36a3?w=500&h=400&fit=crop'
-    },
-    { 
-      title: 'New York Art Basel', 
-      date: 'Feb 10-12, 2025', 
-      location: 'New York, USA',
-      price: '2.0-8.5 ETH', 
-      zama: '+$ZAMA for Verification',
-      capacity: '1,250 / 2,500',
-      status: 'Almost Sold',
-      image: 'https://images.unsplash.com/photo-1560169897-fc0cdbdfa4d5?w=500&h=400&fit=crop'
-    },
-    { 
-      title: 'Austin Film Festival', 
-      date: 'Mar 15-22, 2025', 
-      location: 'Austin, USA',
-      price: '0.15-0.45 ETH', 
-      zama: '+$ZAMA for Encryption',
-      capacity: '3,800 / 6,000',
-      status: 'Live Auction',
-      image: 'https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?w=500&h=400&fit=crop'
-    },
-    { 
-      title: 'Amsterdam Dance Festival', 
-      date: 'Apr 5-7, 2025', 
-      location: 'Amsterdam, Netherlands',
-      price: '0.35-0.95 ETH', 
-      zama: '+$ZAMA for Decryption',
-      capacity: '6,200 / 8,500',
-      status: 'Pre-Sale',
-      image: 'https://images.unsplash.com/photo-1478225061915-69a3109e96b3?w=500&h=400&fit=crop'
-    },
-    { 
-      title: 'Dubai Crypto Summit', 
-      date: 'May 12-14, 2025', 
-      location: 'Dubai, UAE',
-      price: '0.8-2.5 ETH', 
-      zama: '+$ZAMA for Verification',
-      capacity: '2,500 / 4,000',
-      status: 'Almost Sold',
-      image: 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=500&h=400&fit=crop'
-    },
-  ];
+  // Use events from database, fallback to showing only first few or empty
+  const featuredEvents = allEvents.slice(0, 9);
 
   return (
     <>
@@ -192,7 +105,7 @@ export default function HomePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-20">
             {[
               { label: 'Encrypted Tickets', value: '50K+' },
-              { label: 'Live Auctions', value: '1.2K+' },
+              { label: 'On Sale Events', value: '1.2K+' },
               { label: 'Protected Users', value: '25K+' },
               { label: 'Privacy Score', value: '99.8%' },
             ].map((stat, i) => (
@@ -222,7 +135,10 @@ export default function HomePage() {
                 >
                   {/* Infinite loop - duplicate all events 3 times */}
                   {[...featuredEvents, ...featuredEvents, ...featuredEvents].map((event, i) => {
-                    const capacityPercent = (parseInt(event.capacity.split(' / ')[0].replace(',', '')) / parseInt(event.capacity.split(' / ')[1])) * 100;
+                    // Calculate occupancy from capacity and tickets_sold
+                    const capacity = event.capacity || 0;
+                    const ticketsSold = event.tickets_sold || 0;
+                    const capacityPercent = capacity > 0 ? Math.min((ticketsSold / capacity) * 100, 100) : 0;
                     return (
                       <div 
                         key={i} 
@@ -251,7 +167,7 @@ export default function HomePage() {
                                 <p className="text-xs text-gray-500 dark:text-gray-500 truncate">📍 {event.location}</p>
                               </div>
                               <span className={`text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap flex-shrink-0 ${
-                                event.status === 'Live Auction' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' :
+                                event.status === 'On Sale' ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' :
                                 event.status === 'Pre-Sale' ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300' :
                                 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300'
                               }`}>
@@ -260,7 +176,7 @@ export default function HomePage() {
                             </div>
 
                             <div className="space-y-2 mb-4 pb-4 border-b border-gray-200 dark:border-gray-800 flex-grow">
-                              <p className="text-xs text-gray-600 dark:text-gray-400">📅 {event.date}</p>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">📅 {formatDate(event.date)}</p>
                               <div>
                                 <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">🎫 {event.capacity}</p>
                                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
@@ -271,12 +187,12 @@ export default function HomePage() {
 
                             <div className="space-y-2 mt-auto flex-shrink-0">
                               <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Base ETH:</span>
-                                <span className="font-bold text-xs text-blue-600 dark:text-blue-400">{event.price}</span>
+                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Base Price:</span>
+                                <span className="font-bold text-xs text-blue-600 dark:text-blue-400">${event.base_price || 'TBD'}</span>
                               </div>
                               <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Encryption:</span>
-                                <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold">{event.zama}</span>
+                                <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Organizer:</span>
+                                <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold truncate">{event.organizer || 'TBD'}</span>
                               </div>
                             </div>
                           </div>

@@ -2,12 +2,17 @@
 
 import React, { useState } from 'react';
 import { Activity, Search, Filter, Download, Clock, User, Target, FileText } from 'lucide-react';
+import { useAdminAuditLogs } from '@/hooks/useAdmin';
 
 export default function AuditPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAction, setFilterAction] = useState('all');
 
-  const auditLogs = [
+  // Fetch audit logs from database
+  const { data: dbAuditLogs = [], isLoading } = useAdminAuditLogs();
+
+  // Fallback to mock data if no database logs
+  const auditLogs: any[] = dbAuditLogs.length > 0 ? dbAuditLogs : [
     {
       id: 1,
       action: 'EVENT_CREATED',
@@ -43,7 +48,7 @@ export default function AuditPage() {
     },
   ];
 
-  const filteredLogs = auditLogs.filter(log => {
+  const filteredLogs = auditLogs.filter((log: any) => {
     const matchesSearch = log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           log.actor.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           log.target.toLowerCase().includes(searchTerm.toLowerCase());

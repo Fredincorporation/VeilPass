@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings, Mail, Smartphone, Globe, Bell, Palette, LogOut, Save, X } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
 import { useTranslation } from '@/lib/translation-context';
 import { useThemeContext } from '@/lib/theme-context';
+import { useUserPreferences, useUpdateUserPreferences } from '@/hooks/useUserPreferences';
 
 export default function SettingsPage() {
   const { showSuccess, showError, showWarning } = useToast();
@@ -13,6 +14,11 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
   const [isSaving, setIsSaving] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const [account, setAccount] = useState<string | null>(null);
+
+  // Fetch user preferences from database
+  const { data: dbPreferences, isLoading } = useUserPreferences(account || undefined);
+  const { mutate: updatePreferences } = useUpdateUserPreferences();
 
   // Form states
   const [formData, setFormData] = useState({
@@ -22,13 +28,32 @@ export default function SettingsPage() {
   });
 
   const [notifications, setNotifications] = useState({
-    eventReminders: true,
+    event_reminders: true,
     promotions: true,
     reviews: true,
     auctions: true,
     disputes: true,
     newsletter: false,
   });
+
+  useEffect(() => {
+    const savedAccount = localStorage.getItem('veilpass_account');
+    setAccount(savedAccount);
+  }, []);
+
+  // Load preferences from database when available
+  useEffect(() => {
+    if (dbPreferences) {
+      setNotifications({
+        event_reminders: dbPreferences.event_reminders ?? true,
+        promotions: dbPreferences.promotions ?? true,
+        reviews: dbPreferences.reviews ?? true,
+        auctions: dbPreferences.auctions ?? true,
+        disputes: dbPreferences.disputes ?? true,
+        newsletter: dbPreferences.newsletter ?? false,
+      });
+    }
+  }, [dbPreferences]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -39,8 +64,31 @@ export default function SettingsPage() {
     }
   };
 
-  const handleNotificationChange = (field: string) => {
-    setNotifications(prev => ({ ...prev, [field as keyof typeof notifications]: !prev[field as keyof typeof notifications] }));
+  const handleNotificationChange = async (field: string) => {
+    const newValue = !notifications[field as keyof typeof notifications];
+    setNotifications(prev => ({ ...prev, [field as keyof typeof notifications]: newValue }));
+    
+    // Show toast notification
+    const labelMap: { [key: string]: string } = {
+      event_reminders: t('settings.event_reminders', 'Event Reminders'),
+      promotions: t('settings.promotions', 'Promotions & Deals'),
+      reviews: t('settings.reviews', 'Review Updates'),
+      auctions: t('settings.auctions', 'Auction Activity'),
+      disputes: t('settings.disputes', 'Dispute Alerts'),
+      newsletter: t('settings.newsletter', 'Newsletter'),
+    };
+    
+    const label = labelMap[field] || field;
+    const status = newValue ? 'enabled' : 'disabled';
+    showSuccess(`${label} ${status}`);
+    
+    // Save to database immediately
+    if (account) {
+      updatePreferences({
+        wallet_address: account,
+        [field]: newValue,
+      } as any);
+    }
   };
 
   const handleSaveSettings = async () => {
@@ -180,7 +228,7 @@ export default function SettingsPage() {
 
                   <div className="space-y-4">
                     {[
-                      { key: 'eventReminders', label: t('settings.event_reminders', 'Event Reminders'), description: t('settings.event_reminders_desc', 'Get notified before your events start') },
+                      { key: 'event_reminders', label: t('settings.event_reminders', 'Event Reminders'), description: t('settings.event_reminders_desc', 'Get notified before your events start') },
                       { key: 'promotions', label: t('settings.promotions', 'Promotions & Deals'), description: t('settings.promotions_desc', 'Receive exclusive offers and discounts') },
                       { key: 'reviews', label: t('settings.reviews', 'Review Updates'), description: t('settings.reviews_desc', 'Notifications when events you attended get reviewed') },
                       { key: 'auctions', label: t('settings.auctions', 'Auction Activity'), description: t('settings.auctions_desc', 'Updates on your active auction bids') },

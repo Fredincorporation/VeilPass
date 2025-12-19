@@ -22,9 +22,26 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setThemeMode(savedTheme as 'light' | 'dark' | 'auto');
   }, []);
 
-  const setThemeMode = (mode: 'light' | 'dark' | 'auto') => {
+  const setThemeMode = async (mode: 'light' | 'dark' | 'auto') => {
     localStorage.setItem('theme-mode', mode);
     setTheme(mode);
+    
+    // Save to database if user is logged in
+    const account = localStorage.getItem('veilpass_account');
+    if (account) {
+      try {
+        await fetch('/api/user', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet_address: account,
+            theme_preference: mode,
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to save theme preference:', error);
+      }
+    }
   };
 
   const value: ThemeContextType = {

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Shield, Search, Filter, CheckCircle, Clock, AlertCircle, Download, Lock, Eye, EyeOff, Zap } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
+import { useAdminSellerIds } from '@/hooks/useAdmin';
 
 export default function AdminSellerIDsPage() {
   const { showSuccess, showError, showInfo, showWarning } = useToast();
@@ -13,7 +14,10 @@ export default function AdminSellerIDsPage() {
   const [encryptionPassword, setEncryptionPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const [sellers] = useState([
+  // Fetch seller IDs from database
+  const { data: dbSellerIds = [], isLoading } = useAdminSellerIds(filterStatus === 'all' ? undefined : filterStatus);
+
+  const [sellers] = useState<any[]>(dbSellerIds.length > 0 ? dbSellerIds : [
     {
       id: 'S001',
       name: 'John Events',
@@ -68,7 +72,7 @@ export default function AdminSellerIDsPage() {
     },
   ]);
 
-  const filteredSellers = sellers.filter(seller => {
+  const filteredSellers = sellers.filter((seller: any) => {
     const matchesSearch = 
       seller.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       seller.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -77,7 +81,7 @@ export default function AdminSellerIDsPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const selectedSeller = sellers.find(s => s.id === selectedSellerId);
+  const selectedSeller = sellers.find((s: any) => s.id === selectedSellerId);
 
   const handleDecryptVerification = async () => {
     if (!encryptionPassword.trim()) {
@@ -222,7 +226,7 @@ export default function AdminSellerIDsPage() {
             {/* Seller List */}
             <div className="space-y-2 max-h-[600px] overflow-y-auto">
               {filteredSellers.length > 0 ? (
-                filteredSellers.map(seller => (
+                filteredSellers.map((seller: any) => (
                   <button
                     key={seller.id}
                     onClick={() => {

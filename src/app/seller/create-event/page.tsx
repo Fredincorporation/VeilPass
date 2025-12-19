@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, MapPin, Calendar, Users, DollarSign, FileText, Image as ImageIcon, ArrowRight, Trash2, Copy, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
+import { useCreateEvent } from '@/hooks/useSellerEvents';
 
 interface PricingTier {
   id: string;
@@ -21,6 +22,12 @@ export default function CreateEventPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confetti, setConfetti] = useState<Array<{ id: number; left: number; delay: number }>>([]);
+  const [account, setAccount] = useState<string | null>(null);
+  const [businessName, setBusinessName] = useState<string | null>(null);
+
+  // Create event mutation
+  const { mutate: createEvent, isPending } = useCreateEvent();
+
   const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([
     { id: '1', name: 'General Admission', price: '', quantity: '', description: '' },
   ]);
@@ -35,6 +42,13 @@ export default function CreateEventPage() {
     category: '',
     image: null as File | null,
   });
+
+  useEffect(() => {
+    const savedAccount = localStorage.getItem('veilpass_account');
+    const savedBusinessName = localStorage.getItem('veilpass_business_name');
+    setAccount(savedAccount);
+    setBusinessName(savedBusinessName);
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -156,11 +170,46 @@ export default function CreateEventPage() {
     if (step < 3) {
       setStep(step + 1);
     } else {
-      // Trigger confirmation
-      triggerConfetti();
-      setShowConfirmation(true);
-      showSuccess('Event created successfully!');
-      console.log('Event created:', formData, 'Tiers:', pricingTiers);
+      // Submit to database
+      if (!account) {
+        showError('Please connect your wallet first');
+        return;
+      }
+
+      // Prepare event data for submission - map form fields to database columns
+      const eventData = {
+        title: formData.title,
+        description: formData.description,
+        date: `${formData.date} at ${formData.time}`, // Combine date and time
+        location: formData.location,
+        capacity: formData.capacity, // Store as is from form
+        organizer: businessName || account || '', // Use Business Name, fallback to account address
+        base_price: parseFloat(formData.basePrice),
+        image: imagePreview || '', // Map image_url to image
+        status: 'Pre-Sale', // Map active to Pre-Sale status
+        // Include ticket tiers if pricing tiers option is enabled
+        ...(usePricingTiers && {
+          ticket_tiers: pricingTiers.map((tier) => ({
+            name: tier.name,
+            description: tier.description,
+            price: parseFloat(tier.price) || 0,
+            quantity: parseInt(tier.quantity) || 0,
+            features: tier.description ? [tier.description] : [],
+          })),
+        }),
+      };
+
+      createEvent(eventData, {
+        onSuccess: () => {
+          triggerConfetti();
+          setShowConfirmation(true);
+          showSuccess('Event created successfully!');
+        },
+        onError: (error: any) => {
+          showError(`Failed to create event: ${error.message}`);
+          console.error('Event creation error:', error);
+        },
+      });
     }
   };
 

@@ -5,7 +5,9 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { useTranslation } from '@/lib/translation-context';
 import { getWalletRole } from '@/lib/wallet-roles';
 import { useToast } from '@/components/ToastContainer';
-import { Ticket, Gift, Gavel, UserPlus, LogOut, Calendar, Plus, BarChart3, Settings, AlertCircle, QrCode, Shield, Heart, Megaphone, Send, X } from 'lucide-react';
+import { useWalletAuthentication } from '@/hooks/useWalletAuthentication';
+import { useSellerStats } from '@/hooks/useSellerStats';
+import { Ticket, Gift, Gavel, UserPlus, LogOut, Calendar, Plus, BarChart3, Settings, AlertCircle, QrCode, Shield, Heart, Megaphone, Send, X, CheckCircle, Users } from 'lucide-react';
 
 export default function DashboardPage() {
   const { t } = useTranslation();
@@ -19,6 +21,12 @@ export default function DashboardPage() {
     message: '',
     userType: 'customer',
   });
+
+  // Use wallet authentication to sync with Supabase
+  const { user, isLoading: isUserLoading, incrementLoyaltyPoints } = useWalletAuthentication(account);
+  const { data: sellerStats, isLoading: isSellerStatsLoading } = useSellerStats(
+    userRole === 'seller' ? account : null
+  );
 
   useEffect(() => {
     setIsClient(true);
@@ -84,12 +92,12 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-6 border border-blue-200 dark:border-blue-700">
                   <p className="text-sm font-medium text-blue-600 dark:text-blue-300 uppercase tracking-wide mb-2">{t('dashboard.active_tickets', 'Active Tickets')}</p>
-                  <p className="text-4xl font-bold text-blue-900 dark:text-blue-100">3</p>
+                  <p className="text-4xl font-bold text-blue-900 dark:text-blue-100">{isUserLoading ? '-' : '3'}</p>
                   <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">Pending events</p>
                 </div>
                 <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-6 border border-purple-200 dark:border-purple-700">
                   <p className="text-sm font-medium text-purple-600 dark:text-purple-300 uppercase tracking-wide mb-2">{t('dashboard.loyalty_points', 'Loyalty Points')}</p>
-                  <p className="text-4xl font-bold text-purple-900 dark:text-purple-100">5,450</p>
+                  <p className="text-4xl font-bold text-purple-900 dark:text-purple-100">{isUserLoading ? '-' : (user?.loyalty_points || 0).toLocaleString()}</p>
                   <p className="text-xs text-purple-600 dark:text-purple-400 mt-2">Available to redeem</p>
                 </div>
                 <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-6 border border-green-200 dark:border-green-700">
@@ -215,18 +223,18 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20 rounded-lg p-6 border border-indigo-200 dark:border-indigo-700">
                   <p className="text-sm font-medium text-indigo-600 dark:text-indigo-300 uppercase tracking-wide mb-2">Events Created</p>
-                  <p className="text-4xl font-bold text-indigo-900 dark:text-indigo-100">12</p>
+                  <p className="text-4xl font-bold text-indigo-900 dark:text-indigo-100">{isSellerStatsLoading ? '-' : sellerStats?.eventsCreated || 0}</p>
                   <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-2">All time</p>
                 </div>
                 <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-900/20 dark:to-cyan-800/20 rounded-lg p-6 border border-cyan-200 dark:border-cyan-700">
                   <p className="text-sm font-medium text-cyan-600 dark:text-cyan-300 uppercase tracking-wide mb-2">Tickets Sold</p>
-                  <p className="text-4xl font-bold text-cyan-900 dark:text-cyan-100">284</p>
-                  <p className="text-xs text-cyan-600 dark:text-cyan-400 mt-2">This month: 89</p>
+                  <p className="text-4xl font-bold text-cyan-900 dark:text-cyan-100">{isSellerStatsLoading ? '-' : sellerStats?.ticketsSold || 0}</p>
+                  <p className="text-xs text-cyan-600 dark:text-cyan-400 mt-2">Total sold</p>
                 </div>
                 <div className="bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/20 dark:to-teal-800/20 rounded-lg p-6 border border-teal-200 dark:border-teal-700">
                   <p className="text-sm font-medium text-teal-600 dark:text-teal-300 uppercase tracking-wide mb-2">Revenue</p>
-                  <p className="text-4xl font-bold text-teal-900 dark:text-teal-100">$12,450</p>
-                  <p className="text-xs text-teal-600 dark:text-teal-400 mt-2">This month</p>
+                  <p className="text-4xl font-bold text-teal-900 dark:text-teal-100">{isSellerStatsLoading ? '-' : `${sellerStats?.totalRevenue || 0} ETH`}</p>
+                  <p className="text-xs text-teal-600 dark:text-teal-400 mt-2">Total earned</p>
                 </div>
               </div>
             </div>
@@ -413,6 +421,20 @@ export default function DashboardPage() {
                   </div>
                 </a>
 
+                <a href="/admin/events" className="group relative overflow-hidden bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-emerald-500 dark:hover:border-emerald-400 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]">
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/0 to-emerald-500/0 group-hover:from-emerald-500/5 group-hover:to-emerald-500/10 transition-all" />
+                  <div className="p-6 relative">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/50 transition-colors">
+                        <CheckCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <span className="text-2xl group-hover:translate-x-1 transition-transform">→</span>
+                    </div>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Approve Events</h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">Review Pre-Sale events and approve to go On Sale</p>
+                  </div>
+                </a>
+
                 <button onClick={() => setShowBroadcastModal(true)} className="group relative overflow-hidden bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-purple-500 dark:hover:border-purple-400 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]">
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 to-purple-500/0 group-hover:from-purple-500/5 group-hover:to-purple-500/10 transition-all" />
                   <div className="p-6 relative">
@@ -437,6 +459,20 @@ export default function DashboardPage() {
                     </div>
                     <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">System Settings</h3>
                     <p className="text-gray-600 dark:text-gray-400 text-sm">Manage platform configuration</p>
+                  </div>
+                </a>
+
+                <a href="/admin/users" className="group relative overflow-hidden bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-teal-500 dark:hover:border-teal-400 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]">
+                  <div className="absolute inset-0 bg-gradient-to-r from-teal-500/0 to-teal-500/0 group-hover:from-teal-500/5 group-hover:to-teal-500/10 transition-all" />
+                  <div className="p-6 relative">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="p-3 bg-teal-100 dark:bg-teal-900/30 rounded-lg group-hover:bg-teal-200 dark:group-hover:bg-teal-800/50 transition-colors">
+                        <Users className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                      </div>
+                      <span className="text-2xl group-hover:translate-x-1 transition-transform">→</span>
+                    </div>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">Manage Users</h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">Change user roles and permissions</p>
                   </div>
                 </a>
               </div>

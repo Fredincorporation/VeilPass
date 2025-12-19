@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Ticket, QrCode, Download, Share2, Calendar, MapPin, Users, Search, TrendingUp, X, DollarSign } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
+import { useTickets } from '@/hooks/useTickets';
 
 export default function TicketsPage() {
   const { showSuccess, showInfo } = useToast();
@@ -10,40 +11,20 @@ export default function TicketsPage() {
   const [showAuctionModal, setShowAuctionModal] = useState(false);
   const [auctionForm, setAuctionForm] = useState({ listingPrice: '', minBid: '', reservePrice: '', duration: 24 });
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
-  const [tickets] = useState([
-    {
-      id: 'TK001',
-      event: 'Summer Music Fest',
-      date: 'Jun 15, 2025',
-      section: 'A10',
-      price: 285,
-      status: 'active',
-      location: 'Central Park, NYC',
-      capacity: 'VIP Section - 500 seats',
-    },
-    {
-      id: 'TK002',
-      event: 'Comedy Night',
-      date: 'Jul 22, 2025',
-      section: 'B5',
-      price: 150,
-      status: 'active',
-      location: 'Theatre District, NYC',
-      capacity: 'Standard - Unlimited',
-    },
-    {
-      id: 'TK003',
-      event: 'Art Expo 2025',
-      date: 'Aug 10, 2025',
-      section: 'General',
-      price: 45,
-      status: 'upcoming',
-      location: 'Museum of Modern Art',
-      capacity: 'General Admission',
-    },
-  ]);
+  const [account, setAccount] = useState<string | null>(null);
 
-  const filteredTickets = tickets.filter(ticket =>
+  // Fetch user's tickets from database
+  const { data: dbTickets = [], isLoading } = useTickets(account || '');
+
+  useEffect(() => {
+    const savedAccount = localStorage.getItem('veilpass_account');
+    setAccount(savedAccount);
+  }, []);
+
+  // Use only database tickets - no mock data fallback
+  const tickets: any[] = dbTickets;
+
+  const filteredTickets = tickets.filter((ticket: any) =>
     ticket.event.toLowerCase().includes(searchTerm.toLowerCase()) ||
     ticket.id.toLowerCase().includes(searchTerm.toLowerCase())
   );

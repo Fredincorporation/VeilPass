@@ -20,6 +20,26 @@ export default function SellerRegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Encrypt and submit
+    // Save business name to localStorage AND database for future reference
+    localStorage.setItem('veilpass_business_name', formData.businessName);
+    
+    // Save to database if wallet is connected
+    const wallet = localStorage.getItem('veilpass_account');
+    if (wallet && formData.businessName.trim()) {
+      try {
+        await fetch('/api/user', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet_address: wallet,
+            business_name: formData.businessName.trim(),
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to save business name to database:', error);
+      }
+    }
+    
     setStep(3);
   };
 
