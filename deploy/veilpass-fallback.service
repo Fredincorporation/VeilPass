@@ -1,0 +1,11 @@
+[Unit]
+Description=VeilPass Payment Fallback Check
+After=network.target
+
+[Service]
+Type=oneshot
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node /var/www/veilpass/scripts/payment-fallback-check.js
+
+[Install]
+WantedBy=multi-user.target

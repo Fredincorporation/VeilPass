@@ -5,6 +5,8 @@ import { fetchEthPrice } from '@/lib/currency-utils';
 import { verifyBidSignature, BidSignaturePayload } from '@/lib/bidSignature';
 import { getMinimumNextBid, validateBidIncrement } from '@/lib/bidConfig';
 
+export const dynamic = 'force-dynamic';
+
 // Type for RPC validate_and_place_bid response
 interface BidValidationRpcResult {
   success: boolean;

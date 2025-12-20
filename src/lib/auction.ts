@@ -1,4 +1,6 @@
-import { ethers } from 'ethers';
+import type { Signer } from 'ethers';
+import { keccak256 as solidityKeccak256 } from '@ethersproject/solidity';
+import { randomBytes } from 'crypto';
 
 /*
   Helper utilities for commit->reveal auction flow.
@@ -15,14 +17,14 @@ import { ethers } from 'ethers';
 
 export function createSecret(): string {
   // random 32-byte secret
-  return ethers.utils.hexlify(ethers.utils.randomBytes(32));
+  return '0x' + randomBytes(32).toString('hex');
 }
 
 export function createCommitment(bidAmount: string | number, secret: string, nonce = 0) {
   // Use solidityKeccak256 with the same types as server-side: uint256, bytes32, uint256
-  return ethers.utils.solidityKeccak256(
+  return solidityKeccak256(
     ['uint256', 'bytes32', 'uint256'],
-    [ethers.BigNumber.from(bidAmount).toString(), secret, Number(nonce)],
+    [String(bidAmount), secret, Number(nonce)],
   );
 }
 
@@ -52,7 +54,7 @@ export const REVEAL_TYPES = {
 };
 
 export async function signCommitment(
-  signer: ethers.Signer,
+  signer: Signer,
   payload: { commitment: string; auctionId: string; nonce?: number; expiresAt?: number },
 ) {
   const value = {
@@ -75,7 +77,7 @@ export async function submitCommitment(endpoint: string, body: any) {
 }
 
 export async function signReveal(
-  signer: ethers.Signer,
+  signer: Signer,
   payload: { auctionId: string; bidAmount: string | number; secret: string; nonce?: number },
 ) {
   const value = {

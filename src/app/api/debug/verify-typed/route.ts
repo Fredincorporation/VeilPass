@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { ethers } from 'ethers';
+import { recoverAddress } from 'ethers';
 import { _TypedDataEncoder } from '@ethersproject/hash';
 
 // Debug endpoint: POST a JSON body { domain, types, message, signature, expected }
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     // Recover address from signature
     let recovered: string;
     try {
-      recovered = ethers.utils.recoverAddress(hash, signature).toLowerCase();
+      recovered = recoverAddress(hash, signature).toLowerCase();
     } catch (err: any) {
       return NextResponse.json({ error: 'Failed to recover address from signature', details: String(err?.message || err) }, { status: 400 });
     }

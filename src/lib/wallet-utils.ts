@@ -5,7 +5,7 @@
  * configured Wagmi setup with Coinbase OnchainKit.
  */
 
-import { ethers } from 'ethers';
+import { isAddress } from 'ethers';
 import { wagmiConfig } from './wallet-config';
 
 /**
@@ -37,7 +37,7 @@ export function formatWalletAddress(address: string): string {
  */
 export function isValidWalletAddress(address: string): boolean {
   try {
-    return ethers.isAddress(address);
+    return isAddress(address);
   } catch {
     return false;
   }

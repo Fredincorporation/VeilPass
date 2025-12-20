@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+export const dynamic = 'force-dynamic';
+
 // In-memory store for development/testing without Supabase
 const mockDisputes: Record<string, any[]> = {};
 

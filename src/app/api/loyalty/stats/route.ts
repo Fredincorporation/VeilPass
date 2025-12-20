@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 // Tier thresholds
 const TIER_THRESHOLDS = {
   'Silver': { min: 0, max: 5000 },

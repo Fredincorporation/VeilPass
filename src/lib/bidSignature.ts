@@ -3,7 +3,7 @@
  * Signs bid data with the bidder's private key (client-side) and verifies on server
  */
 
-import { ethers } from 'ethers';
+import { parseEther, BrowserProvider, id, Signature, zeroPadValue, toBeHex, verifyTypedData } from 'ethers';
 import { _TypedDataEncoder } from '@ethersproject/hash';
 
 export interface BidSignaturePayload {
@@ -78,7 +78,7 @@ export async function signBid(bidData: BidSignaturePayload, signerAddress?: stri
         } catch (amtErr) {
           // Fallback: fall back to plain string form if parseEther fails
           // eslint-disable-next-line no-console
-          console.warn('Failed to canonicalize amount to wei, using raw value:', amtErr?.message || amtErr);
+          console.warn('Failed to canonicalize amount to wei, using raw value:', (amtErr as any)?.message || amtErr);
           amountWeiStr = String(bidData.amount);
         }
         const amountUsdCentsStr = String(Math.round(Number(bidData.amount_usd ?? 0) * 100));
@@ -159,7 +159,7 @@ export async function signBid(bidData: BidSignaturePayload, signerAddress?: stri
 
         // Fallback: try using ethers provider signer signing helpers if available.
         try {
-          const provider = new ethers.BrowserProvider((globalThis as any).ethereum);
+          const provider = new BrowserProvider((globalThis as any).ethereum);
           const signer = await provider.getSigner();
 
           // Prepare domain with numeric chainId for signer methods
@@ -193,7 +193,7 @@ export async function signBid(bidData: BidSignaturePayload, signerAddress?: stri
         } catch (signerErr) {
           // if fallback also fails, let outer catch handle mock
           // eslint-disable-next-line no-console
-          console.warn('Signer-based typed-data fallback failed:', signerErr?.message || signerErr);
+          console.warn('Signer-based typed-data fallback failed:', (signerErr as any)?.message || signerErr);
         }
       } catch (walletErr: any) {
         console.warn('Failed to sign with wallet provider, falling back to mock:', walletErr.message);
@@ -206,10 +206,10 @@ export async function signBid(bidData: BidSignaturePayload, signerAddress?: stri
 
   // Fallback: create a deterministic mock signature for testing
   const dataStr = JSON.stringify(bidData);
-  const hash = ethers.id(dataStr);
-  const mockSig = ethers.Signature.from({
-    r: ethers.zeroPadValue(ethers.toBeHex(0x1234), 32),
-    s: ethers.zeroPadValue(ethers.toBeHex(0x5678), 32),
+  const hash = id(dataStr);
+  const mockSig = Signature.from({
+    r: zeroPadValue(toBeHex(0x1234), 32),
+    s: zeroPadValue(toBeHex(0x5678), 32),
     v: 28,
   }).serialized;
 
@@ -234,10 +234,10 @@ export function verifyBidSignature(bidData: BidSignaturePayload, signature: stri
     // ETH decimal (number or string with '.') or a wei integer string.
     let amountWeiBigInt: bigint;
     if (typeof bidData.amount === 'number') {
-      amountWeiBigInt = ethers.parseEther(String(bidData.amount));
+      amountWeiBigInt = parseEther(String(bidData.amount));
     } else if (typeof bidData.amount === 'string') {
       if (bidData.amount.indexOf('.') >= 0) {
-        amountWeiBigInt = ethers.parseEther(bidData.amount);
+        amountWeiBigInt = parseEther(bidData.amount);
       } else {
         // assume wei integer string
         amountWeiBigInt = BigInt(bidData.amount);
@@ -261,7 +261,10 @@ export function verifyBidSignature(bidData: BidSignaturePayload, signature: stri
     try {
       const domainForHash = {
         ...domain,
-        chainId: typeof domain.chainId === 'string' && domain.chainId.startsWith('0x') ? Number.parseInt(domain.chainId, 16) : Number(domain.chainId),
+        chainId:
+          typeof domain.chainId === 'string' && (domain.chainId as string).startsWith('0x')
+            ? Number.parseInt(domain.chainId as string, 16)
+            : Number(domain.chainId),
       } as any;
 
       // Build a message object using BigInt for uint256 fields so hashing is stable
@@ -278,11 +281,11 @@ export function verifyBidSignature(bidData: BidSignaturePayload, signature: stri
     } catch (hErr) {
       // If hashing fails, leave typedHash null but continue to attempt verification
       // eslint-disable-next-line no-console
-      console.debug('Failed to compute typed-data hash for debug:', hErr?.message || hErr);
+      console.debug('Failed to compute typed-data hash for debug:', (hErr as any)?.message || hErr);
     }
 
     // Verify the signature
-    const recoveredAddress = ethers.verifyTypedData(domain, types, value, signature);
+    const recoveredAddress = verifyTypedData(domain, types, value, signature);
     const matches = recoveredAddress.toLowerCase() === bidData.bidder_address.toLowerCase();
     if (!matches) {
       console.warn('Bid signature mismatch', {

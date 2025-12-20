@@ -1,53 +1,97 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
+import { SellerFilterSchema, ApproveSellerSchema, validateInput, checkRateLimit, sanitizeString } from '@/lib/validation';
+import { verifyAdminAuth } from '@/lib/auth-middleware';
+
+export const dynamic = 'force-dynamic';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+/**
+ * GET /api/admin/sellers
+ * 
+ * Fetch seller applicants and approved sellers
+ * Query params:
+ * - status: APPROVED | PENDING | REJECTED (optional)
+ * - role: seller | awaiting_seller | organizer (optional)
+ * - limit: 1-100 (default: 20)
+ * - offset: 0+ (default: 0)
+ * 
+ * Security:
+ * - Requires admin authentication
+ * - Input validation for all query parameters
+ * - Rate limiting: 50 requests per minute
+ */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
+    // 1. Rate limiting
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    if (!checkRateLimit(`admin-sellers-get:${ip}`, 50, 60000)) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
 
-    console.log('📋 Fetching seller applicants with status filter:', status);
+    // 2. Verify admin auth
+    const admin = await verifyAdminAuth();
+    if (!admin) {
+      console.warn('[SECURITY] Unauthorized access to /api/admin/sellers');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
 
-    // Query users table - get all users who have applied to be sellers
-    // This includes: role = 'awaiting_seller' OR they have a seller_status set
-    const { data: sellers, error } = await supabase
+    // 3. Validate query parameters
+    const searchParams = request.nextUrl.searchParams;
+    const filterData = {
+      status: searchParams.get('status') || undefined,
+      role: searchParams.get('role') || undefined,
+      limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined,
+      offset: searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined,
+    };
+
+    const validation = validateInput(SellerFilterSchema, filterData);
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+
+    // Extract validated values safely
+    const v = validation.data || {} as any;
+    const statusFilter = v.status as string | undefined;
+    const roleFilter = v.role as string | undefined;
+    const limitVal = typeof v.limit === 'number' ? v.limit : 20;
+    const offsetVal = typeof v.offset === 'number' ? v.offset : 0;
+
+    // 4. Build query with validated parameters
+    let query = supabase
       .from('users')
-      .select('*')
-      .eq('role', 'awaiting_seller')
-      .order('created_at', { ascending: false });
+      .select('id, business_name, email, role, seller_status, kyc_status, business_type, wallet_address, created_at', { count: 'exact' });
+
+    // Apply optional filters (validated by Zod)
+    if (roleFilter) {
+      query = query.eq('role', roleFilter as string);
+    } else {
+      // Default: show awaiting_seller and approved sellers
+      query = query.in('role', ['awaiting_seller', 'seller']);
+    }
+
+    if (statusFilter) {
+      query = query.eq('seller_status', statusFilter as string);
+    }
+
+    const { data: sellers, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(offsetVal, offsetVal + limitVal - 1);
 
     if (error) {
-      console.error('❌ Error fetching seller applicants:', error);
-      return NextResponse.json([]);
+      console.error('[ERROR] Failed to fetch sellers:', error);
+      return NextResponse.json({ error: 'Failed to fetch sellers' }, { status: 500 });
     }
 
-    // Also fetch approved sellers (role changed to 'seller')
-    const { data: approvedSellers, error: approvedError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('role', 'seller')
-      .eq('seller_status', 'APPROVED')
-      .order('created_at', { ascending: false });
-
-    if (approvedError) {
-      console.error('❌ Error fetching approved sellers:', approvedError);
-    }
-
-    // Combine both lists
-    const allSellers = [...(sellers || []), ...(approvedSellers || [])];
-    
-    console.log('✅ Found', allSellers.length, 'seller applicants');
-
-    // Transform to match expected seller format
-    const formattedSellers = (allSellers || []).map((seller: any) => ({
+    // 5. Transform and sanitize response
+    const formattedSellers = (sellers || []).map((seller: any) => ({
       id: seller.id,
-      name: seller.business_name || seller.wallet_address?.slice(0, 10) || 'Unknown Seller',
+      name: sanitizeString(seller.business_name || seller.wallet_address?.slice(0, 10) || 'Unknown Seller', 100),
       email: seller.email || 'N/A',
       role: seller.role || 'awaiting_seller',
       status: seller.seller_status || 'PENDING',
@@ -59,41 +103,92 @@ export async function GET(request: NextRequest) {
             year: 'numeric'
           })
         : 'N/A',
-      businessType: seller.business_type || 'Event Organizer',
-      location: 'Not specified',
+      businessType: sanitizeString(seller.business_type || 'Event Organizer', 100),
       walletAddress: seller.wallet_address,
     }));
 
-    return NextResponse.json(formattedSellers);
+    return NextResponse.json({
+      ok: true,
+      data: formattedSellers,
+      total: count || 0,
+      limit: limitVal,
+      offset: offsetVal,
+    });
   } catch (error) {
-    console.error('❌ Error in /api/admin/sellers:', error);
-    return NextResponse.json([]);
+    console.error('[ERROR] /api/admin/sellers GET:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
+/**
+ * PUT /api/admin/sellers?id={sellerId}
+ * 
+ * Approve or reject a seller
+ * Query params:
+ * - id: seller UUID (required)
+ * 
+ * Request body:
+ * {
+ *   "status": "APPROVED" | "REJECTED",
+ *   "kycStatus": "VERIFIED" | "PENDING" | "REJECTED",
+ *   "reason": "Rejection reason (optional)"
+ * }
+ * 
+ * Security:
+ * - Requires admin authentication
+ * - Input validation for sellerId and action
+ * - Rate limiting: 20 requests per minute
+ */
 export async function PUT(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const sellerId = searchParams.get('id');
-    const body = await request.json();
-
-    if (!sellerId) {
-      return NextResponse.json(
-        { error: 'Seller ID required' },
-        { status: 400 }
-      );
+    // 1. Rate limiting
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    if (!checkRateLimit(`admin-sellers-put:${ip}`, 20, 60000)) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
 
-    console.log('📝 Updating seller', sellerId, 'with status:', body.status);
+    // 2. Verify admin auth
+    const admin = await verifyAdminAuth();
+    if (!admin) {
+      console.warn('[SECURITY] Unauthorized PUT to /api/admin/sellers');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
+    // 3. Get and validate seller ID
+    const { searchParams } = new URL(request.url);
+    const sellerId = searchParams.get('id');
+    
+    if (!sellerId) {
+      return NextResponse.json({ error: 'Seller ID required' }, { status: 400 });
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(sellerId)) {
+      return NextResponse.json({ error: 'Invalid seller ID format' }, { status: 400 });
+    }
+
+    // 4. Parse and validate request body
+    const body = await request.json();
+    const validation = validateInput(ApproveSellerSchema, { ...body, sellerId });
+    if (!validation.valid) {
+      console.warn('[SECURITY] Invalid seller approval input:', validation.error);
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+
+    const v2 = validation.data || {} as any;
+    const statusAction = v2.status as string;
+    const kycStatus = v2.kycStatus as string | undefined;
+    const reason = v2.reason as string | undefined;
 
     // Prepare update payload
     const updatePayload: any = {
-      seller_status: body.status,
+      seller_status: statusAction,
       updated_at: new Date().toISOString(),
     };
 
     // If approving seller, change role from awaiting_seller to seller
-    if (body.status === 'APPROVED') {
+    if (statusAction === 'APPROVED') {
       updatePayload.role = 'seller';
       console.log('🔄 Changing role to seller for approved seller');
     }

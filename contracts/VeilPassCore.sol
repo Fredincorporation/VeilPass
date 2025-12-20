@@ -148,15 +148,27 @@ contract VeilPassTicketing is ERC721, Ownable, ReentrancyGuard {
         require(evt.isActive, "Event inactive");
         require(evt.soldTickets < evt.totalTickets, "Sold out");
         
+        // Security: Prevent counter overflow (explicit check for Solidity < 0.8.20)
+        require(ticketIdCounter < type(uint256).max, "Ticket counter overflow");
         uint256 ticketId = ticketIdCounter++;
+        
         uint256 price = evt.basePrice;
+        
+        // Security: Validate price is reasonable (prevent $0 tickets or massive prices)
+        require(price > 0, "Invalid ticket price");
+        require(price <= 10000 ether, "Price exceeds maximum"); // 10,000 ETH max
         
         if (useUSDC) {
             require(usdcToken.transferFrom(msg.sender, evt.seller, price), "USDC transfer failed");
         } else {
             require(msg.value >= price, "Insufficient ETH");
+            // Refund excess ETH
+            if (msg.value > price) {
+                (bool success, ) = msg.sender.call{value: msg.value - price}("");
+                require(success, "Refund failed");
+            }
         }
-        
+
         tickets[ticketId] = Ticket({
             ticketId: ticketId,
             eventId: eventId,
@@ -165,29 +177,36 @@ contract VeilPassTicketing is ERC721, Ownable, ReentrancyGuard {
             purchasePrice: price,
             encryptedSeatInfo: euint256.wrap(0)
         });
-        
+
         userTickets[msg.sender].push(ticketId);
         evt.soldTickets++;
         
         _mint(msg.sender, ticketId);
         
-        // Award loyalty points
-        loyaltyPoints[msg.sender] += (price / 100); // 1 point per 100 wei
-        emit LoyaltyPointsEarned(msg.sender, price / 100);
+        // Award loyalty points (prevent overflow)
+        uint256 pointsToAdd = price / 100;
+        require(loyaltyPoints[msg.sender] + pointsToAdd >= loyaltyPoints[msg.sender], "Loyalty points overflow");
+        loyaltyPoints[msg.sender] += pointsToAdd;
+        emit LoyaltyPointsEarned(msg.sender, pointsToAdd);
         
         emit TicketPurchased(ticketId, eventId, msg.sender, price);
         return ticketId;
-    }
-    
-    // Place encrypted bid in blind auction
+    }    // Place encrypted bid in blind auction
     function placeBlindBid(
         uint256 ticketId,
         euint256 encryptedBidAmount,
         address bidder
     ) external returns (uint256) {
         require(bidder == msg.sender || msg.sender == admin, "Unauthorized");
+        require(bidder != address(0), "Invalid bidder address");
         
+        // Validate ticket exists
+        require(tickets[ticketId].owner != address(0), "Ticket does not exist");
+        
+        // Security: Prevent counter overflow
+        require(auctionIdCounter < type(uint256).max, "Auction counter overflow");
         uint256 auctionId = auctionIdCounter++;
+        
         auctions[auctionId] = BlindAuction({
             auctionId: auctionId,
             ticketId: ticketId,

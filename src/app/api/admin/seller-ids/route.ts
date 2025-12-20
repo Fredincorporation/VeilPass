@@ -4,6 +4,8 @@ import serverKeyManager from '@/lib/serverKeyManager';
 import blacklistManager from '@/lib/blacklistManager';
 import tfheEncryption from '@/lib/tfheEncryption';
 
+export const dynamic = 'force-dynamic';
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''

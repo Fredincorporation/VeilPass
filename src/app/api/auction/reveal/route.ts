@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { ethers } from 'ethers';
+import { verifyTypedData } from 'ethers';
+import { keccak256 as solidityKeccak256 } from '@ethersproject/solidity';
 import { supabase } from '../../../../lib/supabase';
 
 // Reveal signature domain/types should match the client when signing the reveal
@@ -36,15 +37,17 @@ export async function POST(req: Request) {
 
     let recovered: string;
     try {
-      recovered = ethers.utils.verifyTypedData(EIP712_DOMAIN, REVEAL_TYPES, value, signature).toLowerCase();
+      recovered = verifyTypedData(EIP712_DOMAIN, REVEAL_TYPES, value, signature).toLowerCase();
     } catch (err) {
       return NextResponse.json({ error: 'Invalid signature for reveal' }, { status: 400 });
     }
 
     // compute commitment from revealed data (client must have used same encoding)
-    const computedCommitment = ethers.utils.solidityKeccak256(
+    // Using keccak256 from ethers v6; ensure inputs are hex/strings compatible with keccak256
+    // Note: For full parity with previous implementation, ensure client-side uses same packing.
+    const computedCommitment = solidityKeccak256(
       ['uint256', 'bytes32', 'uint256'],
-      [ethers.BigNumber.from(bidAmount).toString(), secret, Number(nonce)],
+      [String(bidAmount), secret, Number(nonce)],
     );
 
     // find stored commitment by auctionId and computed commitment

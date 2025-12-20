@@ -1,4 +1,4 @@
-import { ethers } from 'ethers';
+import { Contract, isAddress } from 'ethers';
 import { CONTRACT_ADDRESSES } from './constants';
 
 /**
@@ -130,7 +130,7 @@ export async function encryptIDDataWithZama(idData: string): Promise<string> {
  * @returns Transaction hash
  */
 export async function submitSellerID(
-  signer: ethers.Signer,
+  signer: any,
   encryptedIDHash: string
 ): Promise<string> {
   try {
@@ -139,14 +139,23 @@ export async function submitSellerID(
       throw new Error('GovernmentIDVerification contract not deployed. Deploy contracts first.');
     }
 
-    const contract = new ethers.Contract(
+    const contract = new Contract(
       CONTRACT_ADDRESSES.governmentIDVerification,
       GOVERNMENT_ID_VERIFICATION_ABI,
       signer
     );
 
     // Convert hex string to bytes
-    const encryptedBytes = ethers.getBytes(encryptedIDHash);
+    function hexToBytes(hex: string) {
+      const clean = hex.replace(/^0x/, '');
+      const bytes = new Uint8Array(clean.length / 2);
+      for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = parseInt(clean.substr(i * 2, 2), 16);
+      }
+      return bytes;
+    }
+
+    const encryptedBytes = hexToBytes(encryptedIDHash);
     
     const tx = await contract.submitID(encryptedBytes);
     const receipt = await tx.wait();
@@ -170,7 +179,7 @@ export async function submitSellerID(
  * @returns Seller verification record
  */
 export async function getSellerVerificationRecord(
-  provider: ethers.Provider | ethers.Signer,
+  provider: any,
   sellerAddress: string
 ) {
   try {
@@ -180,7 +189,7 @@ export async function getSellerVerificationRecord(
     }
 
     // Validate seller address
-    if (!ethers.isAddress(sellerAddress)) {
+    if (!isAddress(sellerAddress)) {
       throw new Error('Invalid seller address');
     }
 
@@ -193,7 +202,8 @@ export async function getSellerVerificationRecord(
     const record = await contract.getSellerRecord(sellerAddress);
     
     // Handle case where no record exists
-    if (record.seller === ethers.ZeroAddress) {
+    const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+    if (record.seller === ZERO_ADDRESS) {
       return null;
     }
 
@@ -225,11 +235,11 @@ export async function getSellerVerificationRecord(
  * @returns true if seller is verified (score >= 70)
  */
 export async function checkSellerVerified(
-  provider: ethers.Provider | ethers.Signer,
+  provider: any,
   sellerAddress: string
 ): Promise<boolean> {
   try {
-    if (!ethers.isAddress(sellerAddress)) {
+    if (!isAddress(sellerAddress)) {
       return false;
     }
 
@@ -259,11 +269,11 @@ export async function checkSellerVerified(
  * @returns Verification score (0-100)
  */
 export async function getVerificationScore(
-  provider: ethers.Provider | ethers.Signer,
+  provider: any,
   sellerAddress: string
 ): Promise<number> {
   try {
-    if (!ethers.isAddress(sellerAddress)) {
+    if (!isAddress(sellerAddress)) {
       return 0;
     }
 
@@ -293,7 +303,7 @@ export async function getVerificationScore(
  * @returns Number of verified sellers
  */
 export async function getVerifiedSellersCount(
-  provider: ethers.Provider | ethers.Signer
+  provider: any
 ): Promise<number> {
   try {
     if (!CONTRACT_ADDRESSES.governmentIDVerification || 
@@ -326,7 +336,7 @@ export function getStatusString(statusNum: number): string {
  * Check if address is valid Ethereum address
  */
 export function isValidEthereumAddress(address: string): boolean {
-  return ethers.isAddress(address);
+  return isAddress(address);
 }
 
 /**

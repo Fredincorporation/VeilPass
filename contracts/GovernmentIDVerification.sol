@@ -79,6 +79,7 @@ contract GovernmentIDVerification is Ownable, ReentrancyGuard {
     function submitID(bytes calldata _encryptedIDHash) external nonReentrant {
         require(msg.sender != address(0), "Invalid sender");
         require(_encryptedIDHash.length > 0, "Invalid encrypted data");
+        require(_encryptedIDHash.length <= 10000, "Encrypted data too large"); // Security: prevent DoS via huge payloads
         
         SellerIDRecord storage record = sellerRecords[msg.sender];
         

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { ethers } from 'ethers';
+import { verifyTypedData } from 'ethers';
 import { supabase } from '../../../../lib/supabase';
 
 // NOTE: The EIP-712 domain below must match the client-side domain used when signing.
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     // recover signer
     let recovered: string;
     try {
-      recovered = ethers.utils.verifyTypedData(EIP712_DOMAIN, COMMITMENT_TYPES, value, signature);
+      recovered = verifyTypedData(EIP712_DOMAIN, COMMITMENT_TYPES, value, signature);
       recovered = recovered.toLowerCase();
     } catch (err) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });

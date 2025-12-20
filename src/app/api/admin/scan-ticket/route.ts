@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase';
 import { decryptTicketQR, parseQRPayload, generateScannerToken, TicketScanResult } from '@/lib/ticketQREncryption';
 import { formatAddress } from '@/lib/utils';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/admin/scan-ticket
  * 

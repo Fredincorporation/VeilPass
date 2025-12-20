@@ -5,7 +5,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "test:payment-fallback": "node ./scripts/payment-fallback-test-runner.js",
+    "test:payment-fallback:e2e": "node ./scripts/payment-fallback-e2e.js",
     "test:countdown": "ts-node test/auctionCountdown.test.ts",
+    "example:encrypt-bid": "node ./examples/encrypt-bid.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -43,7 +46,8 @@
     "viem": "^2.21.1",
     "wagmi": "^2.12.0",
     "zod": "^3.23.8",
-    "zustand": "^4.5.1"
+    "zustand": "^4.5.1",
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
