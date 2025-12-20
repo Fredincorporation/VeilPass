@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useToast } from '@/components/ToastContainer';
 import { useSellerEvents } from '@/hooks/useSellerEvents';
+import { useSafeWallet } from '@/lib/wallet-context';
 import { ChevronLeft, Calendar, MapPin, DollarSign, Share2, Heart } from 'lucide-react';
 import Image from 'next/image';
 import { formatDate } from '@/lib/date-formatter';
@@ -12,10 +13,11 @@ export default function ViewEventPage() {
   const router = useRouter();
   const params = useParams();
   const { showError } = useToast();
+  const wallet = useSafeWallet();
   const eventName = decodeURIComponent(params.eventName as string);
   
   const [account, setAccount] = useState<string | null>(null);
-  const { data: events = [] } = useSellerEvents(account || '');
+  const { data: events = [] } = useSellerEvents(account);
   
   const [event, setEvent] = useState<any>(null);
   const [notFound, setNotFound] = useState(false);
@@ -43,9 +45,9 @@ export default function ViewEventPage() {
   }, []);
 
   useEffect(() => {
-    const savedAccount = localStorage.getItem('veilpass_account');
-    setAccount(savedAccount);
-  }, []);
+    const connectedAddress = wallet?.address ?? localStorage.getItem('veilpass_account');
+    setAccount(connectedAddress);
+  }, [wallet?.address]);
 
   useEffect(() => {
     if (events.length === 0) return;

@@ -75,3 +75,21 @@ export function useWallet() {
   }
   return context;
 }
+
+// Safe hook that returns a fallback when WalletProvider is not present.
+export function useSafeWallet() {
+  const context = useContext(WalletContext);
+  if (!context) {
+    return {
+      address: null,
+      isConnected: false,
+      role: UserRole.GUEST,
+      balance: '0',
+      chainId: null,
+      connect: async () => {},
+      disconnect: () => {},
+      switchToBaseSepolia: async () => {},
+    } as WalletContextType;
+  }
+  return context;
+}

@@ -5,17 +5,19 @@ import { useRouter, useParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/ToastContainer';
 import { useSellerEvents } from '@/hooks/useSellerEvents';
+import { useSafeWallet } from '@/lib/wallet-context';
 import { ChevronLeft, Save, X } from 'lucide-react';
 
 export default function EditEventPage() {
   const router = useRouter();
   const params = useParams();
   const queryClient = useQueryClient();
+  const wallet = useSafeWallet();
   const { showSuccess, showError, showInfo } = useToast();
   const eventName = decodeURIComponent(params.eventName as string);
   
   const [account, setAccount] = useState<string | null>(null);
-  const { data: events = [] } = useSellerEvents(account || '');
+  const { data: events = [] } = useSellerEvents(account);
   
   const [event, setEvent] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -52,9 +54,9 @@ export default function EditEventPage() {
   }, []);
 
   useEffect(() => {
-    const savedAccount = localStorage.getItem('veilpass_account');
-    setAccount(savedAccount);
-  }, []);
+    const connectedAddress = wallet?.address ?? localStorage.getItem('veilpass_account');
+    setAccount(connectedAddress);
+  }, [wallet?.address]);
 
   useEffect(() => {
     if (events.length === 0) return;

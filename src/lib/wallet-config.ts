@@ -1,43 +1,45 @@
 import { createConfig, http } from 'wagmi';
-import { baseSepolia } from 'wagmi/chains';
-import { injected, coinbaseWallet } from 'wagmi/connectors';
 
-const baseSepioliaChain = {
-  ...baseSepolia,
-  rpcUrls: {
-    default: {
-      http: ['https://sepolia.base.org'],
-    },
-    public: {
-      http: ['https://sepolia.base.org'],
-    },
+// Define an explicit Base Sepolia chain configuration (chainId 84532)
+// Avoid relying on wagmi's built-in `sepolia` which is the Ethereum Sepolia testnet.
+const RPC_URL = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC || process.env.BASE_SEPOLIA_RPC || 'https://sepolia.base.org';
+
+export const baseSepoliaChain = {
+  id: 84532,
+  name: 'Base Sepolia',
+  network: 'base-sepolia',
+  nativeCurrency: {
+    name: 'Ether',
+    symbol: 'ETH',
+    decimals: 18,
   },
+  rpcUrls: {
+    default: { http: [RPC_URL] },
+    public: { http: [RPC_URL] },
+  },
+  blockExplorers: {
+    default: { name: 'BaseScan', url: 'https://sepolia.basescan.org' },
+  },
+  testnet: true,
 };
 
+// Create wagmi config using the explicit Base Sepolia chain and HTTP transport
 export const wagmiConfig = createConfig({
-  chains: [baseSepioliaChain],
-  connectors: [
-    injected(),
-    coinbaseWallet({
-      appName: 'VeilPass',
-      appLogoUrl: '/logo.svg',
-      darkMode: true,
-    }),
-  ],
+  chains: [baseSepoliaChain],
+  connectors: [],
   transports: {
-    [baseSepioliaChain.id]: http('https://sepolia.base.org'),
+    [baseSepoliaChain.id]: http(RPC_URL),
   },
 });
 
-export const isMobileDevice = () => {
-  if (typeof window === 'undefined') return false;
-  return /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
-    navigator.userAgent
-  );
+// Network configuration
+export const NETWORK_CONFIG = {
+  chainId: 84532,
+  name: 'Base Sepolia',
+  rpcUrl: 'https://sepolia.base.org',
+  currency: 'ETH',
+  currencySymbol: 'ETH',
 };
-
-export const BASE_SEPOLIA_CHAIN_ID = 84532;
-export const BASE_SEPOLIA_RPC = 'https://sepolia.base.org';
 
 // Hardcoded test wallets
 export const TEST_WALLETS = {
@@ -47,3 +49,21 @@ export const TEST_WALLETS = {
 };
 
 export const ADMIN_ADDRESS = '0x1234567890123456789012345678901234567890';
+
+// Mobile detection utility
+export const isMobileDevice = () => {
+  if (typeof window === 'undefined') return false;
+  return /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
+};
+
+// CDP API Key validation
+export const validateCDPApiKey = () => {
+  const apiKey = process.env.NEXT_PUBLIC_COINBASE_CDP_API_KEY;
+  if (!apiKey) {
+    console.warn('NEXT_PUBLIC_COINBASE_CDP_API_KEY is not set. Wallet connection may not work properly.');
+    return false;
+  }
+  return true;
+};

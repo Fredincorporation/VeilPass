@@ -38,56 +38,51 @@ export async function GET(request: NextRequest) {
           let seller = 'Test Seller';
           
           // Try to find ticket
-          const { data: ticket } = await supabase
+          const { data: ticket, error: ticketError } = await supabase
             .from('tickets')
             .select('event_id, price, tier_name')
             .eq('id', dispute.ticket_id)
-            .single()
-            .catch(() => ({ data: null }));
+            .single();
 
           if (ticket?.event_id) {
             // Fetch event details using event_id from ticket
-            const { data: eventData } = await supabase
+            const { data: eventData, error: eventError } = await supabase
               .from('events')
               .select('title, created_by')
               .eq('id', ticket.event_id)
-              .single()
-              .catch(() => ({ data: null }));
+              .single();
 
             if (eventData) {
               event = eventData.title || 'Unknown Event';
               
               // Fetch seller (event creator)
               if (eventData.created_by) {
-                const { data: sellerData } = await supabase
+                const { data: sellerData, error: sellerError } = await supabase
                   .from('users')
                   .select('display_name, email')
                   .eq('wallet_address', eventData.created_by)
-                  .single()
-                  .catch(() => ({ data: null }));
+                  .single();
 
                 seller = sellerData?.display_name || sellerData?.email || 'Unknown Seller';
               }
             }
           } else {
             // No ticket found, try to get any event info from events table
-            const { data: anyEvent } = await supabase
+            const { data: anyEvent, error: anyEventError } = await supabase
               .from('events')
               .select('title, created_by')
               .limit(1)
-              .single()
-              .catch(() => ({ data: null }));
+              .single();
 
             if (anyEvent) {
               event = anyEvent.title || 'Unknown Event';
               
               if (anyEvent.created_by) {
-                const { data: sellerData } = await supabase
+                const { data: sellerData, error: sellerError2 } = await supabase
                   .from('users')
                   .select('display_name, email')
                   .eq('wallet_address', anyEvent.created_by)
-                  .single()
-                  .catch(() => ({ data: null }));
+                  .single();
 
                 seller = sellerData?.display_name || sellerData?.email || 'Unknown Seller';
               }
@@ -95,12 +90,11 @@ export async function GET(request: NextRequest) {
           }
 
           // Fetch user (claimant)
-          const { data: userData } = await supabase
+          const { data: userData, error: userError } = await supabase
             .from('users')
             .select('display_name, email')
             .eq('wallet_address', dispute.user_address)
-            .single()
-            .catch(() => ({ data: null }));
+            .single();
 
           const claimant = userData?.email || dispute.user_address;
 

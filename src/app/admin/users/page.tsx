@@ -9,7 +9,7 @@ import { formatDate } from '@/lib/date-formatter';
 interface UserRecord {
   id: string;
   wallet_address: string;
-  role: 'customer' | 'seller' | 'admin';
+  role: 'customer' | 'seller' | 'admin' | 'awaiting_seller';
   loyalty_points: number;
   created_at: string;
   updated_at: string;
@@ -21,10 +21,10 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterRole, setFilterRole] = useState<'all' | 'customer' | 'seller' | 'admin'>('all');
+  const [filterRole, setFilterRole] = useState<'all' | 'customer' | 'seller' | 'admin' | 'awaiting_seller'>('all');
   const [updatingRoles, setUpdatingRoles] = useState<Set<string>>(new Set());
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
-  const [bulkRoleAction, setBulkRoleAction] = useState<'customer' | 'seller' | 'admin' | null>(null);
+  const [bulkRoleAction, setBulkRoleAction] = useState<'customer' | 'seller' | 'admin' | 'awaiting_seller' | null>(null);
 
   // Load users on mount
   React.useEffect(() => {
@@ -50,7 +50,7 @@ export default function AdminUsersPage() {
     }
   };
 
-  const updateUserRole = async (userId: string, walletAddress: string, newRole: 'customer' | 'seller' | 'admin') => {
+  const updateUserRole = async (userId: string, walletAddress: string, newRole: 'customer' | 'seller' | 'admin' | 'awaiting_seller') => {
     try {
       setUpdatingRoles(prev => new Set(prev).add(userId));
 
@@ -134,6 +134,8 @@ export default function AdminUsersPage() {
         return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 border border-blue-300 dark:border-blue-700';
       case 'customer':
         return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border border-green-300 dark:border-green-700';
+      case 'awaiting_seller':
+        return 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700';
       default:
         return 'bg-gray-100 dark:bg-gray-800';
     }
@@ -169,10 +171,11 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
           {[
             { label: 'Total Users', value: users.length, color: 'bg-blue-500' },
             { label: 'Customers', value: users.filter(u => u.role === 'customer').length, color: 'bg-green-500' },
+            { label: 'Awaiting Sellers', value: users.filter(u => u.role === 'awaiting_seller').length, color: 'bg-amber-500' },
             { label: 'Sellers', value: users.filter(u => u.role === 'seller').length, color: 'bg-indigo-500' },
             { label: 'Admins', value: users.filter(u => u.role === 'admin').length, color: 'bg-red-500' },
           ].map((stat, idx) => (
@@ -199,7 +202,7 @@ export default function AdminUsersPage() {
                 </p>
               </div>
               <div className="flex gap-2">
-                {(['customer', 'seller', 'admin'] as const).map(role => (
+                {(['customer', 'awaiting_seller', 'seller', 'admin'] as const).map(role => (
                   <button
                     key={role}
                     onClick={() => {
@@ -213,7 +216,7 @@ export default function AdminUsersPage() {
                         : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-indigo-200 dark:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/50'
                     } disabled:opacity-50`}
                   >
-                    {role}
+                    {role === 'awaiting_seller' ? 'Awaiting Seller' : role}
                   </button>
                 ))}
                 <button
@@ -241,7 +244,7 @@ export default function AdminUsersPage() {
           </div>
 
           <div className="flex gap-2">
-            {(['all', 'customer', 'seller', 'admin'] as const).map(role => (
+            {(['all', 'customer', 'awaiting_seller', 'seller', 'admin'] as const).map(role => (
               <button
                 key={role}
                 onClick={() => setFilterRole(role)}
@@ -251,7 +254,7 @@ export default function AdminUsersPage() {
                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600'
                 }`}
               >
-                {role === 'all' ? 'All Roles' : role}
+                {role === 'all' ? 'All Roles' : role === 'awaiting_seller' ? 'Awaiting Seller' : role}
               </button>
             ))}
           </div>
@@ -353,7 +356,7 @@ export default function AdminUsersPage() {
                             <ChevronDown className="w-4 h-4" />
                           </button>
                           <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                            {(['customer', 'seller', 'admin'] as const).map(role => (
+                            {(['customer', 'awaiting_seller', 'seller', 'admin'] as const).map(role => (
                               <button
                                 key={role}
                                 onClick={() => updateUserRole(user.id, user.wallet_address, role)}
@@ -365,7 +368,7 @@ export default function AdminUsersPage() {
                                 } ${updatingRoles.has(user.id) ? 'opacity-50 cursor-not-allowed' : ''}`}
                               >
                                 <div className="flex items-center justify-between">
-                                  <span>{role}</span>
+                                  <span>{role === 'awaiting_seller' ? 'Awaiting Seller' : role}</span>
                                   {updatingRoles.has(user.id) && role === user.role ? (
                                     <Loader className="w-4 h-4 animate-spin" />
                                   ) : user.role === role ? (

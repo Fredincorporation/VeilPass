@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     const { data: events, error: eventsError } = await supabase
       .from('events')
       .select('id, base_price, tickets_sold')
-      .eq('seller_address', sellerAddress);
+      .eq('organizer', sellerAddress);
 
     if (eventsError) throw eventsError;
 

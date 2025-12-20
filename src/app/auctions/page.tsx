@@ -4,6 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { Lock, Search, Clock, Users, Zap, ChevronRight, X, DollarSign } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
 import { useAuctions } from '@/hooks/useAuctions';
+import { useEthPrice } from '@/hooks/useEthPrice';
+import { formatCurrencyPair } from '@/lib/currency-utils';
+import { computeTimeLeft } from '@/lib/auctionCountdown';
+import { useSafeWallet as useWallet } from '@/lib/wallet-context';
+import { signBid, BidSignaturePayload } from '@/lib/bidSignature';
+import { getMinimumNextBid, formatBidIncrementInfo, validateBidIncrement } from '@/lib/bidConfig';
 
 export default function AuctionsPage() {
   const { showSuccess, showInfo } = useToast();
@@ -12,6 +18,8 @@ export default function AuctionsPage() {
   const [selectedAuction, setSelectedAuction] = useState<any>(null);
   const [bidAmount, setBidAmount] = useState('');
   const [timeState, setTimeState] = useState<{[key: number]: {timeLeft: string; progress: number}}>({});
+  const [account, setAccount] = useState<string | null>(null);
+  const wallet = useWallet();
 
   // Fetch auctions from database
   const { data: dbAuctions = [], isLoading } = useAuctions(activeFilter === 'all' ? undefined : activeFilter);
@@ -19,29 +27,25 @@ export default function AuctionsPage() {
   // Use only database auctions - no mock data fallback
   const auctions: any[] = dbAuctions;
 
+  const { price: ethPrice } = useEthPrice();
+
   useEffect(() => {
+    // Prefer connected wallet from WalletProvider, fall back to localStorage
+    const connected = wallet?.address ?? localStorage.getItem('veilpass_account');
+    setAccount(connected);
+
+    // Updates countdowns and progress bars for visible auctions every second.
     const updateTimers = () => {
-      const now = new Date().getTime();
+      const now = Date.now();
       const newTimeState: {[key: number]: {timeLeft: string; progress: number}} = {};
 
       auctions.forEach((auction) => {
-        const timeRemaining = auction.endTime.getTime() - now;
-        
-        if (timeRemaining <= 0) {
-          newTimeState[auction.id] = { timeLeft: 'Ended', progress: 0 };
-        } else {
-          // Calculate time left
-          const hours = Math.floor(timeRemaining / (1000 * 60 * 60));
-          const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
-          
-          // Calculate progress percentage
-          const progress = ((auction.totalDuration - timeRemaining) / auction.totalDuration) * 100;
-          
-          newTimeState[auction.id] = {
-            timeLeft: `${hours}h ${minutes}m`,
-            progress: Math.max(0, Math.min(100, progress)),
-          };
-        }
+        const endRaw = auction.end_time ?? auction.endTime ?? auction.end;
+        const createdRaw = auction.created_at ?? auction.createdAt ?? null;
+        const durationHours = auction.duration_hours ?? auction.durationHours ?? auction.duration ?? null;
+
+        const result = computeTimeLeft(endRaw, createdRaw, durationHours);
+        newTimeState[auction.id] = result;
       });
 
       setTimeState(newTimeState);
@@ -50,7 +54,12 @@ export default function AuctionsPage() {
     updateTimers();
     const interval = setInterval(updateTimers, 1000); // Update every second
     return () => clearInterval(interval);
-  }, []);
+  }, [auctions]);
+
+  // Keep account in sync with the WalletProvider address
+  useEffect(() => {
+    if (wallet?.address) setAccount(wallet.address);
+  }, [wallet?.address]);
 
   const handlePlaceBid = (auction: any) => {
     setSelectedAuction(auction);
@@ -63,13 +72,82 @@ export default function AuctionsPage() {
       showInfo('Please enter a bid amount');
       return;
     }
-    if (parseInt(bidAmount) < selectedAuction.minBid) {
-      showInfo(`Bid must be at least $${selectedAuction.minBid}`);
+
+    // Interpret user-entered bid amount as ETH
+    const bidEth = Number(bidAmount);
+    if (isNaN(bidEth) || bidEth <= 0) {
+      showInfo('Enter a valid ETH amount');
       return;
     }
-    showSuccess(`Encrypted bid of $${bidAmount} placed on "${selectedAuction.title}"!`);
-    setShowBidModal(false);
-    setBidAmount('');
+
+    // Determine minimum in ETH. If there's a current highest bid, require bids exceed it.
+    const legacyMin = selectedAuction.listing_price ?? selectedAuction.start_bid ?? (
+      selectedAuction.minBid && ethPrice ? Number((Number(selectedAuction.minBid) / ethPrice).toFixed(8)) : 0
+    );
+    const currentHighestEth = selectedAuction.current_highest ?? null;
+    const minEth = currentHighestEth ? Math.max(Number(currentHighestEth), legacyMin) : legacyMin;
+
+    // Validate bid using the tiered increment system
+    const incrementValidation = validateBidIncrement(bidEth, minEth);
+    if (!incrementValidation.valid) {
+      const nextMinBid = getMinimumNextBid(minEth);
+      showInfo(`Bid must be at least ${nextMinBid.toFixed(6)} ETH. ${formatBidIncrementInfo(minEth)}`);
+      return;
+    }
+
+    const usdApprox = ethPrice ? `$${(bidEth * ethPrice).toFixed(2)}` : '≈ $--';
+
+    // Post the bid to the server
+    (async () => {
+      try {
+        if (!account) {
+          showInfo('Connect your wallet or set your account before bidding');
+          return;
+        }
+
+        // Create bid signature payload
+        const bidSignatureData: BidSignaturePayload = {
+          auction_id: selectedAuction.id,
+          bidder_address: account,
+          amount: bidEth,
+          amount_usd: typeof ethPrice === 'number' && !Number.isNaN(ethPrice) ? Number((bidEth * ethPrice).toFixed(2)) : undefined,
+          encrypted: true,
+          timestamp: Math.floor(Date.now() / 1000),
+        };
+
+        // Sign the bid (for now, returns a mock signature; integrate with real wallet provider)
+        const signature = await signBid(bidSignatureData, account);
+
+        const payload: any = {
+          ...bidSignatureData,
+          signature, // Include the signature in the payload
+        };
+
+        const resp = await fetch('/api/bids', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json();
+          // Show detailed error from RPC if available
+          if (err?.minimumRequired && err?.currentHighest !== undefined) {
+            showInfo(`Bid rejected: ${err?.error}\nCurrent highest: ${err.currentHighest?.toFixed(6) || 'N/A'} ETH\nMinimum required: ${err.minimumRequired?.toFixed(6) || 'N/A'} ETH`);
+          } else {
+            showInfo(`Failed to place bid: ${err?.error || resp.statusText}`);
+          }
+          return;
+        }
+
+        showSuccess(`Encrypted bid of ${bidEth} ETH (${usdApprox}) placed on "${selectedAuction?.title ?? selectedAuction?.ticket_id ?? `#${selectedAuction?.id}`}"!`);
+        setShowBidModal(false);
+        setBidAmount('');
+      } catch (err: any) {
+        console.error('Error placing bid:', err);
+        showInfo('Failed to place bid. Try again.');
+      }
+    })();
   };
 
   return (
@@ -130,6 +208,11 @@ export default function AuctionsPage() {
                   <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-lg p-4 mb-5 border border-indigo-200 dark:border-indigo-800">
                     <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-300 mb-2 uppercase tracking-wide">Hidden Bid Amount</p>
                     <p className="font-mono text-lg text-gray-900 dark:text-white tracking-wider">{auction.encryptedBid}</p>
+                                    <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+                          <div>Item: {auction.ticket_id ? `${String(auction.ticket_id).slice(0,8)}...` : `#${auction.id}`}</div>
+                          {auction.event_title && <div>Event: {auction.event_title}</div>}
+                          {auction.ticket_section && <div>Section: {auction.ticket_section}</div>}
+                        </div>
                   </div>
 
                   {/* Time Left */}
@@ -139,10 +222,26 @@ export default function AuctionsPage() {
                         <Clock className="w-4 h-4 text-red-600 dark:text-red-400" />
                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Time Left</span>
                       </div>
-                      <span className="text-sm font-bold text-red-600 dark:text-red-400">{time.timeLeft}</span>
+                      {/* Announce time left updates and provide exact end timestamp on hover */}
+                      {(() => {
+                        const endRaw = auction.end_time ?? auction.endTime ?? auction.end;
+                        const endDate = endRaw ? new Date(endRaw) : null;
+                        return (
+                          <span
+                            className="text-sm font-bold text-red-600 dark:text-red-400"
+                            title={endDate ? endDate.toLocaleString() : undefined}
+                            aria-live="polite"
+                          >
+                            {time.timeLeft}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
-                      <div className="bg-gradient-to-r from-red-500 to-orange-500 h-2 rounded-full transition-all duration-300" style={{ width: `${time.progress}%` }} />
+                      <div
+                        className="bg-gradient-to-r from-red-500 to-orange-500 h-2 rounded-full"
+                        style={{ width: `${time.progress}%`, transition: 'width 1000ms linear' }}
+                      />
                     </div>
                   </div>
 
@@ -153,14 +252,24 @@ export default function AuctionsPage() {
                         <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                         <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">Total Bids</p>
                       </div>
-                      <p className="font-bold text-lg text-gray-900 dark:text-white">{auction.bids}</p>
+                      <p className="font-bold text-lg text-gray-900 dark:text-white">{auction.bid_count ?? 0}</p>
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
                       <div className="flex items-center gap-1 mb-1">
                         <Zap className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
                         <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">Min Bid</p>
                       </div>
-                      <p className="font-bold text-lg text-gray-900 dark:text-white">${auction.minBid}</p>
+                      <p className="font-bold text-lg text-gray-900 dark:text-white">
+                        {(() => {
+                          // Use current highest if available, otherwise use starting bid
+                          const minEth = auction.current_highest ?? auction.listing_price ?? auction.start_bid ?? (auction.minBid && ethPrice ? Number((Number(auction.minBid) / ethPrice).toFixed(6)) : null);
+                          if (minEth !== null && minEth !== undefined) {
+                            return formatCurrencyPair(Number(minEth));
+                          }
+                          // Fallback to showing legacy USD value
+                          return `$${auction.minBid ?? '—'}`;
+                        })()}
+                      </p>
                     </div>
                   </div>
 
@@ -204,35 +313,50 @@ export default function AuctionsPage() {
               {/* Content */}
               <div className="p-6 space-y-6">
                 {/* Auction Info */}
-                <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-xl p-4 space-y-2 border border-indigo-200 dark:border-indigo-800">
+                  <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-xl p-4 space-y-2 border border-indigo-200 dark:border-indigo-800">
                   <p className="text-sm text-gray-600 dark:text-gray-400">Auction</p>
-                  <p className="font-bold text-gray-900 dark:text-white line-clamp-2">{selectedAuction.title}</p>
+                  <p className="font-bold text-gray-900 dark:text-white line-clamp-2">{selectedAuction.title ?? selectedAuction.event_title ?? (selectedAuction.ticket_id ? `Ticket ${String(selectedAuction.ticket_id).slice(0,8)}...` : `Auction #${selectedAuction.id}`)}</p>
                   <div className="flex items-center gap-4 mt-3 pt-3 border-t border-indigo-200 dark:border-indigo-700">
                     <div>
+                      {selectedAuction.event_title && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400">Event: <span className="font-semibold text-gray-900 dark:text-white">{selectedAuction.event_title}</span></p>
+                      )}
+                      {selectedAuction.ticket_section && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400">Section: <span className="font-semibold text-gray-900 dark:text-white">{selectedAuction.ticket_section}</span></p>
+                      )}
                       <p className="text-xs text-gray-600 dark:text-gray-400">Minimum Bid</p>
-                      <p className="font-bold text-indigo-600 dark:text-indigo-400">${selectedAuction.minBid}</p>
+                      <p className="font-bold text-indigo-600 dark:text-indigo-400">
+                        {(() => {
+                          const minEth = selectedAuction.current_highest ?? selectedAuction.listing_price ?? selectedAuction.start_bid ?? (selectedAuction.minBid && ethPrice ? Number((Number(selectedAuction.minBid) / ethPrice).toFixed(6)) : null);
+                          if (minEth !== null && minEth !== undefined) {
+                            return formatCurrencyPair(Number(minEth));
+                          }
+                          return `$${selectedAuction.minBid ?? '—'}`;
+                        })()}
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-600 dark:text-gray-400">Current Bids</p>
-                      <p className="font-bold text-indigo-600 dark:text-indigo-400">{selectedAuction.bids}</p>
+                      <p className="font-bold text-indigo-600 dark:text-indigo-400">{selectedAuction.bid_count ?? 0}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Bid Amount Input */}
                 <div>
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Your Bid Amount (USD)</label>
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Your Bid Amount (ETH)</label>
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
                     <input
                       type="number"
-                      placeholder={`Minimum $${selectedAuction.minBid}`}
+                      step="0.0001"
+                      placeholder={`e.g. ${selectedAuction.listing_price ?? ''}`}
                       value={bidAmount}
                       onChange={(e) => setBidAmount(e.target.value)}
                       className="w-full pl-10 pr-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400"
                     />
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">Your bid will be encrypted and kept confidential</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">Enter your bid in ETH. USD equivalent shown in toast after placing.</p>
                 </div>
 
                 {/* Security Info */}

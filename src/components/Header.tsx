@@ -6,23 +6,31 @@ import { ThemeSwitcher } from './ThemeSwitcher';
 import { LanguageSelector } from './LanguageSelector';
 import { ConnectWallet } from './ConnectWallet';
 import { Bell } from 'lucide-react';
+import AdminNotificationsBell from './AdminNotificationsBell';
 
 export function Header() {
   const [hasNotifications, setHasNotifications] = useState(false);
+  const [userWallet, setUserWallet] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
+    const wallet = localStorage.getItem('veilpass_account');
+    setUserWallet(wallet);
+
     const checkNotifications = async () => {
       try {
-        // Get user address from localStorage if available
-        const userAddress = localStorage.getItem('veilpass_account');
-        const url = userAddress 
-          ? `/api/notifications?user=${encodeURIComponent(userAddress)}`
-          : '/api/notifications';
-        
+        if (!wallet) {
+          setHasNotifications(false);
+          return;
+        }
+
+        const url = `/api/notifications?user=${encodeURIComponent(wallet)}`;
         const response = await fetch(url);
         if (response.ok) {
           const data = await response.json();
-          setHasNotifications(Array.isArray(data) && data.length > 0);
+          // Only show bell if there are unread notifications
+          const unreadNotifications = Array.isArray(data) && data.filter((n: any) => !n.read).length > 0;
+          setHasNotifications(unreadNotifications);
         } else {
           setHasNotifications(false);
         }
@@ -32,9 +40,25 @@ export function Header() {
       }
     };
 
+    // Also fetch user role
+    const checkUserRole = async () => {
+      try {
+        if (!wallet) return;
+        
+        const response = await fetch(`/api/user?wallet=${encodeURIComponent(wallet)}`);
+        if (response.ok) {
+          const data = await response.json();
+          setUserRole(data.role);
+        }
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+      }
+    };
+
     checkNotifications();
-    // Check for new notifications every 60 seconds to reduce API calls
-    const interval = setInterval(checkNotifications, 60000);
+    checkUserRole();
+    // Check for new notifications every 30 seconds for faster updates
+    const interval = setInterval(checkNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -66,16 +90,21 @@ export function Header() {
 
         {/* Right side: Notifications + Language + Theme + Connect Wallet */}
         <div className="flex items-center gap-4">
-          <Link
-            href="/notifications"
-            className="relative p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-900 transition"
-            title="Notifications"
-          >
-            <Bell className="w-5 h-5" />
-            {hasNotifications && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-            )}
-          </Link>
+          {/* Show admin notifications if user is admin */}
+          {userRole === 'admin' && userWallet ? (
+            <AdminNotificationsBell adminWallet={userWallet} />
+          ) : (
+            <Link
+              href="/notifications"
+              className="relative p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-900 transition"
+              title="Notifications"
+            >
+              <Bell className="w-5 h-5" />
+              {hasNotifications && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              )}
+            </Link>
+          )}
           <LanguageSelector />
           <ThemeSwitcher />
           <ConnectWallet />
@@ -84,3 +113,4 @@ export function Header() {
     </header>
   );
 }
+

@@ -5,11 +5,11 @@ import { Gavel, Search, Filter, MessageSquare, CheckCircle, XCircle, Clock, Mess
 import { useToast } from '@/components/ToastContainer';
 import { useAdminDisputes, useUpdateDisputeStatus } from '@/hooks/useAdmin';
 import { useDisputeMessages, useSendDisputeMessage } from '@/hooks/useDisputeMessages';
-import { useWalletAuthentication } from '@/hooks/useWalletAuthentication';
+import { useSafeWallet } from '@/lib/wallet-context';
 
 export default function AdminDisputesPage() {
   const { showSuccess, showError, showInfo } = useToast();
-  const { userAddress } = useWalletAuthentication();
+  const wallet = useSafeWallet();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedDispute, setSelectedDispute] = useState<number | null>(null);
@@ -103,9 +103,10 @@ export default function AdminDisputesPage() {
     sendMessage(
       {
         dispute_id: selectedDispute,
-        sender_address: userAddress || '0x0000000000000000000000000000000000000000',
+        sender_address: wallet?.address || localStorage.getItem('veilpass_account') || '0x0000000000000000000000000000000000000000',
         sender_role: 'admin',
         message: messageText.trim(),
+        status: null,
         is_status_change: false,
       },
       {

@@ -6,11 +6,14 @@ import { Calendar, MapPin, Users, TrendingUp, Search, Filter, Plus, Edit, Eye, M
 import Image from 'next/image';
 import { useToast } from '@/components/ToastContainer';
 import { useSellerEvents } from '@/hooks/useSellerEvents';
+import { useSellerRevenue } from '@/hooks/useSellerRevenue';
 import { formatDate, formatTime } from '@/lib/date-formatter';
+import { useSafeWallet } from '@/lib/wallet-context';
 
 export default function SellerEventsPage() {
   const router = useRouter();
   const { showSuccess, showInfo, showError } = useToast();
+  const wallet = useSafeWallet();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'upcoming' | 'ended' | 'rejected'>('all');
   const [account, setAccount] = useState<string | null>(null);
@@ -19,16 +22,22 @@ export default function SellerEventsPage() {
 
   useEffect(() => {
     setIsClient(true);
-    const savedAccount = localStorage.getItem('veilpass_account');
-    if (savedAccount) {
-      setAccount(savedAccount);
+  }, []);
+
+  useEffect(() => {
+    const connectedAddress = wallet?.address ?? localStorage.getItem('veilpass_account');
+    if (connectedAddress) {
+      setAccount(connectedAddress);
     } else {
       showError('Please connect your wallet to view your events');
     }
-  }, [showError]);
+  }, [wallet?.address, showError]);
 
   // Fetch seller's events from database - only when account is set and client-side
-  const { data: dbEvents = [], isLoading, error } = useSellerEvents(isClient && account ? account : '');
+  const { data: dbEvents = [], isLoading, error } = useSellerEvents(isClient && account ? account : null);
+  
+  // Fetch seller's revenue
+  const { data: revenueData } = useSellerRevenue(isClient && account ? account : null);
 
   // Use only database events - no mock data fallback
   const events = dbEvents;
@@ -43,7 +52,7 @@ export default function SellerEventsPage() {
     switch (status) {
       case 'Pre-Sale':
         return 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-300 dark:border-purple-800';
-      case 'Live Auction':
+      case 'On Sale':
         return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-800';
       case 'active':
         return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-800';
@@ -114,9 +123,9 @@ export default function SellerEventsPage() {
 
   const stats = {
     totalEvents: events.length,
-    activeEvents: events.filter((e: any) => e.status === 'Live Auction').length,
-    totalRevenue: '$0',
-    totalAttendees: 0,
+    activeEvents: events.filter((e: any) => e.status === 'On Sale').length,
+    totalRevenue: revenueData?.totalRevenue || '0.00',
+    totalAttendees: revenueData?.totalTickets || events.reduce((sum: number, e: any) => sum + (e.tickets_sold || 0), 0),
   };
 
   return (
@@ -154,7 +163,7 @@ export default function SellerEventsPage() {
             </div>
             <div className="bg-white dark:bg-gray-900 rounded-xl border-2 border-gray-200 dark:border-gray-800 p-4">
               <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Total Revenue</p>
-              <p className="text-3xl font-bold text-green-600 dark:text-green-400">{stats.totalRevenue}</p>
+              <p className="text-3xl font-bold text-green-600 dark:text-green-400">{stats.totalRevenue} ETH</p>
             </div>
             <div className="bg-white dark:bg-gray-900 rounded-xl border-2 border-gray-200 dark:border-gray-800 p-4">
               <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Total Attendees</p>
@@ -270,7 +279,7 @@ export default function SellerEventsPage() {
                       {event.status === 'active' && <Zap className="w-3 h-3 inline mr-1" />}
                       {event.status === 'Rejected' && <AlertCircle className="w-3 h-3 inline mr-1" />}
                       {event.status === 'Pre-Sale' && '⏳'}
-                      {event.status === 'Live Auction' && '🎉'}
+                      {event.status === 'On Sale' && '🎉'}
                       {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
                     </span>
                   </div>
@@ -384,7 +393,7 @@ export default function SellerEventsPage() {
               </button>
             )}
           </div>
-        )
+        )}
 
         {/* Rejection Reason Modal */}
         {selectedRejection && (

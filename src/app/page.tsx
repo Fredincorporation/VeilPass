@@ -39,8 +39,8 @@ export default function HomePage() {
     },
   ];
 
-  // Use events from database, fallback to showing only first few or empty
-  const featuredEvents = allEvents.slice(0, 9);
+  // Use events from database, filter out rejected events, show only first few
+  const featuredEvents = allEvents.filter((event: any) => event.status !== 'Rejected').slice(0, 9);
 
   return (
     <>

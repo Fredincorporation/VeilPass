@@ -1,18 +1,22 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
-import { Smartphone, Type, QrCode, CheckCircle, AlertCircle, RefreshCw, Copy } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Smartphone, Type, QrCode, CheckCircle, AlertCircle, RefreshCw, Copy, Scan } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
+import { parseQRPayload, decryptTicketQR } from '@/lib/ticketQREncryption';
+import axios from 'axios';
 
 export default function ScannerPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { showSuccess, showError, showInfo } = useToast();
   const [scannedCode, setScannedCode] = useState('');
   const [manualInput, setManualInput] = useState('');
-  const [scanHistory, setScanHistory] = useState<string[]>([]);
+  const [scanHistory, setScanHistory] = useState<any[]>([]);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [scannerAddress, setScannerAddress] = useState('');
+  const [lastScanResult, setLastScanResult] = useState<any>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const startCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -35,24 +39,69 @@ export default function ScannerPage() {
     };
   }, []);
 
-  const handleScan = (code: string) => {
-    if (!code) return;
-    setScannedCode(code);
-    setScanHistory([code, ...scanHistory.slice(0, 9)]);
-    showSuccess(`Ticket verified: ${code}`);
-  };
-
-  const handleManualVerify = () => {
-    if (!manualInput.trim()) {
-      showError('Please enter a ticket ID');
+  const handleScan = async (qrPayload: string) => {
+    if (!qrPayload || !scannerAddress) {
+      showError('Please provide scanner address first');
       return;
     }
+
     setIsVerifying(true);
-    setTimeout(() => {
-      handleScan(manualInput);
-      setManualInput('');
+
+    try {
+      // Parse the QR payload
+      let qrData;
+      try {
+        qrData = parseQRPayload(qrPayload);
+      } catch {
+        showError('Invalid QR code format');
+        setIsVerifying(false);
+        return;
+      }
+
+      // Send to scanner API for verification
+      const response = await axios.post('/api/admin/scan-ticket', {
+        qrData,
+        scannerAddress,
+        scannerRole: 'event_scanner',
+      });
+
+      const result = response.data;
+
+      if (result.valid) {
+        showSuccess(`✓ Ticket verified: ${result.data?.ticketId.slice(0, 16)}...`);
+        setScannedCode(qrPayload);
+        setLastScanResult(result);
+        setScanHistory([result, ...scanHistory.slice(0, 9)]);
+      } else {
+        if (result.error?.includes('already scanned')) {
+          showInfo('⚠ This ticket was already scanned');
+        } else if (result.error?.includes('expired')) {
+          showError('❌ QR code has expired');
+        } else {
+          showError(`❌ ${result.error || 'Invalid ticket'}`);
+        }
+        setLastScanResult(result);
+      }
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error || 'Verification failed';
+      showError(errorMsg);
+      setLastScanResult({
+        valid: false,
+        error: errorMsg,
+      });
+    } finally {
       setIsVerifying(false);
-    }, 800);
+    }
+  };
+
+  const handleManualVerify = async () => {
+    if (!manualInput.trim()) {
+      showError('Please paste QR data or enter ticket information');
+      return;
+    }
+    
+    await handleScan(manualInput);
+    setManualInput('');
   };
 
   const handleCopyToClipboard = (code: string) => {
@@ -63,6 +112,7 @@ export default function ScannerPage() {
   const handleClearHistory = () => {
     setScanHistory([]);
     setScannedCode('');
+    setLastScanResult(null);
     showInfo('Scan history cleared');
   };
 
@@ -85,6 +135,23 @@ export default function ScannerPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Scanner */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Scanner Address Setup */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-800 p-6">
+              <label className="text-sm font-bold text-gray-900 dark:text-white mb-3 block">
+                Scanner Wallet Address
+              </label>
+              <input
+                type="text"
+                value={scannerAddress}
+                onChange={(e) => setScannerAddress(e.target.value)}
+                placeholder="0x..."
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-green-500 dark:focus:border-green-400"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                This address will be logged as the ticket scanner
+              </p>
+            </div>
+
             {/* Camera Feed */}
             <div className="bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-800 overflow-hidden">
               <div className="relative bg-black" style={{ aspectRatio: '4 / 3' }}>
@@ -112,34 +179,80 @@ export default function ScannerPage() {
             </div>
 
             {/* Scanned Result */}
-            {scannedCode && (
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-2xl border-2 border-green-300 dark:border-green-800 p-6">
+            {lastScanResult && (
+              <div className={`rounded-2xl border-2 p-6 ${
+                lastScanResult.valid
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+              }`}>
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-600 rounded-lg">
-                      <CheckCircle className="w-6 h-6 text-white" />
+                    <div className={`p-2 rounded-lg ${
+                      lastScanResult.valid ? 'bg-green-600' : 'bg-red-600'
+                    }`}>
+                      {lastScanResult.valid ? (
+                        <CheckCircle className="w-6 h-6 text-white" />
+                      ) : (
+                        <AlertCircle className="w-6 h-6 text-white" />
+                      )}
                     </div>
                     <div>
-                      <h3 className="font-bold text-green-900 dark:text-green-200">Ticket Verified</h3>
-                      <p className="text-sm text-green-700 dark:text-green-300">Valid ticket detected</p>
+                      <h3 className={`font-bold ${
+                        lastScanResult.valid
+                          ? 'text-green-900 dark:text-green-200'
+                          : 'text-red-900 dark:text-red-200'
+                      }`}>
+                        {lastScanResult.valid ? 'Ticket Verified ✓' : 'Verification Failed'}
+                      </h3>
+                      <p className={`text-sm ${
+                        lastScanResult.valid
+                          ? 'text-green-700 dark:text-green-300'
+                          : 'text-red-700 dark:text-red-300'
+                      }`}>
+                        {lastScanResult.message || lastScanResult.error}
+                      </p>
                     </div>
                   </div>
                   <button
-                    onClick={() => setScannedCode('')}
-                    className="px-3 py-1 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700 transition"
+                    onClick={() => {
+                      setScannedCode('');
+                      setLastScanResult(null);
+                    }}
+                    className={`px-3 py-1 text-sm rounded-lg transition ${
+                      lastScanResult.valid
+                        ? 'bg-green-600 text-white hover:bg-green-700'
+                        : 'bg-red-600 text-white hover:bg-red-700'
+                    }`}
                   >
                     Clear
                   </button>
                 </div>
-                <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-white dark:bg-gray-900/50 border border-green-200 dark:border-green-700">
-                  <code className="font-mono text-sm font-bold text-gray-900 dark:text-white break-all">{scannedCode}</code>
-                  <button
-                    onClick={() => handleCopyToClipboard(scannedCode)}
-                    className="flex-shrink-0 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                  >
-                    <Copy className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                  </button>
-                </div>
+
+                {lastScanResult.data && (
+                  <div className="space-y-2 text-sm bg-white dark:bg-gray-900/50 p-4 rounded-lg">
+                    <p>
+                      <span className="font-semibold">Ticket ID:</span>{' '}
+                      <span className="font-mono text-gray-700 dark:text-gray-300">
+                        {lastScanResult.data.ticketId.slice(0, 16)}...
+                      </span>
+                    </p>
+                    <p>
+                      <span className="font-semibold">Event:</span> Event #{lastScanResult.data.eventId}
+                    </p>
+                    <p>
+                      <span className="font-semibold">Section:</span> {lastScanResult.data.section}
+                    </p>
+                    <p>
+                      <span className="font-semibold">Owner:</span>{' '}
+                      <span className="font-mono text-gray-700 dark:text-gray-300">
+                        {lastScanResult.data.owner.slice(0, 10)}...
+                      </span>
+                    </p>
+                    <p>
+                      <span className="font-semibold">Price:</span> {lastScanResult.data.price} ETH
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -147,21 +260,20 @@ export default function ScannerPage() {
             <div className="bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-800 p-6">
               <label className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <Type className="w-5 h-5 text-teal-600" />
-                Manual Ticket Entry
+                Paste or Input Encrypted QR Data
               </label>
-              <div className="flex gap-3">
-                <input
-                  type="text"
+              <div className="flex gap-3 flex-col">
+                <textarea
                   value={manualInput}
                   onChange={(e) => setManualInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleManualVerify()}
-                  placeholder="Enter ticket ID (e.g., TK12345678)..."
-                  className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-mono text-sm placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-teal-500 dark:focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20 transition"
+                  placeholder='Paste QR JSON data here... (e.g., {"encrypted":"...","hmac":"...","timestamp":...,"expiresAt":...})'
+                  className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-teal-500 dark:focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20 transition font-mono"
+                  rows={3}
                 />
                 <button
                   onClick={handleManualVerify}
-                  disabled={isVerifying || !manualInput.trim()}
-                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-all flex items-center gap-2"
+                  disabled={isVerifying || !manualInput.trim() || !scannerAddress}
+                  className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-all flex items-center justify-center gap-2"
                 >
                   {isVerifying ? (
                     <>
@@ -169,7 +281,10 @@ export default function ScannerPage() {
                       Verifying
                     </>
                   ) : (
-                    'Verify'
+                    <>
+                      <Scan className="w-4 h-4" />
+                      Verify Ticket
+                    </>
                   )}
                 </button>
               </div>
@@ -195,19 +310,27 @@ export default function ScannerPage() {
 
             {scanHistory.length > 0 ? (
               <div className="space-y-2">
-                {scanHistory.map((code, idx) => (
+                {scanHistory.map((result, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between gap-2 p-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition group"
+                    className={`flex items-center justify-between gap-2 p-3 rounded-lg transition group ${
+                      result.valid
+                        ? 'bg-green-50 dark:bg-green-900/10 hover:bg-green-100 dark:hover:bg-green-900/20'
+                        : 'bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20'
+                    }`}
                   >
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
-                      <code className="font-mono text-xs text-gray-600 dark:text-gray-400 truncate">
-                        {code}
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {result.success ? (
+                        <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+                      )}
+                      <code className="font-mono text-xs text-gray-700 dark:text-gray-300 truncate">
+                        {result.data?.ticketId.slice(0, 16) || 'Invalid'} - Event #{result.data?.eventId}
                       </code>
                     </div>
                     <button
-                      onClick={() => handleCopyToClipboard(code)}
+                      onClick={() => handleCopyToClipboard(`${result.data?.ticketId || ''} - Event #${result.data?.eventId || ''}`)}
                       className="p-1 rounded opacity-0 group-hover:opacity-100 transition"
                     >
                       <Copy className="w-3 h-3 text-gray-400 dark:text-gray-500" />

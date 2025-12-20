@@ -5,17 +5,18 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { useTranslation } from '@/lib/translation-context';
 import { getWalletRole } from '@/lib/wallet-roles';
 import { useToast } from '@/components/ToastContainer';
+import { useSafeWallet } from '@/lib/wallet-context';
 import { useWalletAuthentication } from '@/hooks/useWalletAuthentication';
 import { useSellerStats } from '@/hooks/useSellerStats';
 import { useCustomerStats } from '@/hooks/useCustomerStats';
 import { useAdminStats } from '@/hooks/useAdminStats';
-import { Ticket, Gift, Gavel, UserPlus, LogOut, Calendar, Plus, BarChart3, Settings, AlertCircle, QrCode, Shield, Heart, Megaphone, Send, X, CheckCircle, Users, RotateCw } from 'lucide-react';
+import { Ticket, Gift, Gavel, UserPlus, LogOut, Calendar, Plus, BarChart3, Settings, AlertCircle, QrCode, Shield, Heart, Megaphone, Send, X, CheckCircle, Users, RotateCw, ArrowRight } from 'lucide-react';
 
 export default function DashboardPage() {
   const { t } = useTranslation();
   const { showSuccess, showError } = useToast();
   const [account, setAccount] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<'customer' | 'seller' | 'admin'>('customer');
+  const [userRole, setUserRole] = useState<'customer' | 'seller' | 'admin' | 'awaiting_seller'>('customer');
   const [isClient, setIsClient] = useState(false);
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -39,25 +40,88 @@ export default function DashboardPage() {
     const savedAccount = localStorage.getItem('veilpass_account');
     if (savedAccount) {
       setAccount(savedAccount);
-      const role = getWalletRole(savedAccount);
-      setUserRole(role);
     }
 
-    // Listen for wallet connection events and refresh the page
+    // Listen for wallet connection events and update account without reloading
     const handleWalletConnected = () => {
       const updatedAccount = localStorage.getItem('veilpass_account');
       if (updatedAccount && updatedAccount !== account) {
         setAccount(updatedAccount);
-        const role = getWalletRole(updatedAccount);
-        setUserRole(role);
-        // Refresh the page to reload all data
-        window.location.reload();
       }
     };
 
     window.addEventListener('walletConnected', handleWalletConnected);
-    return () => window.removeEventListener('walletConnected', handleWalletConnected);
+    return () => {
+      window.removeEventListener('walletConnected', handleWalletConnected);
+    };
   }, []);
+
+  // Update user role when user data is fetched from database
+  useEffect(() => {
+    if (user && user.role) {
+      setUserRole(user.role);
+    }
+  }, [user]);
+
+  // Role transitions are handled on reconnect; polling and auto-refresh removed.
+
+  // If user has awaiting_seller role, show the awaiting seller dashboard
+  if (isClient && userRole === 'awaiting_seller') {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-950 dark:to-black pt-24 pb-20">
+        <div className="max-w-2xl mx-auto px-4">
+          <div className="text-center py-20">
+            <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-amber-100 to-yellow-100 dark:from-amber-900/30 dark:to-yellow-900/30 mb-8">
+              <RotateCw className="w-12 h-12 text-amber-600 dark:text-amber-400 animate-spin" />
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Application Under Review</h1>
+            <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
+              Thank you for applying to become a seller on VeilPass! 🎉
+            </p>
+            
+            <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 border-2 border-amber-200 dark:border-amber-800 mb-8">
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-600 text-white flex items-center justify-center font-bold">✓</div>
+                  <div className="text-left">
+                    <h3 className="font-bold text-gray-900 dark:text-white mb-1">Application Submitted</h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">Your seller application has been received and is being reviewed by our admin team.</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400 flex items-center justify-center font-bold">2</div>
+                  <div className="text-left">
+                    <h3 className="font-bold text-gray-900 dark:text-white mb-1">ID Verification (In Progress)</h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">Our team is verifying your government ID using advanced encryption technology.</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400 flex items-center justify-center font-bold">3</div>
+                  <div className="text-left">
+                    <h3 className="font-bold text-gray-900 dark:text-white mb-1">Approval</h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">Once approved, you'll gain full seller access and can start creating events.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-6 mb-8">
+              <p className="text-sm text-blue-900 dark:text-blue-100">
+                <strong>Application Review:</strong> Your seller application is under review. You'll see the status updated here within 24 hours. Check back to monitor your application progress.
+              </p>
+            </div>
+
+            <a href="/" className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold transition-all hover:shadow-lg">
+              Return to Home
+              <ArrowRight className="w-5 h-5" />
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleBroadcastChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -75,13 +139,35 @@ export default function DashboardPage() {
 
     setIsSending(true);
     
-    setTimeout(() => {
-      const userTypeLabel = broadcastForm.userType === 'customer' ? 'Customers' : 'Sellers';
-      showSuccess(`Broadcast sent successfully to all ${userTypeLabel}!`);
+    try {
+      const response = await fetch('/api/admin/broadcast', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: broadcastForm.message,
+          userType: broadcastForm.userType,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        showError(data.error || 'Failed to send broadcast');
+        return;
+      }
+
+      const userTypeLabel = broadcastForm.userType === 'customer' ? 'Customers' : broadcastForm.userType === 'seller' ? 'Sellers' : 'All Users';
+      showSuccess(`Broadcast sent successfully to ${data.sent_count} ${userTypeLabel.toLowerCase()}!`);
       setBroadcastForm({ message: '', userType: 'customer' });
       setShowBroadcastModal(false);
+    } catch (error) {
+      showError('Failed to send broadcast');
+      console.error('Broadcast error:', error);
+    } finally {
       setIsSending(false);
-    }, 1000);
+    }
   };
 
   // Let DashboardLayout handle the display - don't return null here
@@ -553,6 +639,7 @@ export default function DashboardPage() {
                 >
                   <option value="customer">All Customers</option>
                   <option value="seller">All Sellers</option>
+                  <option value="all">All Users</option>
                 </select>
               </div>
 

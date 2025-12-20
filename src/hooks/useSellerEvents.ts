@@ -5,7 +5,7 @@ import { Event } from '@/lib/supabase';
 /**
  * Fetch seller's events
  */
-export function useSellerEvents(sellerAddress: string) {
+export function useSellerEvents(sellerAddress: string | null) {
   return useQuery({
     queryKey: ['sellerEvents', sellerAddress],
     queryFn: async () => {
@@ -60,7 +60,7 @@ export function useUpdateSellerEvent() {
 /**
  * Fetch seller analytics
  */
-export function useSellerAnalytics(sellerAddress: string) {
+export function useSellerAnalytics(sellerAddress: string | null) {
   return useQuery({
     queryKey: ['sellerAnalytics', sellerAddress],
     queryFn: async () => {

@@ -89,8 +89,8 @@ function DisputeCard({
           </button>
         )}
 
-        {/* Open Messages Button - Show for all users except RESOLVED */}
-        {dispute.status !== 'RESOLVED' && (
+        {/* Open Messages Button - Show for all users except RESOLVED and REJECTED */}
+        {dispute.status !== 'RESOLVED' && dispute.status !== 'REJECTED' && (
           <button
             onClick={() => onOpenMessages(dispute)}
             className="px-4 py-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-semibold hover:bg-blue-200 dark:hover:bg-blue-900/50 transition flex items-center gap-2"
@@ -601,55 +601,63 @@ export default function DisputesPage() {
               </div>
 
               {/* Input Area */}
-              <form onSubmit={handleSendMessage} className="p-6 border-t border-gray-200 dark:border-gray-800 space-y-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide mb-2">
-                    Your Message
-                  </label>
-                  <textarea
-                    value={messageData.message}
-                    onChange={(e) => setMessageData({ ...messageData, message: e.target.value })}
-                    placeholder="Type your message here..."
-                    rows={3}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition resize-none"
-                  />
-                </div>
-
-                {/* Admin Status Change Option */}
-                {isAdmin && (
+              {selectedDispute.status !== 'REJECTED' ? (
+                <form onSubmit={handleSendMessage} className="p-6 border-t border-gray-200 dark:border-gray-800 space-y-4">
                   <div>
                     <label className="block text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide mb-2">
-                      Update Status (Optional)
+                      Your Message
                     </label>
-                    <select
-                      value={messageData.status}
-                      onChange={(e) => setMessageData({ ...messageData, status: e.target.value })}
-                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition"
-                    >
-                      <option value={selectedDispute.status}>No Change</option>
-                      <option value="OPEN">Open</option>
-                      <option value="RESOLVED">Resolved</option>
-                      <option value="REJECTED">Rejected</option>
-                    </select>
+                    <textarea
+                      value={messageData.message}
+                      onChange={(e) => setMessageData({ ...messageData, message: e.target.value })}
+                      placeholder="Type your message here..."
+                      rows={3}
+                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition resize-none"
+                    />
                   </div>
-                )}
 
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowMessageModal(false)}
-                    className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                  >
-                    Close
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold transition-all duration-300 hover:shadow-lg"
-                  >
-                    Send Message
-                  </button>
+                  {/* Admin Status Change Option */}
+                  {isAdmin && (
+                    <div>
+                      <label className="block text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide mb-2">
+                        Update Status (Optional)
+                      </label>
+                      <select
+                        value={messageData.status}
+                        onChange={(e) => setMessageData({ ...messageData, status: e.target.value })}
+                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition"
+                      >
+                        <option value={selectedDispute.status}>No Change</option>
+                        <option value="OPEN">Open</option>
+                        <option value="RESOLVED">Resolved</option>
+                        <option value="REJECTED">Rejected</option>
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowMessageModal(false)}
+                      className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                    >
+                      Close
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold transition-all duration-300 hover:shadow-lg"
+                    >
+                      Send Message
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="p-6 border-t border-gray-200 dark:border-gray-800 bg-red-50 dark:bg-red-900/20">
+                  <p className="text-sm font-semibold text-red-700 dark:text-red-400">
+                    This dispute has been rejected and no further messages can be sent.
+                  </p>
                 </div>
-              </form>
+              )}
             </div>
           </div>
         )}

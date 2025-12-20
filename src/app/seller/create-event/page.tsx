@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Plus, MapPin, Calendar, Users, DollarSign, FileText, Image as ImageIcon, ArrowRight, Trash2, Copy, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
 import { useCreateEvent } from '@/hooks/useSellerEvents';
+import { useEthPrice } from '@/hooks/useEthPrice';
+import { useSafeWallet } from '@/lib/wallet-context';
 
 interface PricingTier {
   id: string;
@@ -17,6 +19,8 @@ interface PricingTier {
 export default function CreateEventPage() {
   const router = useRouter();
   const { showSuccess, showError, showWarning } = useToast();
+  const { price: ethPrice } = useEthPrice();
+  const wallet = useSafeWallet();
   const [step, setStep] = useState(1);
   const [usePricingTiers, setUsePricingTiers] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -44,11 +48,11 @@ export default function CreateEventPage() {
   });
 
   useEffect(() => {
-    const savedAccount = localStorage.getItem('veilpass_account');
+    const connectedAddress = wallet?.address ?? localStorage.getItem('veilpass_account');
     const savedBusinessName = localStorage.getItem('veilpass_business_name');
-    setAccount(savedAccount);
+    setAccount(connectedAddress);
     setBusinessName(savedBusinessName);
-  }, []);
+  }, [wallet?.address]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -161,8 +165,15 @@ export default function CreateEventPage() {
         showWarning('Event image is recommended');
       }
       
-      if (!formData.basePrice || (usePricingTiers && pricingTiers.some(t => !t.price || !t.name))) {
-        showError('Please fill in all pricing information');
+      // Validate pricing
+      const basePrice = parseFloat(formData.basePrice);
+      if (!formData.basePrice || isNaN(basePrice) || basePrice <= 0) {
+        showError('Please enter a valid ticket price in ETH');
+        return;
+      }
+      
+      if (usePricingTiers && pricingTiers.some(t => !t.price || !t.name)) {
+        showError('Please fill in all pricing information for tiers');
         return;
       }
     }
@@ -183,7 +194,7 @@ export default function CreateEventPage() {
         date: `${formData.date} at ${formData.time}`, // Combine date and time
         location: formData.location,
         capacity: formData.capacity, // Store as is from form
-        organizer: businessName || account || '', // Use Business Name, fallback to account address
+        organizer: account || '', // Use wallet address as organizer (required for payment)
         base_price: parseFloat(formData.basePrice),
         image: imagePreview || '', // Map image_url to image
         status: 'Pre-Sale', // Map active to Pre-Sale status
@@ -493,20 +504,30 @@ export default function CreateEventPage() {
                 {!usePricingTiers && (
                   <div>
                     <label className="block text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide mb-2">
-                      Ticket Price
+                      Ticket Price (ETH)
                     </label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-3 text-gray-600 dark:text-gray-400 font-semibold">$</span>
-                      <input
-                        type="number"
-                        name="basePrice"
-                        value={formData.basePrice}
-                        onChange={handleInputChange}
-                        required
-                        placeholder="0.00"
-                        step="0.01"
-                        className="w-full pl-8 pr-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-green-500 dark:focus:border-green-400 focus:ring-2 focus:ring-green-500/20 transition"
-                      />
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <span className="absolute left-4 top-3 text-gray-600 dark:text-gray-400 font-semibold">Ξ</span>
+                        <input
+                          type="number"
+                          name="basePrice"
+                          value={formData.basePrice}
+                          onChange={handleInputChange}
+                          required
+                          placeholder="0.00"
+                          step="0.001"
+                          min="0"
+                          className="w-full pl-8 pr-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition"
+                        />
+                      </div>
+                      {formData.basePrice && ethPrice > 0 && (
+                        <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                          <p className="text-sm text-blue-600 dark:text-blue-300">
+                            ≈ ${(parseFloat(formData.basePrice) * ethPrice).toFixed(2)} USD <span className="text-xs text-blue-500 dark:text-blue-400">(@ ${ethPrice.toFixed(2)}/ETH)</span>
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -558,18 +579,26 @@ export default function CreateEventPage() {
 
                           <div>
                             <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
-                              Price per Ticket
+                              Price per Ticket (ETH)
                             </label>
-                            <div className="relative">
-                              <span className="absolute left-3 top-2 text-gray-600 dark:text-gray-400 font-semibold">$</span>
-                              <input
-                                type="number"
-                                value={tier.price}
-                                onChange={(e) => handleTierChange(tier.id, 'price', e.target.value)}
-                                placeholder="0.00"
-                                step="0.01"
-                                className="w-full pl-7 pr-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-green-500 dark:focus:border-green-400 focus:ring-2 focus:ring-green-500/20 transition"
-                              />
+                            <div className="space-y-2">
+                              <div className="relative">
+                                <span className="absolute left-3 top-2 text-gray-600 dark:text-gray-400 font-semibold">Ξ</span>
+                                <input
+                                  type="number"
+                                  value={tier.price}
+                                  onChange={(e) => handleTierChange(tier.id, 'price', e.target.value)}
+                                  placeholder="0.00"
+                                  step="0.001"
+                                  min="0"
+                                  className="w-full pl-7 pr-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition"
+                                />
+                              </div>
+                              {tier.price && ethPrice > 0 && (
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                  ≈ ${(parseFloat(tier.price) * ethPrice).toFixed(2)} USD
+                                </p>
+                              )}
                             </div>
                           </div>
 

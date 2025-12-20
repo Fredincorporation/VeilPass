@@ -19,7 +19,8 @@ export default function EventsPage() {
       event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.location.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = selectedStatus === 'all' || event.status === selectedStatus;
-    return matchesSearch && matchesStatus;
+    const isNotRejected = event.status !== 'Rejected';
+    return matchesSearch && matchesStatus && isNotRejected;
   });
 
   if (isLoading) {

@@ -1,15 +1,21 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Upload, CheckCircle, ShoppingBag, Lock, FileText, ArrowRight } from 'lucide-react';
+import { encryptIDDataWithZama } from '@/lib/contractInteraction';
 
 export default function SellerRegisterPage() {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     businessName: '',
     businessType: '',
+    customBusinessType: '',
     idDocument: null as File | null,
+    claimedDob: '',
+    claimedExpiresAt: '',
   });
+  const router = useRouter();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -23,20 +29,83 @@ export default function SellerRegisterPage() {
     // Save business name to localStorage AND database for future reference
     localStorage.setItem('veilpass_business_name', formData.businessName);
     
+    // Determine the final business type (use custom if "Other" was selected)
+    const finalBusinessType = formData.businessType === 'Other' 
+      ? formData.customBusinessType 
+      : formData.businessType;
+    
     // Save to database if wallet is connected
     const wallet = localStorage.getItem('veilpass_account');
     if (wallet && formData.businessName.trim()) {
       try {
-        await fetch('/api/user', {
+        const response = await fetch('/api/user', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             wallet_address: wallet,
             business_name: formData.businessName.trim(),
+            business_type: finalBusinessType,
+            role: 'awaiting_seller',
           }),
         });
+
+        if (response.ok) {
+          // If an ID file was uploaded, encrypt it and POST to the seller_ids table
+          if (formData.idDocument) {
+            try {
+              const fileToBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = (err) => reject(err);
+                reader.readAsDataURL(file);
+              });
+
+              const fileBase64 = await fileToBase64(formData.idDocument);
+              const encryptedHash = await encryptIDDataWithZama(
+                JSON.stringify({
+                  raw: fileBase64,
+                  claimedDob: formData.claimedDob,
+                  claimedExpiresAt: formData.claimedExpiresAt,
+                })
+              );
+
+              // POST encrypted hash and metadata to our new API
+              try {
+                await fetch('/api/seller-ids', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    wallet_address: wallet,
+                    name: formData.businessName.trim(),
+                    business_type: finalBusinessType,
+                    encrypted_id: encryptedHash,
+                    id_type: null,
+                    location: null,
+                  }),
+                });
+              } catch (postErr) {
+                console.warn('Failed to POST encrypted ID to /api/seller-ids:', postErr);
+              }
+            } catch (encErr) {
+              console.warn('Failed to encrypt ID document:', encErr);
+            }
+          }
+
+          // After successful application, disconnect the wallet and redirect to home.
+          // This prevents auto-refresh on the dashboard and ensures the user reconnects.
+          try {
+            localStorage.removeItem('veilpass_account');
+            // Notify other components about the disconnect so UI updates
+            window.dispatchEvent(new Event('walletDisconnected'));
+          } catch (err) {
+            console.warn('Error clearing wallet on submit:', err);
+          }
+          // Redirect to homepage so user can reconnect their wallet
+          router.push('/');
+          return;
+        }
       } catch (error) {
-        console.error('Failed to save business name to database:', error);
+        console.error('Failed to save business info to database:', error);
       }
     }
     
@@ -139,6 +208,20 @@ export default function SellerRegisterPage() {
                 </select>
               </div>
 
+              {formData.businessType === 'Other' && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2 uppercase tracking-wide">Please specify your business type</label>
+                  <input
+                    type="text"
+                    value={formData.customBusinessType}
+                    onChange={(e) => setFormData({ ...formData, customBusinessType: e.target.value })}
+                    placeholder="Enter your business type"
+                    className="w-full px-4 py-3 rounded-lg border-2 border-indigo-300 dark:border-indigo-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                    required={formData.businessType === 'Other'}
+                  />
+                </div>
+              )}
+
               <button
                 type="submit"
                 className="w-full px-4 py-3 rounded-lg bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/30 flex items-center justify-center gap-2 mt-8"
@@ -192,6 +275,30 @@ export default function SellerRegisterPage() {
                     </div>
                   )}
                 </label>
+              </div>
+
+              {/* DOB Field */}
+              <div className="mt-6">
+                <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2 uppercase tracking-wide">Date of Birth (YYYY-MM-DD)</label>
+                <input
+                  type="date"
+                  value={formData.claimedDob}
+                  onChange={(e) => setFormData({ ...formData, claimedDob: e.target.value })}
+                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                />
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Used to verify age; encrypted and not stored</p>
+              </div>
+
+              {/* ID Expiration Field */}
+              <div className="mt-6">
+                <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2 uppercase tracking-wide">ID Expiration Date (YYYY-MM-DD)</label>
+                <input
+                  type="date"
+                  value={formData.claimedExpiresAt}
+                  onChange={(e) => setFormData({ ...formData, claimedExpiresAt: e.target.value })}
+                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                />
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Used to verify expiration; encrypted and not stored</p>
               </div>
             </div>
 

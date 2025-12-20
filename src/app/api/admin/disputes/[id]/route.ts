@@ -52,6 +52,52 @@ export async function PUT(
 
     console.log(`Successfully updated dispute ${id}:`, data);
 
+    const updatedDispute = data?.[0];
+
+    // Send notifications about dispute resolution
+    try {
+      const notificationMessage = `Dispute #${id} has been ${status.toLowerCase()}.${resolution ? ` Resolution: ${resolution}` : ''}`;
+      
+      // Notify all admins
+      const { data: admins } = await supabase
+        .from('users')
+        .select('wallet_address')
+        .eq('role', 'admin');
+
+      if (admins && admins.length > 0) {
+        const adminNotifications = admins.map(admin => ({
+          user_address: admin.wallet_address,
+          type: status === 'RESOLVED' ? 'dispute_resolved' : 'dispute_rejected',
+          title: status === 'RESOLVED' ? 'Dispute Resolved' : 'Dispute Rejected',
+          message: notificationMessage,
+        }));
+        await supabase.from('notifications').insert(adminNotifications);
+      }
+
+      // Notify claimant
+      if (updatedDispute?.claimant_address) {
+        await supabase.from('notifications').insert({
+          user_address: updatedDispute.claimant_address,
+          type: status === 'RESOLVED' ? 'dispute_resolved' : 'dispute_rejected',
+          title: status === 'RESOLVED' ? 'Dispute Resolved' : 'Dispute Rejected',
+          message: `Your dispute #${id} has been ${status.toLowerCase()}.`,
+        });
+      }
+
+      // Notify seller/defendant
+      if (updatedDispute?.seller_address) {
+        await supabase.from('notifications').insert({
+          user_address: updatedDispute.seller_address,
+          type: status === 'RESOLVED' ? 'dispute_resolved' : 'dispute_rejected',
+          title: status === 'RESOLVED' ? 'Dispute Resolved' : 'Dispute Rejected',
+          message: `A dispute against you (#${id}) has been ${status.toLowerCase()}.`,
+        });
+      }
+    } catch (notificationError) {
+      console.error('Error creating dispute notifications:', notificationError);
+      // Don't fail the request if notifications fail
+    }
+
     return NextResponse.json(
       { 
         message: 'Dispute updated successfully', 

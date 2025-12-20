@@ -7,10 +7,12 @@ import { useToast } from '@/components/ToastContainer';
 import { useUpdateUser } from '@/hooks/useUser';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useUserPreferences, useUpdateUserPreferences } from '@/hooks/useUserPreferences';
+import { useSafeWallet } from '@/lib/wallet-context';
 
 export default function SellerSettingsPage() {
   const router = useRouter();
   const { showSuccess, showError } = useToast();
+  const wallet = useSafeWallet();
   const [activeTab, setActiveTab] = useState('profile');
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
   const [account, setAccount] = useState<string | null>(null);
@@ -33,9 +35,9 @@ export default function SellerSettingsPage() {
   });
 
   useEffect(() => {
-    const savedAccount = localStorage.getItem('veilpass_account');
-    setAccount(savedAccount);
-  }, []);
+    const connectedAddress = wallet?.address ?? localStorage.getItem('veilpass_account');
+    setAccount(connectedAddress);
+  }, [wallet?.address]);
 
   // Load business name from database when profile loads
   useEffect(() => {

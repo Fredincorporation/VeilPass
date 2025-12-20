@@ -6,7 +6,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 // Interface for Zama fhEVM - encrypted uint256 and bool types
 interface IFHEVMCore {
@@ -24,9 +24,9 @@ interface IFHEVMCore {
     function le(euint256 a, euint256 b) external pure returns (ebool);
 }
 
-// Placeholder types for encrypted values
-type euint256 is bytes;
-type ebool is bytes;
+// Placeholder types for encrypted values (using uint256 and bool as base types)
+type euint256 is uint256;
+type ebool is uint256;
 
 /**
  * @title VeilPassTicketing
@@ -127,8 +127,8 @@ contract VeilPassTicketing is ERC721, Ownable, ReentrancyGuard {
             seller: msg.sender,
             date: date,
             basePrice: basePrice,
-            encryptedDemand: euint256(bytes("")),
-            dynamicPrice: euint256(bytes("")),
+            encryptedDemand: euint256.wrap(0),
+            dynamicPrice: euint256.wrap(0),
             isActive: true,
             totalTickets: totalTickets,
             soldTickets: 0
@@ -141,9 +141,9 @@ contract VeilPassTicketing is ERC721, Ownable, ReentrancyGuard {
     // Purchase ticket with encrypted pricing
     function purchaseTicket(
         uint256 eventId,
-        euint256 encryptedPrice,
+       // euint256 encryptedPrice,
         bool useUSDC
-    ) external nonReentrant returns (uint256) {
+    ) external payable nonReentrant returns (uint256) {
         Event storage evt = events[eventId];
         require(evt.isActive, "Event inactive");
         require(evt.soldTickets < evt.totalTickets, "Sold out");
@@ -163,7 +163,7 @@ contract VeilPassTicketing is ERC721, Ownable, ReentrancyGuard {
             owner: msg.sender,
             used: false,
             purchasePrice: price,
-            encryptedSeatInfo: euint256(bytes(""))
+            encryptedSeatInfo: euint256.wrap(0)
         });
         
         userTickets[msg.sender].push(ticketId);
@@ -242,7 +242,7 @@ contract VeilPassTicketing is ERC721, Ownable, ReentrancyGuard {
         // Homomorphic pricing: if demand > threshold, increase price
         if (evt.soldTickets > demandThreshold) {
             uint256 newPrice = evt.basePrice + (evt.basePrice * 10 / 100); // 10% increase
-            evt.dynamicPrice = euint256(bytes(abi.encodePacked(newPrice)));
+            evt.dynamicPrice = euint256.wrap(newPrice);
             emit DynamicPriceUpdated(eventId, newPrice);
         }
     }
@@ -337,98 +337,5 @@ contract DisputeResolution is Ownable, ReentrancyGuard {
     
     function getDispute(uint256 disputeId) external view returns (Dispute memory) {
         return disputes[disputeId];
-    }
-}
-
-/**
- * @title GovernmentIDVerification
- * @dev Encrypted government ID verification with fhEVM checks
- */
-contract GovernmentIDVerification is Ownable {
-    address public admin;
-    
-    struct IDProof {
-        uint256 proofId;
-        address user;
-        bytes encryptedIDData;
-        uint256 authHash;
-        bool expirationValid;
-        bool formatValid;
-        bool blacklistClear;
-        bool ageValid;
-        bool verified;
-        uint256 verifiedAt;
-    }
-    
-    mapping(uint256 => IDProof) public proofs;
-    mapping(address => uint256) public userProofId;
-    uint256 public proofCounter = 1;
-    
-    event IDSubmitted(uint256 indexed proofId, address indexed user);
-    event IDVerified(uint256 indexed proofId, address indexed user, bool verified);
-    
-    modifier onlyAdmin() {
-        require(msg.sender == admin, "Only admin");
-        _;
-    }
-    
-    constructor() Ownable(msg.sender) {
-        admin = msg.sender;
-    }
-    
-    function submitID(
-        bytes memory encryptedIDData,
-        uint256 authHash
-    ) external returns (uint256) {
-        uint256 proofId = proofCounter++;
-        
-        proofs[proofId] = IDProof({
-            proofId: proofId,
-            user: msg.sender,
-            encryptedIDData: encryptedIDData,
-            authHash: authHash,
-            expirationValid: false,
-            formatValid: false,
-            blacklistClear: false,
-            ageValid: false,
-            verified: false,
-            verifiedAt: 0
-        });
-        
-        userProofId[msg.sender] = proofId;
-        
-        emit IDSubmitted(proofId, msg.sender);
-        return proofId;
-    }
-    
-    function verifyIDProof(
-        uint256 proofId,
-        bool expValid,
-        bool fmtValid,
-        bool blkValid,
-        bool ageVld
-    ) external onlyAdmin {
-        IDProof storage proof = proofs[proofId];
-        
-        proof.expirationValid = expValid;
-        proof.formatValid = fmtValid;
-        proof.blacklistClear = blkValid;
-        proof.ageValid = ageVld;
-        
-        // All checks must pass
-        proof.verified = expValid && fmtValid && blkValid && ageVld;
-        proof.verifiedAt = block.timestamp;
-        
-        emit IDVerified(proofId, proof.user, proof.verified);
-    }
-    
-    function getProof(uint256 proofId) external view returns (IDProof memory) {
-        return proofs[proofId];
-    }
-    
-    function getUserProof(address user) external view returns (IDProof memory) {
-        uint256 proofId = userProofId[user];
-        require(proofId > 0, "No proof found");
-        return proofs[proofId];
     }
 }

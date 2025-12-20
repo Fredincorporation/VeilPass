@@ -15,67 +15,11 @@ export default function AdminSellerIDsPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   // Fetch seller IDs from database
-  const { data: dbSellerIds = [], isLoading } = useAdminSellerIds(filterStatus === 'all' ? undefined : filterStatus);
-
-  const [sellers] = useState<any[]>(dbSellerIds.length > 0 ? dbSellerIds : [
-    {
-      id: 'S001',
-      name: 'John Events',
-      email: 'john@example.com',
-      businessType: 'Concert Promoter',
-      idType: 'Passport',
-      submittedAt: '2025-01-15',
-      status: 'PENDING',
-      encryptedID: 'fhEVM_0x7f8c9a...',
-      verificationScore: null,
-      location: 'New York, USA',
-      age: null,
-    },
-    {
-      id: 'S002',
-      name: 'Sarah Concerts',
-      email: 'sarah@example.com',
-      businessType: 'Event Organizer',
-      idType: 'Driver License',
-      submittedAt: '2025-01-10',
-      status: 'VERIFIED',
-      encryptedID: 'fhEVM_0x3d2b1e...',
-      verificationScore: 98,
-      location: 'Los Angeles, USA',
-      age: 28,
-    },
-    {
-      id: 'S003',
-      name: 'Tech Events Co.',
-      email: 'tech@example.com',
-      businessType: 'Conference Organizer',
-      idType: 'National ID',
-      submittedAt: '2025-01-12',
-      status: 'PROCESSING',
-      encryptedID: 'fhEVM_0x9e4a5c...',
-      verificationScore: null,
-      location: 'San Francisco, USA',
-      age: null,
-    },
-    {
-      id: 'S004',
-      name: 'Festival Masters',
-      email: 'festivals@example.com',
-      businessType: 'Event Promoter',
-      idType: 'Passport',
-      submittedAt: '2025-01-08',
-      status: 'REJECTED',
-      encryptedID: 'fhEVM_0x2c7f4d...',
-      verificationScore: 34,
-      location: 'Chicago, USA',
-      age: null,
-    },
-  ]);
+  const { data: sellers = [], isLoading } = useAdminSellerIds(filterStatus === 'all' ? undefined : filterStatus);
 
   const filteredSellers = sellers.filter((seller: any) => {
     const matchesSearch = 
       seller.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      seller.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       seller.id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || seller.status === filterStatus;
     return matchesSearch && matchesStatus;
@@ -99,16 +43,58 @@ export default function AdminSellerIDsPage() {
     }, 2000);
   };
 
-  const handleApproveID = () => {
+  const handleApproveID = async () => {
     if (!selectedSeller) return;
-    showSuccess(`Seller ID for ${selectedSeller.name} approved successfully`);
-    setSelectedSellerId(null);
+    
+    try {
+      const response = await fetch('/api/admin/seller-ids', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedSeller.id,
+          status: 'VERIFIED',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to approve ID');
+      }
+
+      showSuccess(`Seller ID for ${selectedSeller.name} approved successfully`);
+      setSelectedSellerId(null);
+      // Refresh the data
+      window.location.reload();
+    } catch (error) {
+      showError(`Failed to approve ${selectedSeller.name}`);
+      console.error(error);
+    }
   };
 
-  const handleRejectID = () => {
+  const handleRejectID = async () => {
     if (!selectedSeller) return;
-    showError(`Seller ID for ${selectedSeller.name} rejected. Reason recorded.`);
-    setSelectedSellerId(null);
+    
+    try {
+      const response = await fetch('/api/admin/seller-ids', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedSeller.id,
+          status: 'REJECTED',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reject ID');
+      }
+
+      showError(`Seller ID for ${selectedSeller.name} rejected. Reason recorded.`);
+      setSelectedSellerId(null);
+      // Refresh the data
+      window.location.reload();
+    } catch (error) {
+      showError(`Failed to reject ${selectedSeller.name}`);
+      console.error(error);
+    }
   };
 
   const handleDownloadReport = () => {
@@ -225,7 +211,12 @@ export default function AdminSellerIDsPage() {
 
             {/* Seller List */}
             <div className="space-y-2 max-h-[600px] overflow-y-auto">
-              {filteredSellers.length > 0 ? (
+              {isLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
+                  <p className="text-gray-600 dark:text-gray-400">Loading seller IDs...</p>
+                </div>
+              ) : filteredSellers.length > 0 ? (
                 filteredSellers.map((seller: any) => (
                   <button
                     key={seller.id}
@@ -262,7 +253,14 @@ export default function AdminSellerIDsPage() {
 
           {/* Right Column - Detail Panel */}
           <div className="lg:col-span-2">
-            {selectedSeller ? (
+            {isLoading ? (
+              <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 border-2 border-gray-200 dark:border-gray-800 shadow-lg flex items-center justify-center h-96">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600 dark:text-gray-400">Loading seller details...</p>
+                </div>
+              </div>
+            ) : selectedSeller ? (
               <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 border-2 border-gray-200 dark:border-gray-800 shadow-lg">
                 {/* Seller Basic Info */}
                 <div className={`bg-gradient-to-br ${getStatusColor(selectedSeller.status)} border-2 rounded-xl p-6 mb-6`}>
@@ -270,10 +268,8 @@ export default function AdminSellerIDsPage() {
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{selectedSeller.name}</h2>
                       <div className="space-y-1">
-                        <p className="text-sm text-gray-700 dark:text-gray-300"><strong>Email:</strong> {selectedSeller.email}</p>
                         <p className="text-sm text-gray-700 dark:text-gray-300"><strong>Business Type:</strong> {selectedSeller.businessType}</p>
-                        <p className="text-sm text-gray-700 dark:text-gray-300"><strong>Location:</strong> {selectedSeller.location}</p>
-                        <p className="text-sm text-gray-700 dark:text-gray-300"><strong>ID Type:</strong> {selectedSeller.idType}</p>
+                        {/* ID Type removed per request */}
                         <p className="text-sm text-gray-700 dark:text-gray-300"><strong>Submitted:</strong> {selectedSeller.submittedAt}</p>
                       </div>
                     </div>
@@ -297,9 +293,15 @@ export default function AdminSellerIDsPage() {
                     <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 border-2 border-indigo-300 dark:border-indigo-700 rounded-lg p-6">
                       <div className="mb-4">
                         <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Encrypted Hash:</p>
-                        <p className="text-xs font-mono text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 p-3 rounded break-all">
-                          {selectedSeller.encryptedID}
-                        </p>
+                        {selectedSeller.encryptedID ? (
+                          <p className="text-xs font-mono text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 p-3 rounded break-all">
+                            {selectedSeller.encryptedID}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 p-3 rounded">
+                            No encrypted hash available for this submission.
+                          </p>
+                        )}
                       </div>
 
                       <div className="mb-4">

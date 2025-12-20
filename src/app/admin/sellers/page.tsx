@@ -13,6 +13,7 @@ export default function AdminSellersPage() {
 
   // Fetch sellers from database
   const { data: dbSellers = [], isLoading } = useAdminSellers(filterStatus === 'all' ? undefined : filterStatus);
+  const { mutate: approveSeller, isPending: isApproving } = useApproveSeller();
 
   // Use live data from database
   const sellers = dbSellers;
@@ -25,11 +26,31 @@ export default function AdminSellersPage() {
   });
 
   const handleApprove = (sellerId: string, sellerName: string) => {
-    showSuccess(`${sellerName} has been approved as a seller`);
+    approveSeller(
+      { sellerId: sellerId as any, status: 'APPROVED' },
+      {
+        onSuccess: () => {
+          showSuccess(`${sellerName} has been approved as a seller`);
+        },
+        onError: (error) => {
+          showError(`Failed to approve ${sellerName}`);
+        },
+      }
+    );
   };
 
   const handleReject = (sellerId: string, sellerName: string) => {
-    showError(`Application from ${sellerName} has been rejected`);
+    approveSeller(
+      { sellerId: sellerId as any, status: 'REJECTED' },
+      {
+        onSuccess: () => {
+          showError(`Application from ${sellerName} has been rejected`);
+        },
+        onError: (error) => {
+          showError(`Failed to reject ${sellerName}`);
+        },
+      }
+    );
   };
 
   const getStatusColor = (status: string) => {
@@ -127,7 +148,6 @@ export default function AdminSellersPage() {
                 {/* Seller Info */}
                 <div className="mb-4">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{seller.name}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 font-semibold">{seller.businessType}</p>
                 </div>
 
                 {/* Details */}
@@ -138,7 +158,7 @@ export default function AdminSellersPage() {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                     <Calendar className="w-4 h-4" />
-                    <span>Submitted: {seller.submittedAt}</span>
+                    <span>Submitted: {seller.submitted_at}</span>
                   </div>
                 </div>
 
@@ -146,7 +166,7 @@ export default function AdminSellersPage() {
                 <div className="flex items-center justify-between mb-6">
                   <span className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide">KYC Status</span>
                   <div className="flex items-center gap-1.5">
-                    {seller.kycStatus === 'VERIFIED' ? (
+                    {seller.kyc_status === 'VERIFIED' ? (
                       <>
                         <CheckCircle className="w-4 h-4 text-green-600" />
                         <span className="text-sm font-semibold text-green-600">Verified</span>
@@ -164,14 +184,14 @@ export default function AdminSellersPage() {
                 {seller.status === 'PENDING' && (
                   <div className="flex gap-2">
                     <button
-                      onClick={() => handleApprove(seller.id, seller.name)}
+                      onClick={() => handleApprove(String(seller.id), seller.name)}
                       className="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold transition-all flex items-center justify-center gap-2"
                     >
                       <CheckCircle className="w-4 h-4" />
                       Approve
                     </button>
                     <button
-                      onClick={() => handleReject(seller.id, seller.name)}
+                      onClick={() => handleReject(String(seller.id), seller.name)}
                       className="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-semibold transition-all flex items-center justify-center gap-2"
                     >
                       <XCircle className="w-4 h-4" />

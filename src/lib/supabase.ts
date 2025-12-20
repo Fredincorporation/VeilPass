@@ -61,6 +61,7 @@ export interface Ticket {
   price: number;
   status: 'active' | 'upcoming' | 'sold' | 'transferred';
   created_at: string;
+  event_title?: string;
 }
 
 export interface Auction {
@@ -74,6 +75,8 @@ export interface Auction {
   end_time: string;
   status: 'active' | 'ended' | 'sold';
   created_at: string;
+  event_title?: string;
+  ticket_section?: string;
 }
 
 export interface Bid {

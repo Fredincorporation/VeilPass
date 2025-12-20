@@ -3,12 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { DollarSign, ShoppingCart, Lock, CheckCircle, Info, Users, Clock, MapPin, Heart, Share2 } from 'lucide-react';
+import { ethers } from 'ethers';
 import { useToast } from '@/components/ToastContainer';
 import { useEventDetail } from '@/hooks/useEventDetail';
 import { useEthPrice } from '@/hooks/useEthPrice';
 import { useWishlists, useAddToWishlist, useRemoveFromWishlist } from '@/hooks/useWishlists';
 import { formatDate, formatTime } from '@/lib/date-formatter';
 import { formatEth, ethToUsd } from '@/lib/currency-utils';
+import { getPaymentOrganizerAddress, needsOrganizerMigration } from '@/lib/organizer-utils';
+import { useWalletPayment } from '@/hooks/useWalletPayment';
+import { useSendTransaction } from 'wagmi';
+import { parseEther } from 'ethers';
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -31,6 +36,9 @@ export default function EventDetailPage() {
 
   // Check if current event is in user's wishlist
   const isWishlisted = account && event && wishlists.some((w: any) => w.event_id === parseInt(eventId));
+
+  // Use wagmi's useSendTransaction hook for proper Coinbase Wallet SDK integration
+  const { sendTransaction } = useSendTransaction();
 
   useEffect(() => {
     const savedAccount = localStorage.getItem('veilpass_account');
@@ -71,20 +79,315 @@ export default function EventDetailPage() {
   };
 
   const handlePurchase = () => {
-    if (!selectedTierData) return;
+    if (!account) {
+      showError('Please connect your wallet first');
+      return;
+    }
+    // Only require tier selection if tiers exist
+    if (tiers.length > 0 && !selectedTierData) {
+      showError('Please select a ticket tier');
+      return;
+    }
     if (quantity < 1) {
       showError('Minimum 1 ticket required');
       return;
     }
-    showInfo(`Proceeding to purchase ${quantity} ${selectedTierData.name} tickets...`);
+    if (ticketPrice <= 0) {
+      showError('Event price not set. Please contact the organizer.');
+      return;
+    }
+    const tierName = selectedTierData?.name || 'Ticket';
+    showInfo(`Proceeding to purchase ${quantity} ${tierName}(s)...`);
     setShowDeFiModal(true);
   };
 
-  const handlePayment = () => {
-    const loyaltyPoints = Math.floor((totalPrice * 1000) / 10); // 100 pts per $1K in ETH
-    showSuccess(`Successfully purchased ${quantity} tickets! You earned ${loyaltyPoints} loyalty points.`);
-    setShowDeFiModal(false);
-    setQuantity(1);
+  const handlePayment = async () => {
+    try {
+      if (!account) {
+        showError('Wallet not connected');
+        return;
+      }
+
+      if (totalPrice <= 0) {
+        showError('Cannot process payment: Event price is not set. Please contact the organizer.');
+        return;
+      }
+      
+      // Validate organizer address
+      if (!event?.organizer) {
+        showError('Event organizer address not set');
+        return;
+      }
+      
+      // Check if organizer is a valid Ethereum address and get payment organizer
+      const paymentOrganizer = getPaymentOrganizerAddress(event.organizer);
+      
+      // Use fallback organizer if needed (no warning)
+      if (needsOrganizerMigration(event.organizer)) {
+        console.log(`Using fallback organizer address: ${paymentOrganizer} for event: ${event.organizer}`);
+      }
+      
+      showInfo(`Requesting transaction confirmation for ${totalPrice.toFixed(4)} Ξ...`);
+      
+      // Check if window.ethereum exists
+      if (!window.ethereum) {
+        showError('Wallet provider not found. Please install MetaMask or Coinbase Wallet.');
+        return;
+      }
+
+      // Ensure wallet is on Base Sepolia (chainId 84532)
+      try {
+        const currentChainId = await (window.ethereum as any).request({ method: 'eth_chainId' });
+        const desiredChainId = '0x14A34'; // 84532
+        if (currentChainId !== desiredChainId) {
+          // Try to switch the wallet network
+          try {
+            await (window.ethereum as any).request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: desiredChainId }],
+            });
+            console.log('Switched wallet to Base Sepolia');
+          } catch (switchErr: any) {
+            // If chain is not added, attempt to add it
+            if (switchErr?.code === 4902) {
+              try {
+                const rpcUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC || process.env.BASE_SEPOLIA_RPC || 'https://sepolia.base.org';
+                await (window.ethereum as any).request({
+                  method: 'wallet_addEthereumChain',
+                  params: [{
+                    chainId: desiredChainId,
+                    chainName: 'Base Sepolia',
+                    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+                    rpcUrls: [rpcUrl],
+                    blockExplorerUrls: ['https://sepolia.basescan.org'],
+                  }],
+                });
+                console.log('Added Base Sepolia to wallet and switched');
+              } catch (addErr) {
+                console.warn('Failed to add/switch network:', addErr);
+                showError('Please switch your wallet to Base Sepolia (Chain ID: 84532) and try again.');
+                return;
+              }
+            } else {
+              console.warn('Failed to switch network:', switchErr);
+              showError('Please switch your wallet to Base Sepolia (Chain ID: 84532) and try again.');
+              return;
+            }
+          }
+        }
+      } catch (chainErr) {
+        console.warn('Could not determine chainId from wallet:', chainErr);
+        showWarning('Unable to verify wallet network. Please ensure it is set to Base Sepolia.');
+      }
+      
+      // Format amount to wei
+      const amountInWei = parseEther(totalPrice.toString());
+      
+      console.log('Sending transaction via EIP-1193:', {
+        from: account,
+        to: paymentOrganizer,
+        value: amountInWei.toString(),
+        amount: totalPrice
+      });
+
+      // Prepare EIP-1193 tx params
+      const baseTx: any = {
+        from: account,
+        to: paymentOrganizer,
+        value: '0x' + amountInWei.toString(16),
+      };
+
+      // Try to estimate gas and gas price before sending to avoid wallet estimation errors
+      let gasEstimateHex: string | null = null;
+      let gasPriceHex: string | null = null;
+
+      try {
+        gasEstimateHex = await (window.ethereum as any).request({
+          method: 'eth_estimateGas',
+          params: [baseTx],
+        });
+        console.log('Gas estimate (hex) via wallet:', gasEstimateHex);
+      } catch (err) {
+        console.warn('Gas estimate via wallet failed, trying RPC fallback:', err);
+        // Fallback: call Alchemy RPC directly
+        try {
+          const rpcUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC;
+          if (rpcUrl) {
+            const rpcRes = await fetch(rpcUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                jsonrpc: '2.0',
+                method: 'eth_estimateGas',
+                params: [baseTx],
+                id: 1,
+              }),
+            });
+            const rpcJson = await rpcRes.json();
+            if (rpcJson.result) {
+              gasEstimateHex = rpcJson.result;
+              console.log('Gas estimate (hex) via RPC fallback:', gasEstimateHex);
+            }
+          }
+        } catch (rpcErr) {
+          console.warn('RPC gas estimate fallback also failed:', rpcErr);
+        }
+      }
+
+      try {
+        gasPriceHex = await (window.ethereum as any).request({
+          method: 'eth_gasPrice',
+        });
+        console.log('Gas price (hex) via wallet:', gasPriceHex);
+      } catch (err) {
+        console.warn('Gas price fetch via wallet failed, trying RPC fallback:', err);
+        // Fallback: call Alchemy RPC directly
+        try {
+          const rpcUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC;
+          if (rpcUrl) {
+            const rpcRes = await fetch(rpcUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                jsonrpc: '2.0',
+                method: 'eth_gasPrice',
+                params: [],
+                id: 2,
+              }),
+            });
+            const rpcJson = await rpcRes.json();
+            if (rpcJson.result) {
+              gasPriceHex = rpcJson.result;
+              console.log('Gas price (hex) via RPC fallback:', gasPriceHex);
+            }
+          }
+        } catch (rpcErr) {
+          console.warn('RPC gas price fallback also failed:', rpcErr);
+        }
+      }
+
+      const sendParams: any = { ...baseTx };
+      if (gasEstimateHex) sendParams.gas = gasEstimateHex;
+      if (gasPriceHex) sendParams.gasPrice = gasPriceHex;
+
+      // Before sending, fetch buyer balance and ensure funds cover value + gas
+      try {
+        const balanceHex = await (window.ethereum as any).request({
+          method: 'eth_getBalance',
+          params: [account, 'latest'],
+        });
+        const balanceBig = BigInt(balanceHex);
+
+        // Parse gas and gasPrice into BigInt, provide sensible defaults
+        const gasLimitBig = gasEstimateHex ? BigInt(gasEstimateHex) : BigInt(21000);
+        // Cap gas limit to 200k to avoid absurd estimates
+        const gasLimit = gasLimitBig > BigInt(200000) ? BigInt(200000) : gasLimitBig;
+
+        const gasPriceBig = gasPriceHex ? BigInt(gasPriceHex) : BigInt(1_000_000_000); // 1 gwei fallback
+
+        const valueBig = BigInt(amountInWei.toString());
+        const required = valueBig + gasLimit * gasPriceBig;
+
+        if (balanceBig < required) {
+          const balanceEth = ethers.formatEther(balanceBig);
+          const requiredEth = ethers.formatEther(required);
+          throw new Error(`Insufficient funds: required ${requiredEth} ETH (includes gas), your balance ${balanceEth} ETH.`);
+        }
+      } catch (balanceErr: any) {
+        // If balance check fails due to provider error, log and continue to let wallet show its own error
+        console.warn('Balance check failed or insufficient funds:', balanceErr);
+        if (balanceErr?.message && String(balanceErr.message).includes('Insufficient funds')) {
+          throw balanceErr;
+        }
+      }
+
+      // Send transaction using native EIP-1193 provider (include gas fields when available)
+      const txHashResult = await (window.ethereum as any).request({
+        method: 'eth_sendTransaction',
+        params: [sendParams],
+      }) as string;
+
+      const txHash = txHashResult as `0x${string}`;
+
+      if (!txHash) {
+        throw new Error('No transaction hash returned');
+      }
+      
+      showInfo(`Transaction submitted! Hash: ${txHash.slice(0, 10)}...`);
+      showSuccess(`✓ Transaction submitted! Hash: ${txHash.slice(0, 10)}...`);
+      
+      // Create tickets in database with transaction hash
+      const ticketsToCreate = Array.from({ length: quantity }, (_, i) => ({
+        event_id: parseInt(eventId),
+        owner_address: account,
+        section: 'general',
+        price: ticketPrice,
+        status: 'active',
+        transaction_hash: txHash,
+        ticket_number: i + 1,
+      }));
+
+      // Create each ticket
+      for (const ticketData of ticketsToCreate) {
+        const response = await fetch('/api/tickets', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(ticketData),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Ticket creation error:', errorData);
+          throw new Error(errorData.error || 'Failed to create ticket');
+        }
+      }
+
+      // Update event tickets_sold count
+      const newTicketsSold = (event?.tickets_sold || 0) + quantity;
+      try {
+        const updateResponse = await fetch('/api/events', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: eventId,
+            tickets_sold: newTicketsSold,
+          }),
+        });
+
+        if (!updateResponse.ok) {
+          console.warn('Failed to update event tickets_sold count, but tickets were created');
+        }
+      } catch (updateError) {
+        console.warn('Failed to update event tickets_sold:', updateError);
+      }
+
+      const loyaltyPoints = Math.floor((totalPrice * 1000) / 10);
+      showSuccess(`✓ Successfully purchased ${quantity} ticket(s)! You earned ${loyaltyPoints} loyalty points.`);
+      
+      // Reset state
+      setShowDeFiModal(false);
+      setQuantity(1);
+      setSelectedTier(tiers.length > 0 ? tiers[0].id : null);
+      
+    } catch (error: any) {
+      console.error('Payment error:', error);
+      
+      let displayMsg = 'Unknown error occurred';
+      
+      if (error?.code === 4001 || error?.message?.includes('cancelled') || error?.message?.includes('rejected')) {
+        displayMsg = 'Transaction rejected by user';
+      } else if (error?.message) {
+        displayMsg = error.message;
+      } else {
+        displayMsg = 'Payment failed. Please try again.';
+      }
+      
+      showError(`Payment failed: ${displayMsg}`);
+    }
   };
 
   const handleWishlist = () => {
@@ -303,7 +606,7 @@ export default function EventDetailPage() {
                 <label className="block text-sm font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-wide">
                   Quantity
                 </label>
-                <div className="flex items-center gap-4 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg inline-flex w-full justify-center">
+                <div className="flex items-center gap-4 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg w-full justify-center">
                   <button
                     onClick={() => handleQuantityChange(quantity - 1)}
                     disabled={quantity <= 1}
@@ -354,15 +657,10 @@ export default function EventDetailPage() {
               {/* Purchase Button */}
               <button
                 onClick={handlePurchase}
-                disabled={event?.status === 'Pre-Sale'}
-                className={`w-full px-6 py-4 rounded-lg text-white font-bold text-lg flex items-center justify-center gap-2 mb-4 transition ${
-                  event?.status === 'Pre-Sale'
-                    ? 'bg-gray-400 cursor-not-allowed opacity-60'
-                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg'
-                }`}
+                className="w-full px-6 py-4 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-lg flex items-center justify-center gap-2 mb-4 transition hover:shadow-lg"
               >
                 <ShoppingCart className="w-5 h-5" />
-                {event?.status === 'Pre-Sale' ? 'Coming Soon - Pre-Sale' : 'Get Tickets'}
+                Get Tickets
               </button>
 
               {/* Trust Signals */}
@@ -388,8 +686,9 @@ export default function EventDetailPage() {
 
               <div className="mb-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
                 <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Order Summary</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white mb-1">{quantity}x {selectedTierData?.name}</p>
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalPrice.toFixed(2)} ETH</p>
+                <p className="text-lg font-bold text-gray-900 dark:text-white mb-1">{quantity}x {selectedTierData?.name || 'Ticket'}</p>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalPrice.toFixed(4)} ETH</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{ethToUsd(totalPrice)}</p>
               </div>
 
               <div className="space-y-3 mb-8">

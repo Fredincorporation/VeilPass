@@ -25,7 +25,7 @@ export default function EventApprovalsPage() {
   const handleApproveEvent = async (eventId: number, eventTitle: string) => {
     setApprovingId(eventId);
     try {
-      await axios.put(`/api/admin/events/${eventId}`, { status: 'Live Auction' });
+      await axios.put(`/api/admin/events/${eventId}`, { status: 'On Sale' });
       
       setMessage({ 
         type: 'success', 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { isMobileDevice } from './wallet-config';
+import { isMobileDevice, validateCDPApiKey } from './wallet-config';
 
 // Lightweight dynamic wrapper around Coinbase OnchainKit + Wallet SDK.
 // Uses dynamic imports so the dev server won't crash if packages are missing.
@@ -9,13 +9,20 @@ import { isMobileDevice } from './wallet-config';
 
 export function CoinbaseOnchainKitProvider({ children }: { children: React.ReactNode }) {
   const [Provider, setProvider] = useState<React.ComponentType<any> | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
 
     (async () => {
       try {
-        // dynamic import so build doesn't fail if package isn't installed yet
+        // Validate CDP API Key first
+        if (!validateCDPApiKey()) {
+          setError('NEXT_PUBLIC_COINBASE_CDP_API_KEY is not set. Please add it to your .env.local file.');
+          return;
+        }
+
+        // Dynamic import so build doesn't fail if package isn't installed yet
         const onchainkit: any = await import('@coinbase/onchainkit');
         const walletSdkModule: any = await import('@coinbase/wallet-sdk');
 
@@ -25,25 +32,40 @@ export function CoinbaseOnchainKitProvider({ children }: { children: React.React
 
         let walletSdkInstance: any = null;
         try {
+          // Create Wallet SDK instance with proper configuration
           walletSdkInstance = new WalletSDKClass({
-            // clientId can be provided via env; keep empty fallback
-            clientId: process.env.NEXT_PUBLIC_COINBASE_CLIENT_ID || '',
-            // Force smart wallet flow on mobile
+            // Required: CDP API Key from environment
+            apiKey: process.env.NEXT_PUBLIC_COINBASE_CDP_API_KEY || '',
+            // Force smart wallet only on mobile for embedded experience
             smartWalletOnly: isMobileDevice(),
+            // App metadata
+            appName: 'VeilPass',
+            appLogoUrl: '/logo.svg',
+            // Network configuration
+            defaultChainId: 84532, // Base Sepolia
+            theme: 'dark',
           });
+
+          console.log('✅ Coinbase Wallet SDK initialized successfully');
+          console.log('📱 Mobile device:', isMobileDevice());
+          console.log('🔐 Smart wallet only:', isMobileDevice());
+
         } catch (err) {
-          // If instantiation fails, continue without walletSdk instance
-          console.warn('Could not instantiate Wallet SDK (non-fatal)', err);
+          console.warn('⚠️ Could not instantiate Wallet SDK (non-fatal)', err);
+          setError('Failed to initialize Wallet SDK. Please check your CDP API Key.');
         }
 
         // Prefer exported provider names, fall back to default export
         const OnchainKitProvider: any = onchainkit?.OnchainKitProvider || onchainkit?.default || null;
 
         if (mounted && OnchainKitProvider) {
-          // Wrap provider to inject walletSdkInstance if provider accepts props
+          // Wrap provider with minimal configuration
           const WrappedProvider: React.FC<any> = ({ children: innerChildren }) => (
             // @ts-ignore - pass options as any to avoid strict typing issues
-            <OnchainKitProvider walletSdk={walletSdkInstance} chainId={84532}>
+            <OnchainKitProvider 
+              chainId={84532} // Base Sepolia
+              apiKey={process.env.NEXT_PUBLIC_COINBASE_CDP_API_KEY || ''}
+            >
               {innerChildren}
             </OnchainKitProvider>
           );
@@ -51,7 +73,8 @@ export function CoinbaseOnchainKitProvider({ children }: { children: React.React
         }
       } catch (e) {
         // If import fails, do not block the app — warn and continue with no-op provider
-        console.warn('Coinbase OnchainKit dynamic import failed (skipping).', e);
+        console.warn('⚠️ Coinbase OnchainKit dynamic import failed (skipping).', e);
+        setError('Failed to load Coinbase OnchainKit. Please install @coinbase/onchainkit and @coinbase/wallet-sdk.');
       }
     })();
 
@@ -59,6 +82,19 @@ export function CoinbaseOnchainKitProvider({ children }: { children: React.React
       mounted = false;
     };
   }, []);
+
+  if (error) {
+    console.error('❌ Coinbase Wallet integration error:', error);
+    return (
+      <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+        <h3 className="text-red-600 dark:text-red-400 font-semibold mb-2">Wallet Integration Error</h3>
+        <p className="text-red-500 dark:text-red-300 text-sm">{error}</p>
+        <p className="text-red-500 dark:text-red-300 text-xs mt-2">
+          Please check your .env.local file and ensure NEXT_PUBLIC_COINBASE_CDP_API_KEY is set.
+        </p>
+      </div>
+    );
+  }
 
   if (!Provider) {
     // no-op: return children directly until provider is available

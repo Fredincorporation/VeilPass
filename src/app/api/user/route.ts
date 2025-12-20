@@ -72,6 +72,34 @@ export async function PUT(request: NextRequest) {
 
     if (error) throw error;
 
+    // If role is being changed to 'awaiting_seller', notify admins
+    if (updates.role === 'awaiting_seller') {
+      try {
+        // Get all admin users
+        const { data: admins } = await supabase
+          .from('users')
+          .select('wallet_address')
+          .eq('role', 'admin');
+
+        // Create notification for each admin
+        if (admins && admins.length > 0) {
+          const notifications = admins.map(admin => ({
+            user_address: admin.wallet_address,
+            type: 'seller_application',
+            title: 'New Seller Application',
+            message: `A new seller application has been submitted. Business: ${updates.business_name || 'Unnamed'}. Please review at /admin/sellers`,
+          }));
+
+          await supabase
+            .from('notifications')
+            .insert(notifications);
+        }
+      } catch (notificationError) {
+        console.error('Error creating admin notification:', notificationError);
+        // Don't fail the request if notification fails
+      }
+    }
+
     return NextResponse.json(data);
   } catch (error: any) {
     console.error('Error updating user:', error);

@@ -65,7 +65,7 @@ export async function PUT(
     }
 
     // If event was approved, create notification for the organizer
-    if (status === 'Live Auction' && updatedEvent) {
+    if (status === 'On Sale' && updatedEvent) {
       try {
         await supabase
           .from('notifications')

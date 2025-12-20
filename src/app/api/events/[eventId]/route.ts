@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+// Disable caching for dynamic event data
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { eventId: string } }
@@ -15,9 +19,10 @@ export async function GET(
       );
     }
 
+    // Only select necessary fields to avoid large cache issues
     const { data, error } = await supabase
       .from('events')
-      .select('*')
+      .select('id, title, description, date, location, image, base_price, capacity, status, organizer, tickets_sold, created_at, updated_at')
       .eq('id', eventId)
       .single();
 
@@ -53,7 +58,7 @@ export async function GET(
     // Fetch ticket tiers for this event
     const { data: tiers, error: tiersError } = await supabase
       .from('ticket_tiers')
-      .select('*')
+      .select('id, name, description, price, available, sold, features, display_order')
       .eq('event_id', eventId)
       .order('display_order', { ascending: true });
 

@@ -5,19 +5,21 @@ import { BarChart, LineChart, TrendingUp, DollarSign, Ticket, Calendar } from 'l
 import { useToast } from '@/components/ToastContainer';
 import { useSellerAnalytics } from '@/hooks/useSellerEvents';
 import { getDualCurrency } from '@/lib/currency-utils';
+import { useSafeWallet } from '@/lib/wallet-context';
 
 export default function SalesAnalyticsPage() {
   const { showSuccess, showInfo } = useToast();
+  const wallet = useSafeWallet();
   const [dateRange, setDateRange] = useState('month');
   const [account, setAccount] = useState<string | null>(null);
 
   useEffect(() => {
-    const savedAccount = localStorage.getItem('veilpass_account');
-    setAccount(savedAccount);
-  }, []);
+    const connectedAddress = wallet?.address ?? localStorage.getItem('veilpass_account');
+    setAccount(connectedAddress);
+  }, [wallet?.address]);
 
   // Fetch seller analytics from database
-  const { data: analytics, isLoading } = useSellerAnalytics(account || '');
+  const { data: analytics, isLoading } = useSellerAnalytics(account);
 
   // Extract data from analytics or use defaults
   const totalRevenueCurrency = getDualCurrency(analytics?.metrics?.totalRevenue || 0);
