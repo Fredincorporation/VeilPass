@@ -198,6 +198,16 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       console.error('❌ Error updating seller KYC:', error);
+      // Handle missing column in Supabase/PostgREST schema cache (PGRST204)
+      if (error.code === 'PGRST204' || (error.message && error.message.includes("Could not find the 'kyc_status'"))) {
+        return NextResponse.json(
+          {
+            error: "Database schema missing column 'kyc_status'. Run migration: DATABASE_MIGRATIONS_ADD_KYC_STATUS.sql",
+            details: error.message,
+          },
+          { status: 500 }
+        );
+      }
       throw error;
     }
 

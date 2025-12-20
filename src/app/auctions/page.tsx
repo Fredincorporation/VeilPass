@@ -32,11 +32,15 @@ export default function AuctionsPage() {
   useEffect(() => {
     // Prefer connected wallet from WalletProvider, fall back to localStorage
     const connected = wallet?.address ?? localStorage.getItem('veilpass_account');
-    setAccount(connected);
+    // Avoid unnecessary state updates that can trigger re-renders
+    if (connected !== account) {
+      setAccount(connected);
+    }
 
     // Updates countdowns and progress bars for visible auctions every second.
+    let mounted = true;
     const updateTimers = () => {
-      const now = Date.now();
+      if (!mounted) return;
       const newTimeState: {[key: number]: {timeLeft: string; progress: number}} = {};
 
       auctions.forEach((auction) => {
@@ -48,13 +52,31 @@ export default function AuctionsPage() {
         newTimeState[auction.id] = result;
       });
 
-      setTimeState(newTimeState);
+      // shallow compare to avoid setting identical state and causing extra renders
+      const prevKeys = Object.keys(timeState);
+      const nextKeys = Object.keys(newTimeState);
+      let different = prevKeys.length !== nextKeys.length;
+      if (!different) {
+        for (const k of nextKeys) {
+          const prev = (timeState as any)[k];
+          const next = (newTimeState as any)[k];
+          if (!prev || prev.timeLeft !== next.timeLeft || prev.progress !== next.progress) {
+            different = true;
+            break;
+          }
+        }
+      }
+
+      if (different) setTimeState(newTimeState);
     };
 
     updateTimers();
     const interval = setInterval(updateTimers, 1000); // Update every second
-    return () => clearInterval(interval);
-  }, [auctions]);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [auctions, wallet?.address]);
 
   // Keep account in sync with the WalletProvider address
   useEffect(() => {

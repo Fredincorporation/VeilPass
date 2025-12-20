@@ -16,12 +16,15 @@ export interface AdminDispute {
 }
 
 export interface SellerVerification {
-  id: number;
+  id: string;
   name: string;
-  email: string;
+  email?: string;
+  role?: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  kyc_status: string;
-  submitted_at: string;
+  kycStatus: string;
+  submittedAt: string;
+  businessType?: string;
+  walletAddress?: string;
 }
 
 /**

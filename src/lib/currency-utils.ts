@@ -65,12 +65,31 @@ export function getEthPriceSync(): number {
 
 /**
  * Convert ETH amount to USD
- * @param ethAmount - Amount in ETH
+ * @param ethAmount - Amount in ETH (can be number, string, or undefined)
  * @returns USD amount as a string formatted for display
  */
-export function ethToUsd(ethAmount: number): string {
+export function ethToUsd(ethAmount: number | string | undefined | null): string {
+  // Handle invalid inputs
+  if (ethAmount === null || ethAmount === undefined) {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(0);
+  }
+
+  // Convert string to number if needed
+  const numAmount = typeof ethAmount === 'string' ? parseFloat(ethAmount) : ethAmount;
+
+  // Check if conversion resulted in NaN
+  if (isNaN(numAmount)) {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(0);
+  }
+
   const rate = getEthPriceSync();
-  const usdAmount = ethAmount * rate;
+  const usdAmount = numAmount * rate;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -79,23 +98,57 @@ export function ethToUsd(ethAmount: number): string {
 
 /**
  * Format ETH amount with proper decimals
- * @param ethAmount - Amount in ETH
+ * @param ethAmount - Amount in ETH (can be number, string, or undefined)
  * @returns Formatted ETH string
  */
-export function formatEth(ethAmount: number): string {
-  return `${ethAmount.toFixed(4)} ETH`;
+export function formatEth(ethAmount: number | string | undefined | null): string {
+  // Handle invalid inputs
+  if (ethAmount === null || ethAmount === undefined) {
+    return '0.0000 ETH';
+  }
+
+  // Convert string to number if needed
+  const numAmount = typeof ethAmount === 'string' ? parseFloat(ethAmount) : ethAmount;
+
+  // Check if conversion resulted in NaN
+  if (isNaN(numAmount)) {
+    return '0.0000 ETH';
+  }
+
+  return `${numAmount.toFixed(4)} ETH`;
 }
 
 /**
  * Get both ETH and USD representations
- * @param ethAmount - Amount in ETH
+ * @param ethAmount - Amount in ETH (can be number, string, or undefined)
  * @returns Object with both currencies formatted
  */
-export function getDualCurrency(ethAmount: number) {
+export function getDualCurrency(ethAmount: number | string | undefined | null) {
+  // Handle invalid inputs
+  if (ethAmount === null || ethAmount === undefined) {
+    return {
+      eth: '0.0000 ETH',
+      usd: '$0.00',
+      raw: 0,
+    };
+  }
+
+  // Convert string to number if needed
+  const numAmount = typeof ethAmount === 'string' ? parseFloat(ethAmount) : ethAmount;
+
+  // Check if conversion resulted in NaN
+  if (isNaN(numAmount)) {
+    return {
+      eth: '0.0000 ETH',
+      usd: '$0.00',
+      raw: 0,
+    };
+  }
+
   return {
-    eth: formatEth(ethAmount),
-    usd: ethToUsd(ethAmount),
-    raw: ethAmount,
+    eth: formatEth(numAmount),
+    usd: ethToUsd(numAmount),
+    raw: numAmount,
   };
 }
 

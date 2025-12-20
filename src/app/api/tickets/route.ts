@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     
     let query = supabase
       .from('tickets')
-      .select('*, events(title, date)')
+      .select('*, events(id, title, date, location, base_price)')
       .order('created_at', { ascending: false });
 
     if (walletAddress) {
@@ -25,19 +25,23 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
-    // Flatten the events join and update ticket status based on current event date
-    const ticketsWithEventName = (data as any[]).map((ticket: any) => {
+    // Flatten the events join and enrich with event details
+    const ticketsWithEventData = (data as any[]).map((ticket: any) => {
       const eventDate = ticket.events?.date;
       const currentStatus = determineTicketStatus(eventDate, ticket.status);
       
       return {
         ...ticket,
         event_title: ticket.events?.title || `Event #${ticket.event_id}`,
-        status: currentStatus, // Use current determined status (in case date changed)
+        date: eventDate ? new Date(eventDate).toLocaleDateString() : 'N/A',
+        location: ticket.events?.location || 'N/A',
+        price: ticket.price || ticket.events?.base_price || 0,
+        section: ticket.section || 'General',
+        status: currentStatus,
       };
     });
 
-    return NextResponse.json(ticketsWithEventName);
+    return NextResponse.json(ticketsWithEventData);
   } catch (error: any) {
     console.error('Error fetching tickets:', error);
     return NextResponse.json(

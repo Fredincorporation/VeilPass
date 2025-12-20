@@ -1,21 +1,25 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Shield, Search, Filter, CheckCircle, Clock, AlertCircle, Download, Lock, Eye, EyeOff, Zap } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { Shield, Search, Filter, CheckCircle, Clock, AlertCircle, Download, Lock, Eye, EyeOff, Zap, Loader } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
 import { useAdminSellerIds } from '@/hooks/useAdmin';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function AdminSellerIDsPage() {
   const { showSuccess, showError, showInfo, showWarning } = useToast();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
   const [verificationMode, setVerificationMode] = useState<'encrypted' | 'details'>('encrypted');
   const [encryptionPassword, setEncryptionPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
 
   // Fetch seller IDs from database
-  const { data: sellers = [], isLoading } = useAdminSellerIds(filterStatus === 'all' ? undefined : filterStatus);
+  const { data: sellers = [], isLoading, refetch } = useAdminSellerIds(filterStatus === 'all' ? undefined : filterStatus);
 
   const filteredSellers = sellers.filter((seller: any) => {
     const matchesSearch = 
@@ -43,9 +47,10 @@ export default function AdminSellerIDsPage() {
     }, 2000);
   };
 
-  const handleApproveID = async () => {
+  const handleApproveID = useCallback(async () => {
     if (!selectedSeller) return;
     
+    setApproving(true);
     try {
       const response = await fetch('/api/admin/seller-ids', {
         method: 'PUT',
@@ -56,23 +61,34 @@ export default function AdminSellerIDsPage() {
         }),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to approve ID');
+        showError(result.error || `Failed to approve ${selectedSeller.name}`);
+        return;
       }
 
-      showSuccess(`Seller ID for ${selectedSeller.name} approved successfully`);
+      showSuccess(`✅ ${selectedSeller.name} approved successfully`);
       setSelectedSellerId(null);
-      // Refresh the data
-      window.location.reload();
+      setVerificationMode('encrypted');
+      setEncryptionPassword('');
+      
+      // Refetch the data instead of reloading the page
+      await refetch();
+      // Invalidate cache to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ['adminSellerIds'] });
     } catch (error) {
       showError(`Failed to approve ${selectedSeller.name}`);
       console.error(error);
+    } finally {
+      setApproving(false);
     }
-  };
+  }, [selectedSeller, showSuccess, showError, refetch, queryClient]);
 
-  const handleRejectID = async () => {
+  const handleRejectID = useCallback(async () => {
     if (!selectedSeller) return;
     
+    setRejecting(true);
     try {
       const response = await fetch('/api/admin/seller-ids', {
         method: 'PUT',
@@ -83,19 +99,29 @@ export default function AdminSellerIDsPage() {
         }),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to reject ID');
+        showError(result.error || `Failed to reject ${selectedSeller.name}`);
+        return;
       }
 
-      showError(`Seller ID for ${selectedSeller.name} rejected. Reason recorded.`);
+      showWarning(`⛔ ${selectedSeller.name} rejected. Seller was notified.`);
       setSelectedSellerId(null);
-      // Refresh the data
-      window.location.reload();
+      setVerificationMode('encrypted');
+      setEncryptionPassword('');
+      
+      // Refetch the data instead of reloading the page
+      await refetch();
+      // Invalidate cache to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ['adminSellerIds'] });
     } catch (error) {
       showError(`Failed to reject ${selectedSeller.name}`);
       console.error(error);
+    } finally {
+      setRejecting(false);
     }
-  };
+  }, [selectedSeller, showSuccess, showError, showWarning, refetch, queryClient]);
 
   const handleDownloadReport = () => {
     showInfo('Generating verification report...');
@@ -268,9 +294,10 @@ export default function AdminSellerIDsPage() {
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{selectedSeller.name}</h2>
                       <div className="space-y-1">
-                        <p className="text-sm text-gray-700 dark:text-gray-300"><strong>Business Type:</strong> {selectedSeller.businessType}</p>
-                        {/* ID Type removed per request */}
-                        <p className="text-sm text-gray-700 dark:text-gray-300"><strong>Submitted:</strong> {selectedSeller.submittedAt}</p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300"><strong>Email:</strong> {selectedSeller.email || 'N/A'}</p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300"><strong>Business Type:</strong> {selectedSeller.businessType || 'Not specified'}</p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300"><strong>Wallet:</strong> {selectedSeller.walletAddress?.slice(0, 10)}...{selectedSeller.walletAddress?.slice(-8) || 'N/A'}</p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300"><strong>Applied:</strong> {selectedSeller.submittedAt}</p>
                       </div>
                     </div>
                     <span className={`inline-block text-sm font-bold px-4 py-2 rounded-lg ${getStatusBadgeColor(selectedSeller.status)}`}>
@@ -294,7 +321,7 @@ export default function AdminSellerIDsPage() {
                       <div className="mb-4">
                         <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Encrypted Hash:</p>
                         {selectedSeller.encryptedID ? (
-                          <p className="text-xs font-mono text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 p-3 rounded break-all">
+                          <p className="text-xs font-mono text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 p-3 rounded break-all max-h-24 overflow-y-auto">
                             {selectedSeller.encryptedID}
                           </p>
                         ) : (
@@ -303,6 +330,22 @@ export default function AdminSellerIDsPage() {
                           </p>
                         )}
                       </div>
+
+                      {selectedSeller.verification && (
+                        <div className="mb-4 p-3 bg-white dark:bg-gray-800 rounded-lg">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Verification Status:</p>
+                          <div className="space-y-1 text-sm">
+                            <p className="text-gray-700 dark:text-gray-300">
+                              <strong>Score:</strong> {selectedSeller.verification.score || 0}%
+                            </p>
+                            {selectedSeller.verification.reasons && selectedSeller.verification.reasons.length > 0 && (
+                              <p className="text-gray-700 dark:text-gray-300">
+                                <strong>Issues:</strong> {selectedSeller.verification.reasons.join(', ')}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       <div className="mb-4">
                         <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Decryption Password</label>
@@ -337,13 +380,13 @@ export default function AdminSellerIDsPage() {
                         <div>
                           <p className="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Verification Score</p>
                           <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-                            {selectedSeller.verificationScore !== null ? `${selectedSeller.verificationScore}%` : 'N/A'}
+                            {selectedSeller.verification?.score !== undefined ? `${selectedSeller.verification.score}%` : 'N/A'}
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Verified Age</p>
-                          <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-                            {selectedSeller.age !== null ? `${selectedSeller.age} yrs` : 'Pending'}
+                          <p className="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-1">Status</p>
+                          <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                            {selectedSeller.verification?.verified ? '✓ Valid' : '✗ Invalid'}
                           </p>
                         </div>
                       </div>
@@ -380,19 +423,37 @@ export default function AdminSellerIDsPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={handleApproveID}
-                    disabled={selectedSeller.status === 'VERIFIED'}
-                    className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold transition-all duration-300 hover:shadow-lg"
+                    disabled={selectedSeller.status === 'VERIFIED' || approving}
+                    className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold transition-all duration-300 hover:shadow-lg flex items-center justify-center gap-2"
                   >
-                    <CheckCircle className="w-4 h-4 inline mr-2" />
-                    Approve ID
+                    {approving ? (
+                      <>
+                        <Loader className="w-4 h-4 animate-spin" />
+                        Approving...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        Approve ID
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={handleRejectID}
-                    disabled={selectedSeller.status === 'REJECTED'}
-                    className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold transition-all duration-300 hover:shadow-lg"
+                    disabled={selectedSeller.status === 'REJECTED' || rejecting}
+                    className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold transition-all duration-300 hover:shadow-lg flex items-center justify-center gap-2"
                   >
-                    <AlertCircle className="w-4 h-4 inline mr-2" />
-                    Reject ID
+                    {rejecting ? (
+                      <>
+                        <Loader className="w-4 h-4 animate-spin" />
+                        Rejecting...
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-4 h-4" />
+                        Reject ID
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

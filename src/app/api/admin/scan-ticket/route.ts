@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { decryptTicketQR, parseQRPayload, generateScannerToken, TicketScanResult } from '@/lib/ticketQREncryption';
+import { formatAddress } from '@/lib/utils';
 
 /**
  * POST /api/admin/scan-ticket
@@ -88,11 +89,14 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (existingScan) {
+      // Sanitize owner in decrypted data before returning
+      const sanitized = { ...scanResult.data } as any;
+      if (sanitized.owner) sanitized.owner = formatAddress(sanitized.owner);
       return NextResponse.json(
         {
           valid: false,
           error: 'Ticket already scanned',
-          data: scanResult.data,
+          data: sanitized,
         },
         { status: 409 }
       );
@@ -106,11 +110,14 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (ticketError || !ticket) {
+      // Mask any owner that might be present in the decrypted payload
+      const sanitized = { ...scanResult.data } as any;
+      if (sanitized.owner) sanitized.owner = formatAddress(sanitized.owner);
       return NextResponse.json(
         {
           valid: false,
           error: 'Ticket not found in database',
-          data: scanResult.data,
+          data: sanitized,
         },
         { status: 404 }
       );
@@ -140,10 +147,14 @@ export async function POST(request: NextRequest) {
       .update({ status: 'verified' })
       .eq('id', scanResult.data!.ticketId);
 
+    // Return sanitized data: replace owner with masked owner from DB
+    const sanitizedData: any = { ...scanResult.data };
+    sanitizedData.owner = formatAddress(ticket.owner_address);
+
     return NextResponse.json({
       valid: true,
       scannerVerified: true,
-      data: scanResult.data,
+      data: sanitizedData,
       scannerToken,
       message: 'Ticket verified successfully',
       scanTime: new Date().toISOString(),

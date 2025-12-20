@@ -44,6 +44,7 @@ export default function CreateEventPage() {
     capacity: '',
     basePrice: '',
     category: '',
+    otherCategory: '',
     image: null as File | null,
   });
 
@@ -58,6 +59,28 @@ export default function CreateEventPage() {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+
+  // When capacity changes or pricingTiers length changes, auto-adjust last tier quantity
+  useEffect(() => {
+    if (!usePricingTiers) return;
+    if (!pricingTiers || pricingTiers.length === 0) return;
+    try {
+      const capacityInt = parseInt(formData.capacity || '0') || 0;
+      if (isNaN(capacityInt) || capacityInt <= 0) return;
+      const lastIndex = pricingTiers.length - 1;
+      const sumOther = pricingTiers.reduce((s, t, i) => i === lastIndex ? s : s + (parseInt(t.quantity) || 0), 0);
+      const desiredLast = Math.max(0, capacityInt - sumOther);
+      setPricingTiers((prev) => {
+        const curLast = parseInt(prev[lastIndex]?.quantity || '0') || 0;
+        if (curLast === desiredLast) return prev;
+        const next = prev.slice();
+        next[lastIndex] = { ...next[lastIndex], quantity: String(desiredLast) };
+        return next;
+      });
+    } catch (e) {
+      // ignore
+    }
+  }, [formData.capacity, pricingTiers.length, usePricingTiers]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
@@ -74,24 +97,69 @@ export default function CreateEventPage() {
   };
 
   const handleTierChange = (id: string, field: keyof PricingTier, value: string) => {
-    setPricingTiers((prev) =>
-      prev.map((tier) =>
-        tier.id === id ? { ...tier, [field]: value } : tier
-      )
-    );
+    setPricingTiers((prev) => {
+      const updated = prev.map((tier) => (tier.id === id ? { ...tier, [field]: value } : tier));
+      // If using tiers and the changed field is quantity, auto-fill last tier to match capacity
+      if (usePricingTiers && field === 'quantity') {
+        try {
+          const capacityInt = parseInt(formData.capacity || '0') || 0;
+          if (capacityInt > 0 && updated.length > 0) {
+            const lastIndex = updated.length - 1;
+            // If the edited tier is the last tier, do not override user's input
+            const editedIndex = updated.findIndex((t) => t.id === id);
+            if (editedIndex !== lastIndex) {
+              const sumOther = updated.reduce((s, t, i) => i === lastIndex ? s : s + (parseInt(t.quantity) || 0), 0);
+              const lastQty = Math.max(0, capacityInt - sumOther);
+              updated[lastIndex] = { ...updated[lastIndex], quantity: String(lastQty) };
+            }
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+      return updated;
+    });
   };
 
   const addTier = () => {
     const newId = (Math.max(...pricingTiers.map(t => parseInt(t.id) || 0)) + 1).toString();
-    setPricingTiers((prev) => [
-      ...prev,
-      { id: newId, name: '', price: '', quantity: '', description: '' },
-    ]);
+    setPricingTiers((prev) => {
+      const next = [
+        ...prev,
+        { id: newId, name: '', price: '', quantity: '', description: '' },
+      ];
+      // After adding, attempt to auto-fill last tier quantity to match capacity
+      try {
+        const capacityInt = parseInt(formData.capacity || '0') || 0;
+        if (capacityInt > 0) {
+          const lastIndex = next.length - 1;
+          const sumOther = next.reduce((s, t, i) => i === lastIndex ? s : s + (parseInt(t.quantity) || 0), 0);
+          const lastQty = Math.max(0, capacityInt - sumOther);
+          next[lastIndex] = { ...next[lastIndex], quantity: String(lastQty) };
+        }
+      } catch (e) {
+        // ignore
+      }
+      return next;
+    });
   };
 
   const removeTier = (id: string) => {
     if (pricingTiers.length > 1) {
-      setPricingTiers((prev) => prev.filter((tier) => tier.id !== id));
+      setPricingTiers((prev) => {
+        const next = prev.filter((tier) => tier.id !== id);
+        // Recompute last tier quantity to attempt to match capacity
+        try {
+          const capacityInt = parseInt(formData.capacity || '0') || 0;
+          if (capacityInt > 0 && next.length > 0) {
+            const lastIndex = next.length - 1;
+            const sumOther = next.reduce((s, t, i) => i === lastIndex ? s : s + (parseInt(t.quantity) || 0), 0);
+            const lastQty = Math.max(0, capacityInt - sumOther);
+            next[lastIndex] = { ...next[lastIndex], quantity: String(lastQty) };
+          }
+        } catch (e) {}
+        return next;
+      });
     }
   };
 
@@ -99,10 +167,23 @@ export default function CreateEventPage() {
     const tierToDuplicate = pricingTiers.find((tier) => tier.id === id);
     if (tierToDuplicate) {
       const newId = (Math.max(...pricingTiers.map(t => parseInt(t.id) || 0)) + 1).toString();
-      setPricingTiers((prev) => [
-        ...prev,
-        { ...tierToDuplicate, id: newId, name: `${tierToDuplicate.name} (Copy)` },
-      ]);
+      setPricingTiers((prev) => {
+        const next = [
+          ...prev,
+          { ...tierToDuplicate, id: newId, name: `${tierToDuplicate.name} (Copy)` },
+        ];
+        // Recompute last tier quantity as best-effort
+        try {
+          const capacityInt = parseInt(formData.capacity || '0') || 0;
+          if (capacityInt > 0) {
+            const lastIndex = next.length - 1;
+            const sumOther = next.reduce((s, t, i) => i === lastIndex ? s : s + (parseInt(t.quantity) || 0), 0);
+            const lastQty = Math.max(0, capacityInt - sumOther);
+            next[lastIndex] = { ...next[lastIndex], quantity: String(lastQty) };
+          }
+        } catch (e) {}
+        return next;
+      });
     }
   };
 
@@ -166,15 +247,40 @@ export default function CreateEventPage() {
       }
       
       // Validate pricing
-      const basePrice = parseFloat(formData.basePrice);
-      if (!formData.basePrice || isNaN(basePrice) || basePrice <= 0) {
-        showError('Please enter a valid ticket price in ETH');
-        return;
-      }
-      
-      if (usePricingTiers && pricingTiers.some(t => !t.price || !t.name)) {
-        showError('Please fill in all pricing information for tiers');
-        return;
+      if (!usePricingTiers) {
+        const basePrice = parseFloat(formData.basePrice);
+        if (!formData.basePrice || isNaN(basePrice) || basePrice <= 0) {
+          showError('Please enter a valid ticket price in ETH');
+          return;
+        }
+      } else {
+        // When using pricing tiers, ensure every tier has a name and a valid numeric price
+        for (const t of pricingTiers) {
+          if (!t.name || !t.price) {
+            showError('Please fill in all pricing information for tiers');
+            return;
+          }
+          const p = parseFloat(t.price);
+          if (isNaN(p) || p <= 0) {
+            showError('Please enter valid positive prices for all tiers (in ETH)');
+            return;
+          }
+          if (!t.quantity || isNaN(parseInt(t.quantity)) || parseInt(t.quantity) < 0) {
+            showError('Please enter valid quantities for all tiers');
+            return;
+          }
+        }
+        // Ensure total tier quantities exactly match the event capacity
+        const totalTierQty = pricingTiers.reduce((sum, tt) => sum + (parseInt(tt.quantity) || 0), 0);
+        const capacityInt = parseInt(formData.capacity || '0');
+        if (isNaN(capacityInt) || capacityInt <= 0) {
+          showError('Please enter a valid event capacity');
+          return;
+        }
+        if (totalTierQty !== capacityInt) {
+          showError(`Total quantity across tiers (${totalTierQty}) must equal the event capacity (${capacityInt})`);
+          return;
+        }
       }
     }
     
@@ -188,15 +294,34 @@ export default function CreateEventPage() {
       }
 
       // Prepare event data for submission - map form fields to database columns
+      // Build an ISO datetime string so date formatting utilities can parse it correctly
+      let isoDate: string | null = null;
+      try {
+        const d = new Date(`${formData.date}T${formData.time}`);
+        if (!isNaN(d.getTime())) {
+          isoDate = d.toISOString();
+        }
+      } catch (err) {
+        isoDate = null;
+      }
+
+      // Determine base price: if using tiers, use the minimum tier price as the base
+      const computedBasePrice = usePricingTiers
+        ? (pricingTiers.length ? Math.min(...pricingTiers.map(t => parseFloat(t.price) || Infinity)) : 0)
+        : parseFloat(formData.basePrice);
+
       const eventData = {
         title: formData.title,
         description: formData.description,
-        date: `${formData.date} at ${formData.time}`, // Combine date and time
+        // Prefer ISO datetime; fall back to a readable string if parsing fails
+        date: isoDate || `${formData.date} at ${formData.time}`,
         location: formData.location,
         capacity: formData.capacity, // Store as is from form
         organizer: account || '', // Use wallet address as organizer (required for payment)
-        base_price: parseFloat(formData.basePrice),
+        base_price: computedBasePrice,
         image: imagePreview || '', // Map image_url to image
+        // Use custom category when 'Other' selected
+        category: formData.category === 'other' ? (formData.otherCategory || 'Other') : formData.category,
         status: 'Pre-Sale', // Map active to Pre-Sale status
         // Include ticket tiers if pricing tiers option is enabled
         ...(usePricingTiers && {
@@ -340,6 +465,20 @@ export default function CreateEventPage() {
                       <option value="art">Art & Exhibition</option>
                       <option value="other">Other</option>
                     </select>
+                    {/* If Other is selected, show a text input to enter custom category */}
+                    {formData.category === 'other' && (
+                      <div className="mt-3">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Please specify</label>
+                        <input
+                          type="text"
+                          name="otherCategory"
+                          value={formData.otherCategory}
+                          onChange={handleInputChange}
+                          placeholder="e.g., Silent Disco, Hackathon"
+                          className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 transition mt-1"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -535,6 +674,14 @@ export default function CreateEventPage() {
                 {/* Pricing Tiers Option */}
                 {usePricingTiers && (
                   <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-2 px-2">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Total quantity across tiers: <span className="font-semibold text-gray-900 dark:text-white">{pricingTiers.reduce((s, t) => s + (parseInt(t.quantity) || 0), 0)}</span>
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Capacity: <span className="font-semibold text-gray-900 dark:text-white">{formData.capacity || '—'}</span>
+                      </div>
+                    </div>
                     {pricingTiers.map((tier, index) => (
                       <div
                         key={tier.id}
@@ -673,22 +820,30 @@ export default function CreateEventPage() {
         </form>
 
         {/* Confetti Animation */}
-        {confetti.map((piece) => (
-          <div
-            key={piece.id}
-            className="fixed pointer-events-none animate-pulse"
-            style={{
-              left: `${piece.left}%`,
-              top: '-10px',
-              animation: `fall ${2 + Math.random()}s linear forwards`,
-              animationDelay: `${piece.delay}s`,
-            }}
-          >
-            <span className="text-2xl" style={{ opacity: 0.8 }}>
-              {['🎉', '✨', '🎊', '⭐', '🌟'][Math.floor(Math.random() * 5)]}
-            </span>
-          </div>
-        ))}
+        {confetti.map((piece) => {
+          const duration = (2 + Math.random()).toFixed(2) + 's';
+          return (
+            <div
+              key={piece.id}
+              className="fixed pointer-events-none"
+              style={
+                {
+                  left: `${piece.left}%`,
+                  top: '-10px',
+                  animationName: 'fall',
+                  animationDuration: duration,
+                  animationTimingFunction: 'linear',
+                  animationFillMode: 'forwards',
+                  animationDelay: `${piece.delay}s`,
+                } as React.CSSProperties
+              }
+            >
+              <span className="text-2xl" style={{ opacity: 0.8 }}>
+                {['🎉', '✨', '🎊', '⭐', '🌟'][Math.floor(Math.random() * 5)]}
+              </span>
+            </div>
+          );
+        })}
 
         {/* Confirmation Modal */}
         {showConfirmation && (

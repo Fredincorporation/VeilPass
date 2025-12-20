@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 export async function GET(request: NextRequest) {
   try {
     const walletAddress = request.nextUrl.searchParams.get('wallet');
+    const fieldsParam = request.nextUrl.searchParams.get('fields');
     
     if (!walletAddress) {
       return NextResponse.json(
@@ -12,9 +13,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Allow clients to request only specific fields (comma-separated) to reduce payload
+    // Example: /api/user?wallet=0x...&fields=role,wallet_address
+    const selectFields = fieldsParam && fieldsParam.trim().length > 0 ? fieldsParam : '*';
+
     const { data, error } = await supabase
       .from('users')
-      .select('*')
+      .select(selectFields)
       .eq('wallet_address', walletAddress)
       .single();
 

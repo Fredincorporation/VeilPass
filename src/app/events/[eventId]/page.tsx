@@ -320,7 +320,7 @@ export default function EventDetailPage() {
       const ticketsToCreate = Array.from({ length: quantity }, (_, i) => ({
         event_id: parseInt(eventId),
         owner_address: account,
-        section: 'general',
+        section: selectedTierData?.name || 'General',
         price: ticketPrice,
         status: 'active',
         transaction_hash: txHash,
@@ -657,10 +657,16 @@ export default function EventDetailPage() {
               {/* Purchase Button */}
               <button
                 onClick={handlePurchase}
-                className="w-full px-6 py-4 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-lg flex items-center justify-center gap-2 mb-4 transition hover:shadow-lg"
+                disabled={event?.status === 'Pre-Sale'}
+                title={event?.status === 'Pre-Sale' ? 'Tickets are not available during Pre-Sale' : 'Get Tickets'}
+                className={`w-full px-6 py-4 rounded-lg text-white font-bold text-lg flex items-center justify-center gap-2 mb-4 transition ${
+                  event?.status === 'Pre-Sale'
+                    ? 'bg-gray-400 dark:bg-gray-700 cursor-not-allowed opacity-60'
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg'
+                }`}
               >
                 <ShoppingCart className="w-5 h-5" />
-                Get Tickets
+                {event?.status === 'Pre-Sale' ? 'Pre-Sale' : 'Get Tickets'}
               </button>
 
               {/* Trust Signals */}

@@ -1,57 +1,83 @@
 'use client';
 
-import React, { useState } from 'react';
-import { CheckCircle, XCircle, Upload, FileCheck, Mail, Calendar, Search, Filter, MoreVertical, Eye } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { CheckCircle, XCircle, Upload, FileCheck, Calendar, Search, Filter, Eye, Loader } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
-import { useAdminSellers, useApproveSeller } from '@/hooks/useAdmin';
+import { useAdminSellers } from '@/hooks/useAdmin';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function AdminSellersPage() {
   const { showSuccess, showError } = useToast();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
 
   // Fetch sellers from database
-  const { data: dbSellers = [], isLoading } = useAdminSellers(filterStatus === 'all' ? undefined : filterStatus);
-  const { mutate: approveSeller, isPending: isApproving } = useApproveSeller();
+  const { data: dbSellers = [], isLoading, refetch } = useAdminSellers(filterStatus === 'all' ? undefined : filterStatus);
 
   // Use live data from database
   const sellers = dbSellers;
 
   const filteredSellers = sellers.filter(seller => {
-    const matchesSearch = seller.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          seller.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = seller.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'all' || seller.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
 
-  const handleApprove = (sellerId: string, sellerName: string) => {
-    approveSeller(
-      { sellerId: sellerId as any, status: 'APPROVED' },
-      {
-        onSuccess: () => {
-          showSuccess(`${sellerName} has been approved as a seller`);
-        },
-        onError: (error) => {
-          showError(`Failed to approve ${sellerName}`);
-        },
-      }
-    );
-  };
+  const handleApprove = useCallback(async (sellerId: string, sellerName: string) => {
+    setApprovingId(sellerId);
+    try {
+      const response = await fetch(`/api/admin/sellers?id=${sellerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'APPROVED' }),
+      });
 
-  const handleReject = (sellerId: string, sellerName: string) => {
-    approveSeller(
-      { sellerId: sellerId as any, status: 'REJECTED' },
-      {
-        onSuccess: () => {
-          showError(`Application from ${sellerName} has been rejected`);
-        },
-        onError: (error) => {
-          showError(`Failed to reject ${sellerName}`);
-        },
+      if (!response.ok) {
+        const error = await response.json();
+        showError(error.error || `Failed to approve ${sellerName}`);
+        return;
       }
-    );
-  };
+
+      showSuccess(`✅ ${sellerName} has been approved as a seller`);
+      await refetch();
+      queryClient.invalidateQueries({ queryKey: ['adminSellers'] });
+    } catch (error) {
+      showError(`Failed to approve ${sellerName}`);
+      console.error(error);
+    } finally {
+      setApprovingId(null);
+    }
+  }, [showSuccess, showError, refetch, queryClient]);
+
+  const handleReject = useCallback(async (sellerId: string, sellerName: string) => {
+    setRejectingId(sellerId);
+    try {
+      const response = await fetch(`/api/admin/sellers?id=${sellerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'REJECTED' }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        showError(error.error || `Failed to reject ${sellerName}`);
+        return;
+      }
+
+      showError(`⛔ Application from ${sellerName} has been rejected`);
+      await refetch();
+      queryClient.invalidateQueries({ queryKey: ['adminSellers'] });
+    } catch (error) {
+      showError(`Failed to reject ${sellerName}`);
+      console.error(error);
+    } finally {
+      setRejectingId(null);
+    }
+  }, [showSuccess, showError, refetch, queryClient]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -87,7 +113,7 @@ export default function AdminSellersPage() {
               <Search className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by seller name or email..."
+                placeholder="Search by seller name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-orange-500 dark:focus:border-orange-400 focus:ring-2 focus:ring-orange-500/20 transition"
@@ -123,7 +149,83 @@ export default function AdminSellersPage() {
             <p className="ml-4 text-gray-600 dark:text-gray-400">Loading sellers...</p>
           </div>
         ) : filteredSellers.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="space-y-6">
+            {/* Detail view for expanded seller */}
+            {expandedId && sellers.find(s => String(s.id) === expandedId) && (
+              <div className="bg-white dark:bg-gray-900 rounded-2xl border-2 border-blue-300 dark:border-blue-700 p-8 shadow-xl">
+                {(() => {
+                  const expandedSeller = sellers.find(s => String(s.id) === expandedId);
+                  if (!expandedSeller) return null;
+                  
+                  return (
+                    <>
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-3xl font-bold text-gray-900 dark:text-white">{expandedSeller.name}</h2>
+                        <button
+                          onClick={() => setExpandedId(null)}
+                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
+                        >
+                          <XCircle className="w-6 h-6" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Business Name</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white">{expandedSeller.name}</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Business Type</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white">{expandedSeller.businessType || 'Not specified'}</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Applied Date</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white">{expandedSeller.submittedAt}</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Role</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white capitalize">{expandedSeller.role}</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Seller Status</p>
+                          <div className="flex items-center gap-2">
+                            {expandedSeller.status === 'APPROVED' ? (
+                              <CheckCircle className="w-5 h-5 text-green-600" />
+                            ) : (
+                              <Upload className="w-5 h-5 text-amber-600" />
+                            )}
+                            <span className="text-lg font-bold text-gray-900 dark:text-white">{expandedSeller.status}</span>
+                          </div>
+                        </div>
+                        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">KYC Status</p>
+                          <div className="flex items-center gap-2">
+                            {expandedSeller.kycStatus === 'VERIFIED' ? (
+                              <CheckCircle className="w-5 h-5 text-green-600" />
+                            ) : expandedSeller.kycStatus === 'REJECTED' ? (
+                              <XCircle className="w-5 h-5 text-red-600" />
+                            ) : (
+                              <Upload className="w-5 h-5 text-amber-600" />
+                            )}
+                            <span className="text-lg font-bold text-gray-900 dark:text-white">{expandedSeller.kycStatus}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {expandedSeller.walletAddress && (
+                        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg mb-6">
+                          <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">Wallet Address</p>
+                          <p className="text-sm font-mono text-gray-900 dark:text-white break-all">{expandedSeller.walletAddress}</p>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Grid of seller cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredSellers.map((seller) => (
               <div
                 key={seller.id}
@@ -153,27 +255,33 @@ export default function AdminSellersPage() {
                 {/* Details */}
                 <div className="space-y-3 mb-6 pb-4 border-b border-gray-300 dark:border-gray-700">
                   <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                    <Mail className="w-4 h-4" />
-                    <span className="truncate">{seller.email}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                     <Calendar className="w-4 h-4" />
-                    <span>Submitted: {seller.submitted_at}</span>
+                    <span>Applied: {seller.submittedAt}</span>
                   </div>
+                  {seller.businessType && (
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      <span className="font-semibold">Business:</span> {seller.businessType}
+                    </div>
+                  )}
                 </div>
 
                 {/* KYC Status */}
                 <div className="flex items-center justify-between mb-6">
                   <span className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide">KYC Status</span>
                   <div className="flex items-center gap-1.5">
-                    {seller.kyc_status === 'VERIFIED' ? (
+                    {seller.kycStatus === 'VERIFIED' ? (
                       <>
                         <CheckCircle className="w-4 h-4 text-green-600" />
                         <span className="text-sm font-semibold text-green-600">Verified</span>
                       </>
+                    ) : seller.kycStatus === 'REJECTED' ? (
+                      <>
+                        <XCircle className="w-4 h-4 text-red-600" />
+                        <span className="text-sm font-semibold text-red-600">Rejected</span>
+                      </>
                     ) : (
                       <>
-                        <XCircle className="w-4 h-4 text-amber-600" />
+                        <Upload className="w-4 h-4 text-amber-600" />
                         <span className="text-sm font-semibold text-amber-600">Pending</span>
                       </>
                     )}
@@ -185,28 +293,52 @@ export default function AdminSellersPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleApprove(String(seller.id), seller.name)}
-                      className="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold transition-all flex items-center justify-center gap-2"
+                      disabled={approvingId === String(seller.id)}
+                      className="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-all flex items-center justify-center gap-2"
                     >
-                      <CheckCircle className="w-4 h-4" />
-                      Approve
+                      {approvingId === String(seller.id) ? (
+                        <>
+                          <Loader className="w-4 h-4 animate-spin" />
+                          Approving...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4" />
+                          Approve
+                        </>
+                      )}
                     </button>
                     <button
                       onClick={() => handleReject(String(seller.id), seller.name)}
-                      className="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-semibold transition-all flex items-center justify-center gap-2"
+                      disabled={rejectingId === String(seller.id)}
+                      className="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-all flex items-center justify-center gap-2"
                     >
-                      <XCircle className="w-4 h-4" />
-                      Reject
+                      {rejectingId === String(seller.id) ? (
+                        <>
+                          <Loader className="w-4 h-4 animate-spin" />
+                          Rejecting...
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="w-4 h-4" />
+                          Reject
+                        </>
+                      )}
                     </button>
                   </div>
                 )}
                 {seller.status === 'APPROVED' && (
-                  <button className="w-full px-4 py-2.5 rounded-lg border-2 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition-all flex items-center justify-center gap-2">
+                  <button 
+                    onClick={() => setExpandedId(expandedId === seller.id ? null : String(seller.id))}
+                    className="w-full px-4 py-2.5 rounded-lg border-2 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                  >
                     <Eye className="w-4 h-4" />
-                    View Details
+                    {expandedId === seller.id ? 'Hide Details' : 'View Details'}
                   </button>
                 )}
               </div>
             ))}
+            </div>
           </div>
         ) : (
           <div className="text-center py-16">

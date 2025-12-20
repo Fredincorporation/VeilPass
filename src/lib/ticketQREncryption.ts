@@ -27,7 +27,7 @@ export interface EncryptedTicketQR {
 export interface DecryptedTicketData {
   ticketId: string;
   eventId: number;
-  owner: string;
+  owner?: string;
   price: number;
   created_at: string;
   section: string;

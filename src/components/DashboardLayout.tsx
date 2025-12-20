@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getWalletRole } from '@/lib/wallet-roles';
 import { Wallet } from 'lucide-react';
+import { useUserRole } from '@/hooks/useUserRole';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -18,6 +19,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isClient, setIsClient] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+
+  // Always call role hook to keep hook order stable across renders
+  const { data: roleData } = useUserRole(account || undefined);
 
   useEffect(() => {
     setIsClient(true);
@@ -57,6 +61,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     window.addEventListener('walletDisconnected', handleDisconnect);
     return () => window.removeEventListener('walletDisconnected', handleDisconnect);
   }, []);
+
 
   if (!isClient || isLoading) {
     return (
@@ -142,7 +147,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     );
   }
 
-  const role = getWalletRole(account);
+  // Prefer the role from the backend (roleData) when available,
+  // otherwise fall back to the local wallet-role mapping.
+  const role = roleData && (roleData.role as string) ? (roleData.role as string) : getWalletRole(account);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Ticket, QrCode, Download, Share2, Calendar, MapPin, Users, Search, TrendingUp, X, DollarSign, Gavel, Clock, Flame } from 'lucide-react';
+import { createRoot } from 'react-dom/client';
+import { Ticket, QrCode, Download, Calendar, MapPin, Users, Search, TrendingUp, X, DollarSign, Gavel, Clock, Flame, Lock } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
 import { useEthPrice } from '@/hooks/useEthPrice';
 import { useTickets } from '@/hooks/useTickets';
@@ -9,8 +10,27 @@ import { useAuctions } from '@/hooks/useAuctions';
 import { useActiveBids, getHighestBid, isUserWinning } from '@/hooks/useUserBids';
 import { getTicketStatusColor, getTicketStatusDisplay } from '@/lib/ticketStatusUtils';
 import { useSafeWallet } from '@/lib/wallet-context';
+import { isAuctionCreationAllowed, getTimeUntilCutoff, formatTimeRemaining } from '@/lib/auctionCutoff';
 import QRCode from 'qrcode.react';
 import { encryptTicketQR, createQRPayload } from '@/lib/ticketQREncryption';
+
+// Simple HTML escaper for embedding user data into generated HTML
+function escapeHtml(unsafe: any) {
+  if (unsafe === null || unsafe === undefined) return '';
+  return String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function maskAddress(addr: any) {
+  if (!addr) return '';
+  const s = String(addr);
+  if (s.length <= 12) return s;
+  return `${s.slice(0, 6)}...${s.slice(-4)}`;
+}
 
 export default function TicketsPage() {
   const { showSuccess, showInfo } = useToast();
@@ -55,14 +75,128 @@ export default function TicketsPage() {
   };
 
   const handleDownloadTicket = (ticketId: string, eventName: string) => {
-    showSuccess(`Ticket for "${eventName}" downloaded successfully`);
+    (async () => {
+      try {
+        const ticket = tickets.find((t: any) => t.id === ticketId) || { id: ticketId };
+
+        // Build encrypted payload (same as QR modal) so printable QR does not expose raw owner address
+        const encryptedPayload = createQRPayload(
+          encryptTicketQR({
+            ticketId: ticket.id,
+            eventId: ticket.event_id,
+            // owner intentionally omitted for privacy; scanner will resolve owner server-side
+            price: ticket.price,
+            created_at: ticket.created_at,
+            section: ticket.section,
+            status: ticket.status,
+          } as any)
+        );
+
+        // Render a hidden QRCode into a temporary container to obtain a dataURL
+        const container = document.createElement('div');
+        container.style.position = 'fixed';
+        container.style.left = '-9999px';
+        container.style.top = '-9999px';
+        document.body.appendChild(container);
+
+        const root = createRoot(container);
+        root.render(
+          <QRCode value={encryptedPayload} size={400} level="H" includeMargin={true} />
+        );
+
+        // Wait for the canvas to be available
+        const dataUrl: string = await new Promise((resolve, reject) => {
+          const start = Date.now();
+          const check = () => {
+            const canvas = container.querySelector('canvas') as HTMLCanvasElement | null;
+            if (canvas) {
+              try {
+                const d = canvas.toDataURL('image/png');
+                resolve(d);
+              } catch (e) {
+                reject(e);
+              }
+              return;
+            }
+            if (Date.now() - start > 1000) {
+              reject(new Error('Timed out generating QR canvas'));
+              return;
+            }
+            requestAnimationFrame(check);
+          };
+          check();
+        });
+
+        // Clean up the rendered QR component
+        try { root.unmount(); } catch (e) {}
+        if (container.parentNode) container.parentNode.removeChild(container);
+
+        // Use masked owner for printed text to avoid exposing full wallet address
+        const maskedOwner = maskAddress(ticket.owner_address || '');
+
+        const html = `<!doctype html>
+        <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Ticket - ${escapeHtml(eventName)}</title>
+          <style>
+            body { font-family: Inter, Arial, Helvetica, sans-serif; padding: 24px; color: #0f172a }
+            .ticket { border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; width: 560px }
+            .header { display:flex; align-items:center; justify-content:space-between }
+            .title { font-size:20px; font-weight:700 }
+            .meta { margin-top:12px; display:flex; gap:12px; font-size:14px }
+            .qr { margin-top:18px; text-align:center }
+            .small { color:#6b7280 }
+          </style>
+        </head>
+        <body>
+          <div class="ticket">
+            <div class="header">
+              <div>
+                <div class="title">${escapeHtml(eventName)}</div>
+                <div class="small">Ticket ID: ${escapeHtml(String(ticket.id))}</div>
+              </div>
+              <div class="small">Issued: ${new Date().toISOString()}</div>
+            </div>
+            <div class="meta">
+              <div><strong>Section</strong><div>${escapeHtml(ticket.section || 'General')}</div></div>
+              <div><strong>Price</strong><div>$${escapeHtml(String(ticket.price || ticket.price === 0 ? ticket.price : '0'))}</div></div>
+              <div><strong>Owner</strong><div>${escapeHtml(maskedOwner)}</div></div>
+            </div>
+            <div class="qr">
+              <img src="${dataUrl}" alt="QR" style="width:240px;height:240px" />
+            </div>
+          </div>
+        </body>
+        </html>`;
+
+        const w = window.open('', '_blank');
+        if (!w) {
+          showInfo('Popup blocked. Please allow popups for this site to download tickets.');
+          return;
+        }
+        w.document.write(html);
+        w.document.close();
+        // delay to allow image to load then trigger print
+        setTimeout(() => {
+          try { w.focus(); w.print(); } catch (e) {}
+        }, 600);
+        showSuccess('Opened printable ticket — use Print → Save as PDF (or print) to download.');
+      } catch (err: any) {
+        console.error('Download ticket error:', err);
+        showInfo('Failed to open ticket for printing.');
+      }
+    })();
   };
 
-  const handleShareTicket = (ticketId: string, eventName: string) => {
-    showSuccess(`"${eventName}" ticket link copied to clipboard`);
-  };
+  
 
   const handleBidAuction = (ticket: any) => {
+    const eventStart = ticket.events?.date;
+    if (eventStart && !isAuctionCreationAllowed(eventStart)) {
+      showInfo('Auction creation is disabled within 5 hours of event start');
+      return;
+    }
     setSelectedTicket(ticket);
     setShowAuctionModal(true);
   };
@@ -242,32 +376,38 @@ export default function TicketsPage() {
                         Download
                         <span className="absolute opacity-0 group-hover/btn:opacity-100 transition">→</span>
                       </button>
-                      <button 
-                        onClick={() => handleShareTicket(ticket.id, ticket.event_title || `Event #${ticket.event_id}`)}
-                        className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 hover:border-cyan-400 dark:hover:border-cyan-500 text-gray-900 dark:text-white font-semibold flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all duration-300">
-                        <Share2 className="w-4 h-4" />
-                        Share
-                      </button>
+                      {/* Share button removed — downloads/printing available via Download button */}
                     </div>
 
-                    {ticket.status !== 'active' && (
-                      !activeAuctionTicketIds.has(ticket.id) ? (
-                        <button 
-                          onClick={() => handleBidAuction(ticket)}
-                          className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold flex items-center justify-center gap-2 transition-all duration-300 group/auction">
-                          <TrendingUp className="w-4 h-4" />
-                          List for Auction
-                          <span className="absolute opacity-0 group-hover/auction:opacity-100 transition">→</span>
-                        </button>
-                      ) : (
-                        <button
-                          disabled
-                          className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 text-gray-500 bg-gray-100 dark:bg-gray-800 opacity-60 cursor-not-allowed font-semibold flex items-center justify-center gap-2"
-                        >
-                          <TrendingUp className="w-4 h-4" />
-                          Already Listed
-                        </button>
-                      )
+                    {ticket.status !== 'active' && !activeAuctionTicketIds.has(ticket.id) && (
+                      (() => {
+                        const eventStart = ticket.events?.date;
+                        const canCreate = eventStart ? isAuctionCreationAllowed(eventStart) : true;
+                        const timeUntil = eventStart ? getTimeUntilCutoff(eventStart) : null;
+                        const timeDisplay = timeUntil !== null ? formatTimeRemaining(timeUntil) : null;
+                        
+                        if (!canCreate) {
+                          return (
+                            <button disabled title={`Auction creation disabled - ${timeDisplay}`} className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 text-gray-500 bg-gray-100 dark:bg-gray-800 opacity-60 cursor-not-allowed font-semibold flex items-center justify-center gap-2">
+                              <Lock className="w-4 h-4" />
+                              Auction Locked
+                            </button>
+                          );
+                        }
+                        
+                        return (
+                          <button onClick={() => handleBidAuction(ticket)} className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold flex items-center justify-center gap-2 transition-all duration-300 group/auction">
+                            <TrendingUp className="w-4 h-4" />
+                            List for Auction
+                          </button>
+                        );
+                      })()
+                    )}
+                    {ticket.status !== 'active' && activeAuctionTicketIds.has(ticket.id) && (
+                      <button disabled className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800 text-gray-500 bg-gray-100 dark:bg-gray-800 opacity-60 cursor-not-allowed font-semibold flex items-center justify-center gap-2">
+                        <TrendingUp className="w-4 h-4" />
+                        Already Listed
+                      </button>
                     )}
                   </div>
                 </div>
@@ -558,16 +698,16 @@ export default function TicketsPage() {
                 {selectedTicket && (
                   <QRCode
                     value={createQRPayload(
-                      encryptTicketQR({
-                        ticketId: selectedTicket.id,
-                        eventId: selectedTicket.event_id,
-                        owner: selectedTicket.owner_address,
-                        price: selectedTicket.price,
-                        created_at: selectedTicket.created_at,
-                        section: selectedTicket.section,
-                        status: selectedTicket.status,
-                      })
-                    )}
+                        encryptTicketQR({
+                          ticketId: selectedTicket.id,
+                          eventId: selectedTicket.event_id,
+                          // owner intentionally omitted for privacy
+                          price: selectedTicket.price,
+                          created_at: selectedTicket.created_at,
+                          section: selectedTicket.section,
+                          status: selectedTicket.status,
+                        } as any)
+                      )}
                     size={256}
                     level="H"
                     includeMargin={true}

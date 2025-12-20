@@ -42,6 +42,7 @@ export interface Event {
   description: string;
   date: string;
   location: string;
+  category?: string;
   image: string;
   base_price: number;
   capacity: number;
@@ -60,6 +61,8 @@ export interface Ticket {
   section: string;
   price: number;
   status: 'active' | 'upcoming' | 'sold' | 'transferred';
+  ticket_number?: number;
+  transaction_hash?: string;
   created_at: string;
   event_title?: string;
 }

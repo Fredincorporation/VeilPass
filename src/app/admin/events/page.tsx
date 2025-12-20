@@ -5,6 +5,8 @@ import { Calendar, MapPin, CheckCircle, XCircle, Loader, X } from 'lucide-react'
 import { useEvents } from '@/hooks/useEvents';
 import { useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
+import { formatAddress } from '@/lib/utils';
+import { isValidOrganizerAddress } from '@/lib/organizer-utils';
 
 export default function EventApprovalsPage() {
   const { data: allEvents = [] } = useEvents();
@@ -167,7 +169,7 @@ export default function EventApprovalsPage() {
                         <div>
                           <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">Organizer</p>
                           <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                            {event.organizer || 'Unknown'}
+                            {isValidOrganizerAddress(event.organizer) ? formatAddress(event.organizer) : (event.organizer || 'Unknown')}
                           </p>
                         </div>
                         <div>

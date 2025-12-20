@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { ChevronRight, ChevronLeft, Zap, Shield, Users } from 'lucide-react';
 import { useEvents } from '@/hooks/useEvents';
 import { formatDate } from '@/lib/date-formatter';
+import { formatAddress } from '@/lib/utils';
+import { isValidOrganizerAddress } from '@/lib/organizer-utils';
 
 export default function HomePage() {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
@@ -49,8 +51,14 @@ export default function HomePage() {
         {/* Animated gradient orbs background */}
         <div className="absolute inset-0 -z-10 overflow-hidden">
           <div className="absolute -top-40 -left-40 w-80 h-80 bg-gradient-to-br from-blue-600/40 via-purple-600/30 to-transparent rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-gradient-to-tl from-pink-600/40 via-purple-600/30 to-transparent rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-gradient-to-r from-indigo-500/20 to-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+          <div
+            className="absolute -bottom-40 -right-40 w-96 h-96 bg-gradient-to-tl from-pink-600/40 via-purple-600/30 to-transparent rounded-full blur-3xl"
+            style={{ animation: 'pulse 2s cubic-bezier(0.4,0,0.6,1) 1s infinite' }}
+          />
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-gradient-to-r from-indigo-500/20 to-cyan-500/20 rounded-full blur-3xl"
+            style={{ animation: 'pulse 2s cubic-bezier(0.4,0,0.6,1) 2s infinite' }}
+          />
 
           {/* Grid overlay */}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.02)_1px,transparent_1px)] bg-[size:50px_50px] dark:bg-[linear-gradient(rgba(255,255,255,.01)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.01)_1px,transparent_1px)]" />
@@ -72,7 +80,10 @@ export default function HomePage() {
               to
             </span>
             {' '}
-            <span className="inline-block bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 bg-clip-text text-transparent animate-pulse" style={{ animationDelay: '0.5s' }}>
+            <span
+              className="inline-block bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 bg-clip-text text-transparent"
+              style={{ animation: 'pulse 2s cubic-bezier(0.4,0,0.6,1) 0.5s infinite' }}
+            >
               Public Events
             </span>
           </h1>
@@ -192,7 +203,7 @@ export default function HomePage() {
                               </div>
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Organizer:</span>
-                                <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold truncate">{event.organizer || 'TBD'}</span>
+                                <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold truncate">{isValidOrganizerAddress(event.organizer) ? formatAddress(event.organizer) : (event.organizer || 'TBD')}</span>
                               </div>
                             </div>
                           </div>

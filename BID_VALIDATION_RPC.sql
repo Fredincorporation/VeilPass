@@ -47,6 +47,7 @@ DECLARE
   v_end_time TIMESTAMP WITH TIME ZONE;
   v_minimum_required NUMERIC;
   v_new_bid_id BIGINT;
+  v_existing_bid_id BIGINT;
   v_start_bid NUMERIC;
   v_listing_price NUMERIC;
 BEGIN
@@ -157,22 +158,60 @@ BEGIN
   END IF;
 
   -- All validations passed - insert the bid atomically
-  INSERT INTO bids (
-    auction_id,
-    bidder_address,
-    amount,
-    amount_usd,
-    encrypted,
-    created_at
-  ) VALUES (
-    p_auction_id,
-    p_bidder_address,
-    p_bid_amount,
-    p_amount_usd,
-    p_encrypted,
-    NOW()
-  )
-  RETURNING id INTO v_new_bid_id;
+  -- Check if this bidder already has a bid for this auction and lock it
+  SELECT id INTO v_existing_bid_id FROM bids
+    WHERE auction_id = p_auction_id
+      AND bidder_address = p_bidder_address
+    FOR UPDATE;
+
+  IF v_existing_bid_id IS NOT NULL THEN
+    -- Update existing bid (merge semantics)
+    UPDATE bids
+    SET amount = p_bid_amount,
+        amount_usd = p_amount_usd,
+        encrypted = p_encrypted,
+        created_at = NOW()
+    WHERE id = v_existing_bid_id
+    RETURNING id INTO v_new_bid_id;
+
+    -- Recompute bid count (unchanged) and current highest
+    SELECT COUNT(*)::BIGINT INTO v_bid_count FROM bids WHERE auction_id = p_auction_id;
+
+    RETURN QUERY SELECT 
+      true,
+      v_new_bid_id,
+      p_bid_amount,
+      v_bid_count,
+      v_minimum_required,
+      NULL::TEXT;
+  ELSE
+    -- Insert new bid
+    INSERT INTO bids (
+      auction_id,
+      bidder_address,
+      amount,
+      amount_usd,
+      encrypted,
+      created_at
+    ) VALUES (
+      p_auction_id,
+      p_bidder_address,
+      p_bid_amount,
+      p_amount_usd,
+      p_encrypted,
+      NOW()
+    )
+    RETURNING id INTO v_new_bid_id;
+
+    -- Return success with bid details
+    RETURN QUERY SELECT 
+      true,
+      v_new_bid_id,
+      p_bid_amount,
+      v_bid_count + 1,
+      v_minimum_required,
+      NULL::TEXT;
+  END IF;
 
   -- Return success with bid details
   RETURN QUERY SELECT 

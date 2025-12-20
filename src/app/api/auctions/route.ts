@@ -103,6 +103,38 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
+    // Validate that auction creation is allowed (not within 5 hours of event start)
+    if (body.ticket_id) {
+      // Get the ticket to fetch its event
+      const { data: ticketData } = await supabase
+        .from('tickets')
+        .select('event_id')
+        .eq('id', body.ticket_id)
+        .single();
+
+      if (ticketData?.event_id) {
+        // Get the event to check its date (converted to timestamp)
+        const { data: eventData } = await supabase
+          .from('events')
+          .select('date')
+          .eq('id', ticketData.event_id)
+          .single();
+
+        if (eventData?.date) {
+          const eventStart = new Date(eventData.date);
+          const now = new Date();
+          const cutoffTime = new Date(eventStart.getTime() - 5 * 60 * 60 * 1000);
+
+          if (now >= cutoffTime) {
+            return NextResponse.json(
+              { error: 'Auction creation is disabled within 5 hours of event start' },
+              { status: 403 }
+            );
+          }
+        }
+      }
+    }
+
     // Ensure USD snapshot fields exist. If client didn't provide them,
     // compute them server-side using CoinGecko-backed ETH price.
     const ethPrice = await fetchEthPrice();

@@ -8,6 +8,8 @@ import { useSafeWallet } from '@/lib/wallet-context';
 import { ChevronLeft, Calendar, MapPin, DollarSign, Share2, Heart } from 'lucide-react';
 import Image from 'next/image';
 import { formatDate } from '@/lib/date-formatter';
+import { formatAddress } from '@/lib/utils';
+import { isValidOrganizerAddress } from '@/lib/organizer-utils';
 
 export default function ViewEventPage() {
   const router = useRouter();
@@ -109,7 +111,7 @@ export default function ViewEventPage() {
                   {event.title}
                 </h1>
                 <p className="text-lg text-gray-600 dark:text-gray-400">
-                  Organized by {event.organizer || 'Unknown'}
+                  Organized by {isValidOrganizerAddress(event.organizer) ? formatAddress(event.organizer) : (event.organizer || 'Unknown')}
                 </p>
               </div>
               <button
