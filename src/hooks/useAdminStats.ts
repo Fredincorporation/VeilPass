@@ -9,7 +9,7 @@ export interface AdminStats {
   platformVolume: string; // ETH amount
 }
 
-export function useAdminStats() {
+export function useAdminStats(enabled: boolean = true) {
   return useQuery<AdminStats>({
     queryKey: ['adminStats'],
     queryFn: async () => {
@@ -28,5 +28,6 @@ export function useAdminStats() {
         throw error;
       }
     },
+    enabled,
   });
 }

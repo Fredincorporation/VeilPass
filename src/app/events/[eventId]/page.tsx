@@ -104,6 +104,12 @@ export default function EventDetailPage() {
 
   const handlePayment = async () => {
     try {
+      // Ensure we're on the client side
+      if (typeof window === 'undefined') {
+        showError('Unable to process payment. Please try again.');
+        return;
+      }
+
       if (!account) {
         showError('Wallet not connected');
         return;
@@ -137,7 +143,7 @@ export default function EventDetailPage() {
       showInfo(`Requesting transaction confirmation for ${totalPrice.toFixed(4)} Ξ...`);
       
       // Check if window.ethereum exists
-      if (!window.ethereum) {
+      if (typeof window.ethereum === 'undefined') {
         showError('Wallet provider not found. Please install a browser wallet (e.g. MetaMask) or connect via WalletConnect.');
         return;
       }
