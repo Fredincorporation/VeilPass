@@ -111,32 +111,40 @@ export default function EventDetailPage() {
     }
 
     setIsProcessingPayment(true);
+    
+    const cleanup = () => setIsProcessingPayment(false);
+
     try {
       // Ensure we're on the client side
       if (typeof window === 'undefined') {
         showError('Unable to process payment. Please try again.');
+        cleanup();
         return;
       }
 
       if (!account) {
-        showError('Wallet not connected');
+        showError('Wallet not connected. Please connect your wallet and try again.');
+        cleanup();
         return;
       }
 
       if (totalPrice <= 0) {
         showError('Cannot process payment: Event price is not set. Please contact the organizer.');
+        cleanup();
         return;
       }
       
       // Validate organizer address
       if (!event?.organizer) {
         showError('Event organizer address not set');
+        cleanup();
         return;
       }
       
       // Check if payment method is USDC
       if (paymentMethod === 'usdc') {
         showError('USDC payment is coming soon. Please select ETH for now.');
+        cleanup();
         return;
       }
       
@@ -152,7 +160,8 @@ export default function EventDetailPage() {
       
       // Check if window.ethereum exists
       if (typeof window.ethereum === 'undefined') {
-        showError('Wallet provider not found. Please install a browser wallet (e.g. MetaMask) or connect via WalletConnect.');
+        showError('Wallet provider not found. Please make sure your wallet (MetaMask, etc.) is installed and connected.');
+        cleanup();
         return;
       }
 
@@ -187,11 +196,13 @@ export default function EventDetailPage() {
               } catch (addErr) {
                 console.warn('Failed to add/switch network:', addErr);
                 showError('Please switch your wallet to Base Sepolia (Chain ID: 84532) and try again.');
+                cleanup();
                 return;
               }
             } else {
               console.warn('Failed to switch network:', switchErr);
               showError('Please switch your wallet to Base Sepolia (Chain ID: 84532) and try again.');
+              cleanup();
               return;
             }
           }
@@ -211,130 +222,79 @@ export default function EventDetailPage() {
         amount: totalPrice
       });
 
-      // Prepare EIP-1193 tx params
-      const baseTx: any = {
+      // Prepare EIP-1193 tx params - simplified for reliability
+      const sendParams: any = {
         from: account,
         to: paymentOrganizer,
         value: '0x' + amountInWei.toString(16),
       };
 
-      // Try to estimate gas and gas price before sending to avoid wallet estimation errors
-      let gasEstimateHex: string | null = null;
-      let gasPriceHex: string | null = null;
+      // Helper function with timeout for wallet requests
+      const requestWithTimeout = async (method: string, params: any[], timeoutMs: number = 8000) => {
+        return Promise.race([
+          (window.ethereum as any).request({ method, params }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error(`${method} request timed out after ${timeoutMs}ms`)), timeoutMs)
+          )
+        ]);
+      };
 
+      // Try to estimate gas (with timeout) - but don't block transaction if it fails
       try {
-        gasEstimateHex = await (window.ethereum as any).request({
-          method: 'eth_estimateGas',
-          params: [baseTx],
-        });
-        console.log('Gas estimate (hex) via wallet:', gasEstimateHex);
-      } catch (err) {
-        console.warn('Gas estimate via wallet failed, trying RPC fallback:', err);
-        // Fallback: call Alchemy RPC directly
-        try {
-          const rpcUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC;
-          if (rpcUrl) {
-            const rpcRes = await fetch(rpcUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                jsonrpc: '2.0',
-                method: 'eth_estimateGas',
-                params: [baseTx],
-                id: 1,
-              }),
-            });
-            const rpcJson = await rpcRes.json();
-            if (rpcJson.result) {
-              gasEstimateHex = rpcJson.result;
-              console.log('Gas estimate (hex) via RPC fallback:', gasEstimateHex);
-            }
-          }
-        } catch (rpcErr) {
-          console.warn('RPC gas estimate fallback also failed:', rpcErr);
+        const gasEstimate = await requestWithTimeout('eth_estimateGas', [sendParams], 5000);
+        if (gasEstimate) {
+          sendParams.gas = gasEstimate;
+          console.log('Gas estimate included:', gasEstimate);
         }
+      } catch (err) {
+        console.warn('Gas estimation failed or timed out (continuing anyway):', err);
+        // Don't block - let wallet estimate gas
       }
 
+      // Try to get gas price (with timeout) - but don't block transaction if it fails
       try {
-        gasPriceHex = await (window.ethereum as any).request({
-          method: 'eth_gasPrice',
-        });
-        console.log('Gas price (hex) via wallet:', gasPriceHex);
-      } catch (err) {
-        console.warn('Gas price fetch via wallet failed, trying RPC fallback:', err);
-        // Fallback: call Alchemy RPC directly
-        try {
-          const rpcUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC;
-          if (rpcUrl) {
-            const rpcRes = await fetch(rpcUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                jsonrpc: '2.0',
-                method: 'eth_gasPrice',
-                params: [],
-                id: 2,
-              }),
-            });
-            const rpcJson = await rpcRes.json();
-            if (rpcJson.result) {
-              gasPriceHex = rpcJson.result;
-              console.log('Gas price (hex) via RPC fallback:', gasPriceHex);
-            }
-          }
-        } catch (rpcErr) {
-          console.warn('RPC gas price fallback also failed:', rpcErr);
+        const gasPrice = await requestWithTimeout('eth_gasPrice', [], 5000);
+        if (gasPrice) {
+          sendParams.gasPrice = gasPrice;
+          console.log('Gas price included:', gasPrice);
         }
+      } catch (err) {
+        console.warn('Gas price fetch failed or timed out (continuing anyway):', err);
+        // Don't block - let wallet estimate
       }
 
-      const sendParams: any = { ...baseTx };
-      if (gasEstimateHex) sendParams.gas = gasEstimateHex;
-      if (gasPriceHex) sendParams.gasPrice = gasPriceHex;
-
-      // Before sending, fetch buyer balance and ensure funds cover value + gas
+      // Before sending, do a quick balance check (with timeout) but don't block if it fails
       try {
-        const balanceHex = await (window.ethereum as any).request({
-          method: 'eth_getBalance',
-          params: [account, 'latest'],
-        });
+        const balanceHex = await requestWithTimeout('eth_getBalance', [account, 'latest'], 3000);
         const balanceBig = BigInt(balanceHex);
-
-        // Parse gas and gasPrice into BigInt, provide sensible defaults
-        const gasLimitBig = gasEstimateHex ? BigInt(gasEstimateHex) : BigInt(21000);
-        // Cap gas limit to 200k to avoid absurd estimates
-        const gasLimit = gasLimitBig > BigInt(200000) ? BigInt(200000) : gasLimitBig;
-
-        const gasPriceBig = gasPriceHex ? BigInt(gasPriceHex) : BigInt(1_000_000_000); // 1 gwei fallback
-
+        const gasLimitBig = BigInt(21000); // minimal estimate
+        const gasPriceBig = BigInt(1_000_000_000); // 1 gwei fallback
         const valueBig = BigInt(amountInWei.toString());
-        const required = valueBig + gasLimit * gasPriceBig;
+        const required = valueBig + gasLimitBig * gasPriceBig;
 
         if (balanceBig < required) {
           const balanceEth = ethers.formatEther(balanceBig);
           const requiredEth = ethers.formatEther(required);
-          throw new Error(`Insufficient funds: required ${requiredEth} ETH (includes gas), your balance ${balanceEth} ETH.`);
+          showError(`Insufficient funds: required ~${requiredEth} ETH, your balance ${balanceEth} ETH.`);
+          cleanup();
+          return;
         }
       } catch (balanceErr: any) {
-        // If balance check fails due to provider error, log and continue to let wallet show its own error
-        console.warn('Balance check failed or insufficient funds:', balanceErr);
-        if (balanceErr?.message && String(balanceErr.message).includes('Insufficient funds')) {
-          throw balanceErr;
-        }
+        // If balance check times out or fails, log and continue - let wallet handle it
+        console.warn('Balance check failed or timed out (continuing anyway):', balanceErr);
       }
 
-      // Send transaction using native EIP-1193 provider (include gas fields when available)
-      const txHashResult = await (window.ethereum as any).request({
-        method: 'eth_sendTransaction',
-        params: [sendParams],
-      }) as string;
-
+      // Send transaction with timeout - this is the critical call
+      console.log('Sending eth_sendTransaction request to wallet...');
+      const txHashResult = await requestWithTimeout('eth_sendTransaction', [sendParams], 60000);
+      
       const txHash = txHashResult as `0x${string}`;
 
       if (!txHash) {
-        throw new Error('No transaction hash returned');
+        throw new Error('No transaction hash returned from wallet');
       }
       
-      showInfo(`Transaction submitted! Hash: ${txHash.slice(0, 10)}...`);
+      console.log('Transaction submitted with hash:', txHash);
       showSuccess(`✓ Transaction submitted! Hash: ${txHash.slice(0, 10)}...`);
       
       // Create tickets in database with transaction hash
