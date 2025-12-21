@@ -316,38 +316,153 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-gray-300 py-12 px-4">
+      <footer className="bg-gradient-to-b from-gray-950 to-black text-gray-300 py-16 px-4 border-t border-gray-800">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+          {/* Main Footer Content */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-12">
+            {/* Brand Column */}
             <div>
-              <h3 className="font-bold text-white mb-4">VeilPass</h3>
-              <p className="text-sm">The private way to public events.</p>
+              <h3 className="font-bold text-white text-lg mb-4">VeilPass</h3>
+              <p className="text-sm text-gray-400 mb-4">The private way to public events.</p>
+              <p className="text-xs text-gray-500">Built on Base Sepolia using Zama fhEVM for encrypted ticketing.</p>
             </div>
+
+            {/* Product */}
             <div>
               <h4 className="font-semibold text-white mb-4">Product</h4>
               <ul className="space-y-2 text-sm">
-                <li><Link href="/events" className="hover:text-white transition">Events</Link></li>
-                <li><Link href="/auctions" className="hover:text-white transition">Auctions</Link></li>
-                <li><Link href="/loyalty" className="hover:text-white transition">Loyalty</Link></li>
+                <li><Link href="/events" className="text-gray-400 hover:text-white transition">Browse Events</Link></li>
+                <li><Link href="/auctions" className="text-gray-400 hover:text-white transition">Blind Auctions</Link></li>
+                <li><Link href="/loyalty" className="text-gray-400 hover:text-white transition">Loyalty Rewards</Link></li>
+                <li><Link href="/tickets" className="text-gray-400 hover:text-white transition">My Tickets</Link></li>
               </ul>
             </div>
+
+            {/* For Creators */}
             <div>
               <h4 className="font-semibold text-white mb-4">For Creators</h4>
               <ul className="space-y-2 text-sm">
-                <li><Link href="/sellers/register" className="hover:text-white transition">Become a Seller</Link></li>
-                <li><Link href="/dashboard" className="hover:text-white transition">Dashboard</Link></li>
+                <li><Link href="/sellers/register" className="text-gray-400 hover:text-white transition">Become a Seller</Link></li>
+                <li><Link href="/dashboard" className="text-gray-400 hover:text-white transition">Dashboard</Link></li>
               </ul>
             </div>
+
+            {/* Smart Contract & Verification */}
+            <div>
+              <h4 className="font-semibold text-white mb-4">Smart Contract</h4>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <a 
+                    href="https://repo.sourcify.dev/contracts/full_match/84532/0xFa7014906a7f7788F2bF75A7eD50911d62211407/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 transition flex items-center gap-1"
+                  >
+                    Sourcify Verification ↗
+                  </a>
+                </li>
+                <li>
+                  <a 
+                    href="https://base-sepolia.basescan.org/address/0xFa7014906a7f7788F2bF75A7eD50911d62211407" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 transition flex items-center gap-1"
+                  >
+                    Basescan Explorer ↗
+                  </a>
+                </li>
+                <li>
+                  <a 
+                    href="https://github.com/Fredincorporation/VeilPass" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 transition flex items-center gap-1"
+                  >
+                    GitHub Repo ↗
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Resources & Links */}
             <div>
               <h4 className="font-semibold text-white mb-4">Resources</h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white transition">Documentation</a></li>
-                <li><a href="#" className="hover:text-white transition">GitHub</a></li>
+                <li>
+                  <a 
+                    href="https://docs.zama.ai/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 transition flex items-center gap-1"
+                  >
+                    Zama Docs ↗
+                  </a>
+                </li>
+                <li>
+                  <a 
+                    href="https://github.com/zama-ai/fhevm" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 transition flex items-center gap-1"
+                  >
+                    fhEVM GitHub ↗
+                  </a>
+                </li>
+                <li>
+                  <a 
+                    href="https://docs.base.org" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 transition flex items-center gap-1"
+                  >
+                    Base Docs ↗
+                  </a>
+                </li>
+                <li>
+                  <a 
+                    href="#" 
+                    className="text-gray-400 hover:text-white transition"
+                  >
+                    Privacy Policy
+                  </a>
+                </li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-gray-800 pt-8 text-sm text-center">
-            <p>&copy; 2025 VeilPass. Built with 🔒 and ❤️ for privacy.</p>
+
+          {/* Divider */}
+          <div className="border-t border-gray-800 py-8 mb-8">
+            {/* Network & Contract Info */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div className="p-4 rounded-lg bg-gray-900/50 border border-gray-800">
+                <p className="text-xs text-gray-500 mb-1">Network</p>
+                <p className="text-sm font-mono text-blue-400">Base Sepolia (84532)</p>
+              </div>
+              <div className="p-4 rounded-lg bg-gray-900/50 border border-gray-800">
+                <p className="text-xs text-gray-500 mb-1">Contract Address</p>
+                <p className="text-sm font-mono text-purple-400">0xFa7014...d62211407</p>
+              </div>
+              <div className="p-4 rounded-lg bg-gray-900/50 border border-gray-800">
+                <p className="text-xs text-gray-500 mb-1">Built With</p>
+                <p className="text-sm font-mono text-pink-400">Zama fhEVM • Next.js • Hardhat</p>
+              </div>
+            </div>
+
+            {/* Footer Bottom */}
+            <div className="flex flex-col md:flex-row justify-between items-center">
+              <p className="text-xs text-gray-500">&copy; 2025 VeilPass. Built with 🔒 and ❤️ for privacy-preserving events.</p>
+              <div className="flex gap-4 mt-4 md:mt-0">
+                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-blue-400 transition" title="Twitter">
+                  𝕏
+                </a>
+                <a href="https://discord.com" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-indigo-400 transition" title="Discord">
+                  💬
+                </a>
+                <a href="https://github.com/Fredincorporation/VeilPass" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition" title="GitHub">
+                  🐙
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </footer>
