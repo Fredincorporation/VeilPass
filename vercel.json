@@ -4,7 +4,7 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "env": {
-    "NEXT_PUBLIC_APP_NAME": "@VeilPass",
+    "NEXT_PUBLIC_APP_NAME": "VeilPass",
     "NEXT_PUBLIC_CHAIN_ID": "84532",
     "NEXT_PUBLIC_CHAIN_NAME": "Base Sepolia",
     "NEXT_PUBLIC_ADMIN_ADDRESS": "0x1234567890123456789012345678901234567890"
