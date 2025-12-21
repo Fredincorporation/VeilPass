@@ -26,6 +26,7 @@ export default function EventDetailPage() {
   const [showDeFiModal, setShowDeFiModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'eth' | 'usdc'>('eth');
   const [account, setAccount] = useState<string | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Fetch specific event from database
   const { data: event, isLoading, error } = useEventDetail(eventId);
@@ -103,6 +104,13 @@ export default function EventDetailPage() {
   };
 
   const handlePayment = async () => {
+    // Prevent multiple concurrent payment attempts
+    if (isProcessingPayment) {
+      showWarning('Payment is already in progress. Please wait...');
+      return;
+    }
+
+    setIsProcessingPayment(true);
     try {
       // Ensure we're on the client side
       if (typeof window === 'undefined') {
@@ -405,6 +413,8 @@ export default function EventDetailPage() {
       }
       
       showError(`Payment failed: ${displayMsg}`);
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
@@ -750,16 +760,27 @@ export default function EventDetailPage() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeFiModal(false)}
-                  className="flex-1 px-4 py-3 rounded-lg border-2 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                  disabled={isProcessingPayment}
+                  className="flex-1 px-4 py-3 rounded-lg border-2 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handlePayment}
-                  className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold hover:shadow-lg transition flex items-center justify-center gap-2"
+                  disabled={isProcessingPayment}
+                  className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold hover:shadow-lg transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <DollarSign className="w-4 h-4" />
-                  Pay Now
+                  {isProcessingPayment ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <DollarSign className="w-4 h-4" />
+                      Pay Now
+                    </>
+                  )}
                 </button>
               </div>
             </div>
