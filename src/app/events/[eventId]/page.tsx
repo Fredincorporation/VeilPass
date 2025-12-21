@@ -11,8 +11,7 @@ import { useWishlists, useAddToWishlist, useRemoveFromWishlist } from '@/hooks/u
 import { formatDate, formatTime } from '@/lib/date-formatter';
 import { formatEth, ethToUsd } from '@/lib/currency-utils';
 import { getPaymentOrganizerAddress, needsOrganizerMigration } from '@/lib/organizer-utils';
-import { useWalletPayment } from '@/hooks/useWalletPayment';
-import { useSendTransaction } from 'wagmi';
+import { useSendTransaction, useAccount, useChainId } from 'wagmi';
 import { parseEther } from 'ethers';
 
 export default function EventDetailPage() {
@@ -25,27 +24,26 @@ export default function EventDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [showDeFiModal, setShowDeFiModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'eth' | 'usdc'>('eth');
-  const [account, setAccount] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Fetch specific event from database
   const { data: event, isLoading, error } = useEventDetail(eventId);
 
   // Fetch user's wishlists
-  const { data: wishlists = [] } = useWishlists(account || '');
+  // Use empty string for initial queries when account is not yet loaded
+  const { data: wishlists = [] } = useWishlists('');
   const { mutate: addToWishlist, isPending: isAddingWishlist } = useAddToWishlist();
   const { mutate: removeFromWishlist, isPending: isRemovingWishlist } = useRemoveFromWishlist();
+
+  // Get account from Wagmi
+  const { address: account, isConnected } = useAccount();
+  const chainId = useChainId();
 
   // Check if current event is in user's wishlist
   const isWishlisted = account && event && wishlists.some((w: any) => w.event_id === parseInt(eventId));
 
   // Use wagmi's useSendTransaction hook for wallet transactions
-  const { sendTransaction } = useSendTransaction();
-
-  useEffect(() => {
-    const savedAccount = localStorage.getItem('veilpass_account');
-    setAccount(savedAccount);
-  }, []);
+  const { sendTransaction, isPending: isSendingTransaction } = useSendTransaction();
 
   // Use ticket tiers from database if available, otherwise use empty array
   const tiers = event?.ticket_tiers || [];
@@ -81,7 +79,7 @@ export default function EventDetailPage() {
   };
 
   const handlePurchase = () => {
-    if (!account) {
+    if (!account || !isConnected) {
       showError('Please connect your wallet first');
       return;
     }
@@ -111,269 +109,168 @@ export default function EventDetailPage() {
     }
 
     setIsProcessingPayment(true);
-    
-    const cleanup = () => setIsProcessingPayment(false);
 
     try {
-      // Ensure we're on the client side
-      if (typeof window === 'undefined') {
-        showError('Unable to process payment. Please try again.');
-        cleanup();
-        return;
-      }
-
       if (!account) {
         showError('Wallet not connected. Please connect your wallet and try again.');
-        cleanup();
+        setIsProcessingPayment(false);
         return;
       }
 
       if (totalPrice <= 0) {
         showError('Cannot process payment: Event price is not set. Please contact the organizer.');
-        cleanup();
+        setIsProcessingPayment(false);
         return;
       }
       
       // Validate organizer address
       if (!event?.organizer) {
         showError('Event organizer address not set');
-        cleanup();
+        setIsProcessingPayment(false);
         return;
       }
       
       // Check if payment method is USDC
       if (paymentMethod === 'usdc') {
         showError('USDC payment is coming soon. Please select ETH for now.');
-        cleanup();
+        setIsProcessingPayment(false);
         return;
       }
       
-      // Check if organizer is a valid Ethereum address and get payment organizer
+      // Get payment organizer address
       const paymentOrganizer = getPaymentOrganizerAddress(event.organizer);
-      
-      // Use fallback organizer if needed (no warning)
       if (needsOrganizerMigration(event.organizer)) {
         console.log(`Using fallback organizer address: ${paymentOrganizer} for event: ${event.organizer}`);
       }
-      
-      showInfo(`Requesting transaction confirmation for ${totalPrice.toFixed(4)} Ξ...`);
-      
-      // Check if window.ethereum exists
-      if (typeof window.ethereum === 'undefined') {
-        showError('Wallet provider not found. Please make sure your wallet (MetaMask, etc.) is installed and connected.');
-        cleanup();
+
+      // Check network (Base Sepolia = chainId 84532)
+      const BASE_SEPOLIA_CHAIN_ID = 84532;
+      if (chainId !== BASE_SEPOLIA_CHAIN_ID) {
+        showError(`Please switch your wallet to Base Sepolia (Chain ID: ${BASE_SEPOLIA_CHAIN_ID}). Current chain: ${chainId}`);
+        setIsProcessingPayment(false);
         return;
       }
 
-      // Ensure wallet is on Base Sepolia (chainId 84532)
-      try {
-        const currentChainId = await (window.ethereum as any).request({ method: 'eth_chainId' });
-        const desiredChainId = '0x14A34'; // 84532
-        if (currentChainId !== desiredChainId) {
-          // Try to switch the wallet network
-          try {
-            await (window.ethereum as any).request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: desiredChainId }],
-            });
-            console.log('Switched wallet to Base Sepolia');
-          } catch (switchErr: any) {
-            // If chain is not added, attempt to add it
-            if (switchErr?.code === 4902) {
-              try {
-                const rpcUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC || process.env.BASE_SEPOLIA_RPC || 'https://sepolia.base.org';
-                await (window.ethereum as any).request({
-                  method: 'wallet_addEthereumChain',
-                  params: [{
-                    chainId: desiredChainId,
-                    chainName: 'Base Sepolia',
-                    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-                    rpcUrls: [rpcUrl],
-                    blockExplorerUrls: ['https://sepolia.basescan.org'],
-                  }],
-                });
-                console.log('Added Base Sepolia to wallet and switched');
-              } catch (addErr) {
-                console.warn('Failed to add/switch network:', addErr);
-                showError('Please switch your wallet to Base Sepolia (Chain ID: 84532) and try again.');
-                cleanup();
-                return;
-              }
-            } else {
-              console.warn('Failed to switch network:', switchErr);
-              showError('Please switch your wallet to Base Sepolia (Chain ID: 84532) and try again.');
-              cleanup();
-              return;
-            }
-          }
-        }
-      } catch (chainErr) {
-        console.warn('Could not determine chainId from wallet:', chainErr);
-        showWarning('Unable to verify wallet network. Please ensure it is set to Base Sepolia.');
-      }
-      
+      showInfo(`Requesting transaction confirmation for ${totalPrice.toFixed(4)} Ξ...`);
+
       // Format amount to wei
       const amountInWei = parseEther(totalPrice.toString());
       
-      console.log('Sending transaction via EIP-1193:', {
+      console.log('Sending transaction via Wagmi:', {
         from: account,
         to: paymentOrganizer,
         value: amountInWei.toString(),
         amount: totalPrice
       });
 
-      // Prepare EIP-1193 tx params - simplified for reliability
-      const sendParams: any = {
-        from: account,
-        to: paymentOrganizer,
-        value: '0x' + amountInWei.toString(16),
-      };
-
-      // Helper function with timeout for wallet requests
-      const requestWithTimeout = async (method: string, params: any[], timeoutMs: number = 8000) => {
-        return Promise.race([
-          (window.ethereum as any).request({ method, params }),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error(`${method} request timed out after ${timeoutMs}ms`)), timeoutMs)
-          )
-        ]);
-      };
-
-      // Try to estimate gas (with timeout) - but don't block transaction if it fails
-      try {
-        const gasEstimate = await requestWithTimeout('eth_estimateGas', [sendParams], 5000);
-        if (gasEstimate) {
-          sendParams.gas = gasEstimate;
-          console.log('Gas estimate included:', gasEstimate);
-        }
-      } catch (err) {
-        console.warn('Gas estimation failed or timed out (continuing anyway):', err);
-        // Don't block - let wallet estimate gas
-      }
-
-      // Try to get gas price (with timeout) - but don't block transaction if it fails
-      try {
-        const gasPrice = await requestWithTimeout('eth_gasPrice', [], 5000);
-        if (gasPrice) {
-          sendParams.gasPrice = gasPrice;
-          console.log('Gas price included:', gasPrice);
-        }
-      } catch (err) {
-        console.warn('Gas price fetch failed or timed out (continuing anyway):', err);
-        // Don't block - let wallet estimate
-      }
-
-      // Before sending, do a quick balance check (with timeout) but don't block if it fails
-      try {
-        const balanceHex = await requestWithTimeout('eth_getBalance', [account, 'latest'], 3000);
-        const balanceBig = BigInt(balanceHex);
-        const gasLimitBig = BigInt(21000); // minimal estimate
-        const gasPriceBig = BigInt(1_000_000_000); // 1 gwei fallback
-        const valueBig = BigInt(amountInWei.toString());
-        const required = valueBig + gasLimitBig * gasPriceBig;
-
-        if (balanceBig < required) {
-          const balanceEth = ethers.formatEther(balanceBig);
-          const requiredEth = ethers.formatEther(required);
-          showError(`Insufficient funds: required ~${requiredEth} ETH, your balance ${balanceEth} ETH.`);
-          cleanup();
-          return;
-        }
-      } catch (balanceErr: any) {
-        // If balance check times out or fails, log and continue - let wallet handle it
-        console.warn('Balance check failed or timed out (continuing anyway):', balanceErr);
-      }
-
-      // Send transaction with timeout - this is the critical call
-      console.log('Sending eth_sendTransaction request to wallet...');
-      const txHashResult = await requestWithTimeout('eth_sendTransaction', [sendParams], 60000);
-      
-      const txHash = txHashResult as `0x${string}`;
-
-      if (!txHash) {
-        throw new Error('No transaction hash returned from wallet');
-      }
-      
-      console.log('Transaction submitted with hash:', txHash);
-      showSuccess(`✓ Transaction submitted! Hash: ${txHash.slice(0, 10)}...`);
-      
-      // Create tickets in database with transaction hash
-      const ticketsToCreate = Array.from({ length: quantity }, (_, i) => ({
-        event_id: parseInt(eventId),
-        owner_address: account,
-        section: selectedTierData?.name || 'General',
-        price: ticketPrice,
-        status: 'active',
-        transaction_hash: txHash,
-        ticket_number: i + 1,
-      }));
-
-      // Create each ticket
-      for (const ticketData of ticketsToCreate) {
-        const response = await fetch('/api/tickets', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+      // Use Wagmi's sendTransaction hook
+      return new Promise<void>((resolve, reject) => {
+        sendTransaction(
+          {
+            account,
+            to: paymentOrganizer as `0x${string}`,
+            value: amountInWei,
           },
-          body: JSON.stringify(ticketData),
-        });
+          {
+            onSuccess: async (txHash) => {
+              console.log('Transaction submitted with hash:', txHash);
+              showSuccess(`✓ Transaction submitted! Hash: ${txHash.slice(0, 10)}...`);
+              
+              try {
+                // Create tickets in database with transaction hash
+                const ticketsToCreate = Array.from({ length: quantity }, (_, i) => ({
+                  event_id: parseInt(eventId),
+                  owner_address: account,
+                  section: selectedTierData?.name || 'General',
+                  price: ticketPrice,
+                  status: 'active',
+                  transaction_hash: txHash,
+                  ticket_number: i + 1,
+                }));
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Ticket creation error:', errorData);
-          throw new Error(errorData.error || 'Failed to create ticket');
-        }
-      }
+                // Create each ticket
+                for (const ticketData of ticketsToCreate) {
+                  const response = await fetch('/api/tickets', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(ticketData),
+                  });
 
-      // Update event tickets_sold count
-      const newTicketsSold = (event?.tickets_sold || 0) + quantity;
-      try {
-        const updateResponse = await fetch('/api/events', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            id: eventId,
-            tickets_sold: newTicketsSold,
-          }),
-        });
+                  if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('Ticket creation error:', errorData);
+                    throw new Error(errorData.error || 'Failed to create ticket');
+                  }
+                }
 
-        if (!updateResponse.ok) {
-          console.warn('Failed to update event tickets_sold count, but tickets were created');
-        }
-      } catch (updateError) {
-        console.warn('Failed to update event tickets_sold:', updateError);
-      }
+                // Update event tickets_sold count
+                const newTicketsSold = (event?.tickets_sold || 0) + quantity;
+                try {
+                  const updateResponse = await fetch('/api/events', {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      id: eventId,
+                      tickets_sold: newTicketsSold,
+                    }),
+                  });
 
-      const loyaltyPoints = Math.floor((totalPrice * 1000) / 10);
-      showSuccess(`✓ Successfully purchased ${quantity} ticket(s)! You earned ${loyaltyPoints} loyalty points.`);
-      
-      // Reset state
-      setShowDeFiModal(false);
-      setQuantity(1);
-      setSelectedTier(tiers.length > 0 ? tiers[0].id : null);
-      
-      // Redirect to tickets page after 1.5 seconds
-      setTimeout(() => {
-        router.push('/tickets');
-      }, 1500);
-      
+                  if (!updateResponse.ok) {
+                    console.warn('Failed to update event tickets_sold count, but tickets were created');
+                  }
+                } catch (updateError) {
+                  console.warn('Failed to update event tickets_sold:', updateError);
+                }
+
+                const loyaltyPoints = Math.floor((totalPrice * 1000) / 10);
+                showSuccess(`✓ Successfully purchased ${quantity} ticket(s)! You earned ${loyaltyPoints} loyalty points.`);
+                
+                // Reset state
+                setShowDeFiModal(false);
+                setQuantity(1);
+                setSelectedTier(tiers.length > 0 ? tiers[0].id : null);
+                
+                // Redirect to tickets page after 1.5 seconds
+                setTimeout(() => {
+                  router.push('/tickets');
+                }, 1500);
+
+                resolve();
+              } catch (ticketError: any) {
+                console.error('Error creating tickets:', ticketError);
+                showError(`Tickets created but failed to save: ${ticketError.message}`);
+                resolve();
+              } finally {
+                setIsProcessingPayment(false);
+              }
+            },
+            onError: (error: any) => {
+              console.error('Payment error:', error);
+              
+              let displayMsg = 'Unknown error occurred';
+              
+              if (error?.code === 4001 || error?.message?.includes('cancelled') || error?.message?.includes('rejected')) {
+                displayMsg = 'Transaction rejected by user';
+              } else if (error?.message) {
+                displayMsg = error.message;
+              } else {
+                displayMsg = 'Payment failed. Please try again.';
+              }
+              
+              showError(`Payment failed: ${displayMsg}`);
+              setIsProcessingPayment(false);
+              reject(error);
+            },
+          }
+        );
+      });
     } catch (error: any) {
-      console.error('Payment error:', error);
-      
-      let displayMsg = 'Unknown error occurred';
-      
-      if (error?.code === 4001 || error?.message?.includes('cancelled') || error?.message?.includes('rejected')) {
-        displayMsg = 'Transaction rejected by user';
-      } else if (error?.message) {
-        displayMsg = error.message;
-      } else {
-        displayMsg = 'Payment failed. Please try again.';
-      }
-      
-      showError(`Payment failed: ${displayMsg}`);
-    } finally {
+      console.error('Unexpected error in handlePayment:', error);
+      showError('An unexpected error occurred. Please try again.');
       setIsProcessingPayment(false);
     }
   };
@@ -645,19 +542,19 @@ export default function EventDetailPage() {
               {/* Purchase Button */}
               <button
                 onClick={handlePurchase}
-                disabled={event?.status === 'Pre-Sale' || !account}
+                disabled={event?.status === 'Pre-Sale' || !isConnected}
                 title={
-                  !account ? 'Connect your wallet to purchase tickets' :
+                  !isConnected ? 'Connect your wallet to purchase tickets' :
                   event?.status === 'Pre-Sale' ? 'Tickets are not available during Pre-Sale' : 'Get Tickets'
                 }
                 className={`w-full px-6 py-4 rounded-lg text-white font-bold text-lg flex items-center justify-center gap-2 mb-4 transition ${
-                  event?.status === 'Pre-Sale' || !account
+                  event?.status === 'Pre-Sale' || !isConnected
                     ? 'bg-gray-400 dark:bg-gray-700 cursor-not-allowed opacity-60'
                     : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg'
                 }`}
               >
                 <ShoppingCart className="w-5 h-5" />
-                {!account ? 'Connect Wallet' : event?.status === 'Pre-Sale' ? 'Pre-Sale' : 'Get Tickets'}
+                {!isConnected ? 'Connect Wallet' : event?.status === 'Pre-Sale' ? 'Pre-Sale' : 'Get Tickets'}
               </button>
 
               {/* Trust Signals */}
