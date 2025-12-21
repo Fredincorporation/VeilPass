@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ConnectWallet } from './ConnectWallet';
 import { getWalletRole } from '@/lib/wallet-roles';
 import { Wallet } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -114,31 +115,31 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
               <div className="text-sm">
                 <p className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide mb-1">Supported Wallets</p>
-                <p className="font-semibold text-gray-900 dark:text-white">Coinbase Wallet Extension</p>
+                <p className="font-semibold text-gray-900 dark:text-white">MetaMask, WalletConnect-compatible wallets, and others</p>
               </div>
             </div>
 
             {/* CTA Button */}
-            <button
-              onClick={() => window.location.href = '/'}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 rounded-lg transition-all hover:shadow-lg"
-            >
-              Go to Home & Connect Wallet
-            </button>
+            <div className="mb-4">
+              {/* Render RainbowKit connect button for quick access */}
+              <div className="flex justify-center">
+                <ConnectWallet />
+              </div>
+            </div>
 
             {/* FAQ */}
             <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
               <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 font-semibold">Don't have a wallet?</p>
               <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
-                Install Coinbase Wallet extension for your browser to get started.
+                Use any supported wallet (MetaMask or a WalletConnect-compatible mobile wallet). The Connect button will show available options.
               </p>
               <a
-                href="https://www.coinbase.com/wallet"
+                href="https://www.rainbowkit.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
               >
-                Download Coinbase Wallet →
+                Learn about Wallet Connections →
               </a>
             </div>
           </div>

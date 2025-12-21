@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { ConnectWallet } from './ConnectWallet';
 import { useRouter, usePathname } from 'next/navigation';
 import { Wallet } from 'lucide-react';
 
@@ -25,97 +26,65 @@ export function WalletGuard({ children }: WalletGuardProps) {
   const publicPages = ['/'];
   const requiresWallet = !publicPages.includes(pathname);
 
+  // Update overlay visibility based on account and requirements
+  const updateOverlay = useCallback((currentAccount: string | null) => {
+    if (requiresWallet) {
+      setShowOverlay(!currentAccount);
+    } else {
+      setShowOverlay(false);
+    }
+  }, [requiresWallet]);
+
+  // Initial load
   useEffect(() => {
     setIsClient(true);
     const savedAccount = localStorage.getItem('veilpass_account');
     setAccount(savedAccount);
-    // Show overlay if no account and page requires wallet
-    setShowOverlay(!savedAccount && requiresWallet);
-  }, [requiresWallet]);
+    updateOverlay(savedAccount);
+  }, [updateOverlay]);
 
-  // Listen for storage changes
+  // Listen for storage changes (cross-tab sync)
   useEffect(() => {
     const handleStorageChange = () => {
       const savedAccount = localStorage.getItem('veilpass_account');
       setAccount(savedAccount);
-      setShowOverlay(!savedAccount && requiresWallet);
+      updateOverlay(savedAccount);
     };
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [requiresWallet]);
+  }, [updateOverlay]);
+
+  // Listen for wallet connected event
+  useEffect(() => {
+    const handleWalletConnected = () => {
+      const savedAccount = localStorage.getItem('veilpass_account');
+      setAccount(savedAccount);
+      setConnectionError('');
+      updateOverlay(savedAccount);
+      console.log('[WalletGuard] Wallet connected:', savedAccount);
+    };
+
+    window.addEventListener('walletConnected', handleWalletConnected);
+    return () => window.removeEventListener('walletConnected', handleWalletConnected);
+  }, [updateOverlay]);
 
   // Listen for custom disconnect event
   useEffect(() => {
     const handleDisconnect = () => {
       setAccount(null);
-      setShowOverlay(requiresWallet);
+      setConnectionError('');
+      updateOverlay(null);
+      console.log('[WalletGuard] Wallet disconnected');
     };
 
     window.addEventListener('walletDisconnected', handleDisconnect);
     return () => window.removeEventListener('walletDisconnected', handleDisconnect);
-  }, [requiresWallet]);
+  }, [updateOverlay]);
 
-  const getExtensionProvider = () => {
-    if (typeof window !== 'undefined' && window.coinbaseWalletExtension) {
-      return window.coinbaseWalletExtension;
-    }
-    return null;
-  };
-
-  const handleConnectWallet = async () => {
-    setIsConnecting(true);
-    setConnectionError('');
-
-    try {
-      const provider = getExtensionProvider();
-
-      if (!provider) {
-        setConnectionError('Coinbase Wallet extension not installed. Please install it from your browser\'s extension store.');
-        setIsConnecting(false);
-        return;
-      }
-
-      const accounts = (await provider.request({
-        method: 'eth_requestAccounts',
-      })) as string[];
-
-      if (!accounts || accounts.length === 0) {
-        setConnectionError('No accounts returned from extension');
-        setIsConnecting(false);
-        return;
-      }
-
-      const userAccount = accounts[0];
-
-      if (!userAccount.match(/^0x[a-fA-F0-9]{40}$/)) {
-        setConnectionError('Invalid account format received');
-        setIsConnecting(false);
-        return;
-      }
-
-      setAccount(userAccount);
-      localStorage.setItem('veilpass_account', userAccount);
-      
-      // Dispatch custom event to notify ConnectWallet component
-      const event = new Event('walletConnected');
-      window.dispatchEvent(event);
-      
-      setShowOverlay(false);
-    } catch (err: any) {
-      if (err.code === 4001) {
-        setConnectionError('You rejected the connection');
-      } else if (err.code === -32002) {
-        setConnectionError('Connection request already pending');
-      } else if (err.message?.includes('user rejected') || err.message?.includes('rejected')) {
-        setConnectionError('You rejected the connection');
-      } else {
-        setConnectionError(err.message || 'Connection failed');
-      }
-    } finally {
-      setIsConnecting(false);
-    }
-  };
+  // The actual connection UI is handled by RainbowKit's ConnectButton.
+  // We render `ConnectWallet` (wrapper around RainbowKit) in the overlay
+  // so users get the universal wallet modal instead of a single-extension flow.
 
   if (!isClient) {
     return children;
@@ -160,14 +129,9 @@ export function WalletGuard({ children }: WalletGuardProps) {
 
               {/* Action Buttons */}
               <div className="flex gap-3 flex-col">
-                <button
-                  onClick={handleConnectWallet}
-                  disabled={isConnecting}
-                  className="w-full px-4 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  <Wallet className="w-5 h-5" />
-                  {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-                </button>
+                <div>
+                  <ConnectWallet />
+                </div>
                 <button
                   onClick={() => router.push('/')}
                   className="w-full px-4 py-3 rounded-lg border-2 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition"

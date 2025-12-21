@@ -1,8 +1,8 @@
 /**
- * Custom hook for handling wallet payments using Wagmi + Coinbase OnchainKit
+ * Custom hook for handling wallet payments using Wagmi + RainbowKit
  * 
  * This hook provides proper integration with the application's configured
- * Wagmi setup and Coinbase OnchainKit for seamless wallet payments.
+ * Wagmi setup and RainbowKit for seamless wallet payments.
  */
 
 import { useCallback } from 'react';

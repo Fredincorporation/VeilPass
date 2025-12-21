@@ -58,11 +58,11 @@ export const isMobileDevice = () => {
   );
 };
 
-// CDP API Key validation
-export const validateCDPApiKey = () => {
-  const apiKey = process.env.NEXT_PUBLIC_COINBASE_CDP_API_KEY;
-  if (!apiKey) {
-    console.warn('NEXT_PUBLIC_COINBASE_CDP_API_KEY is not set. Wallet connection may not work properly.');
+// WalletConnect Project ID validation
+export const validateWalletConnectProjectId = () => {
+  const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
+  if (!projectId) {
+    console.warn('NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not set. WalletConnect features may not work properly.');
     return false;
   }
   return true;

@@ -132,16 +132,16 @@ export default function HomePage() {
             ))}
           </div>
 
-          {/* Featured Events Carousel - 3 Cards Continuous */}
+          {/* Featured Events Carousel - 1 Item on Mobile, 3 on Desktop */}
           <div>
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Featured Events</h2>
-            <div className="relative px-16">
-              {/* Carousel Container */}
+            <div className="relative px-4 md:px-16">
+              {/* Carousel Container - Responsive sizing */}
               <div className="overflow-hidden">
                 <div 
                   className="flex gap-6 transition-transform duration-700 ease-out"
                   style={{
-                    transform: `translateX(calc(-${(currentEventIndex % featuredEvents.length) * 33.33}% - ${(currentEventIndex % featuredEvents.length) * 1.5}rem))`
+                    transform: `translateX(calc(-${(currentEventIndex % featuredEvents.length) * 100}% - ${(currentEventIndex % featuredEvents.length) * 1.5}rem))`
                   }}
                 >
                   {/* Infinite loop - duplicate all events 3 times */}
@@ -155,6 +155,7 @@ export default function HomePage() {
                         key={i} 
                         className="flex-shrink-0 w-full md:w-1/3 px-3 flex"
                       >
+                        <Link href={`/events/${event.id}`} className="w-full">
                         <div className="relative group bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden hover:border-purple-500 dark:hover:border-purple-500 transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/20 hover:-translate-y-1 flex flex-col w-full">
                           {/* Image container */}
                           <div className="relative h-48 w-full bg-gray-200 dark:bg-gray-800 overflow-hidden flex-shrink-0">
@@ -208,6 +209,7 @@ export default function HomePage() {
                             </div>
                           </div>
                         </div>
+                        </Link>
                       </div>
                     );
                   })}

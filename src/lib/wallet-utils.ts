@@ -1,8 +1,8 @@
 /**
- * Wallet utilities for VeilPass using Wagmi + Coinbase OnchainKit
+ * Wallet utilities for VeilPass using Wagmi + RainbowKit
  * 
- * This module provides proper wallet integration using the application's
- * configured Wagmi setup with Coinbase OnchainKit.
+ * This module provides helper utilities intended to work with the
+ * application's Wagmi + RainbowKit configuration.
  */
 
 import { isAddress } from 'ethers';
@@ -58,9 +58,10 @@ export const NETWORK_CONFIG = {
  * Check if we're on the correct network (Base Sepolia)
  */
 export function isCorrectNetwork(): boolean {
-  // This would typically be checked via wagmi's useNetwork hook
-  // For now, we'll assume the user is on the correct network
-  // since the Coinbase OnchainKit should handle network switching
+  // This would typically be checked via wagmi's useNetwork hook.
+  // Utility functions do not have access to React hooks, so callers
+  // should use `useNetwork()` or `useAccount()` from `wagmi` to
+  // determine the active chain in client components.
   return true;
 }
 

@@ -37,7 +37,7 @@ export default function EventDetailPage() {
   // Check if current event is in user's wishlist
   const isWishlisted = account && event && wishlists.some((w: any) => w.event_id === parseInt(eventId));
 
-  // Use wagmi's useSendTransaction hook for proper Coinbase Wallet SDK integration
+  // Use wagmi's useSendTransaction hook for wallet transactions
   const { sendTransaction } = useSendTransaction();
 
   useEffect(() => {
@@ -131,7 +131,7 @@ export default function EventDetailPage() {
       
       // Check if window.ethereum exists
       if (!window.ethereum) {
-        showError('Wallet provider not found. Please install MetaMask or Coinbase Wallet.');
+        showError('Wallet provider not found. Please install a browser wallet (e.g. MetaMask) or connect via WalletConnect.');
         return;
       }
 
