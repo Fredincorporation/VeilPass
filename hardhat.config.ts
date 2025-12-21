@@ -14,6 +14,7 @@ dotenv.config({ path: path.resolve(__dirname, '.env.local') });
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000000";
 const BASE_SEPOLIA_RPC = process.env.BASE_SEPOLIA_RPC || "https://sepolia.base.org";
+const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY || "";
 
 const config: HardhatUserConfig = {
   solidity: "0.8.20",
@@ -32,6 +33,12 @@ const config: HardhatUserConfig = {
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts",
+  },
+  etherscan: {
+    apiKey: BASESCAN_API_KEY,
+  },
+  sourcify: {
+    enabled: true,
   },
 };
 

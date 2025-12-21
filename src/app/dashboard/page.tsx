@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useTranslation } from '@/lib/translation-context';
 import { getWalletRole } from '@/lib/wallet-roles';
@@ -15,6 +16,7 @@ import { Ticket, Gift, Gavel, UserPlus, LogOut, Calendar, Plus, BarChart3, Setti
 export default function DashboardPage() {
   const { t } = useTranslation();
   const { showSuccess, showError } = useToast();
+  const router = useRouter();
   const [account, setAccount] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<'customer' | 'seller' | 'admin' | 'awaiting_seller'>('customer');
   const [isClient, setIsClient] = useState(false);
@@ -47,6 +49,13 @@ export default function DashboardPage() {
       const updatedAccount = localStorage.getItem('veilpass_account');
       if (updatedAccount && updatedAccount !== account) {
         setAccount(updatedAccount);
+        try {
+          // soft-refresh Next.js cache for this route
+          router.refresh();
+        } catch (e) {
+          // fallback to full reload if refresh isn't available
+          window.location.reload();
+        }
       }
     };
 
