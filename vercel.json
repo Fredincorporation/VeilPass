@@ -9,11 +9,5 @@
     "NEXT_PUBLIC_CHAIN_NAME": "Base Sepolia",
     "NEXT_PUBLIC_ADMIN_ADDRESS": "0x1234567890123456789012345678901234567890"
   },
-  "regions": ["sfo1"],
-  "functions": {
-    "api/**": {
-      "memory": 1024,
-      "maxDuration": 60
-    }
-  }
+  "regions": ["sfo1"]
 }
