@@ -296,10 +296,23 @@ export default function AuctionsPage() {
                   </div>
 
                   {/* Action Button */}
-                  <button onClick={() => handlePlaceBid(auction)} className="w-full px-4 py-3 rounded-lg bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-semibold transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/30 group/btn flex items-center justify-center gap-2">
-                    Place Encrypted Bid
-                    <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-                  </button>
+                  {(() => {
+                    const isEnded = timeState[auction.id]?.timeLeft === 'Ended';
+                    return (
+                      <button 
+                        onClick={() => handlePlaceBid(auction)} 
+                        disabled={isEnded}
+                        className={`w-full px-4 py-3 rounded-lg text-white font-semibold transition-all duration-300 group/btn flex items-center justify-center gap-2 ${
+                          isEnded
+                            ? 'bg-gray-400 dark:bg-gray-700 cursor-not-allowed opacity-60'
+                            : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 hover:shadow-lg hover:shadow-indigo-500/30'
+                        }`}
+                      >
+                        {isEnded ? 'Auction Ended' : 'Place Encrypted Bid'}
+                        {!isEnded && <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />}
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
             );

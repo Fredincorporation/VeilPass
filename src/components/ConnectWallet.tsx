@@ -31,11 +31,13 @@ export function ConnectWallet() {
       
       // small delay before redirect to allow other listeners
       setTimeout(() => {
-        // If we're not already on dashboard, redirect after connect
+        // Only redirect to dashboard if on home page, otherwise stay on current page
         try {
-          if (window.location.pathname !== '/dashboard') {
+          const currentPath = window.location.pathname;
+          if (currentPath === '/' || currentPath === '/dashboard') {
             router.push('/dashboard');
           }
+          // If on any other page (like /tickets), don't redirect - let the page handle it
         } catch (e) {
           console.warn('Navigation error:', e);
         }

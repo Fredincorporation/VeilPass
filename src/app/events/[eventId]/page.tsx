@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { DollarSign, ShoppingCart, Lock, CheckCircle, Info, Users, Clock, MapPin, Heart, Share2 } from 'lucide-react';
 import { ethers } from 'ethers';
 import { useToast } from '@/components/ToastContainer';
@@ -17,6 +17,7 @@ import { parseEther } from 'ethers';
 
 export default function EventDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const eventId = params.eventId as string;
   const { showSuccess, showError, showWarning, showInfo } = useToast();
   const { price: ethPrice } = useEthPrice();
@@ -116,6 +117,12 @@ export default function EventDetailPage() {
       // Validate organizer address
       if (!event?.organizer) {
         showError('Event organizer address not set');
+        return;
+      }
+      
+      // Check if payment method is USDC
+      if (paymentMethod === 'usdc') {
+        showError('USDC payment is coming soon. Please select ETH for now.');
         return;
       }
       
@@ -372,6 +379,11 @@ export default function EventDetailPage() {
       setShowDeFiModal(false);
       setQuantity(1);
       setSelectedTier(tiers.length > 0 ? tiers[0].id : null);
+      
+      // Redirect to tickets page after 1.5 seconds
+      setTimeout(() => {
+        router.push('/tickets');
+      }, 1500);
       
     } catch (error: any) {
       console.error('Payment error:', error);
@@ -657,16 +669,19 @@ export default function EventDetailPage() {
               {/* Purchase Button */}
               <button
                 onClick={handlePurchase}
-                disabled={event?.status === 'Pre-Sale'}
-                title={event?.status === 'Pre-Sale' ? 'Tickets are not available during Pre-Sale' : 'Get Tickets'}
+                disabled={event?.status === 'Pre-Sale' || !account}
+                title={
+                  !account ? 'Connect your wallet to purchase tickets' :
+                  event?.status === 'Pre-Sale' ? 'Tickets are not available during Pre-Sale' : 'Get Tickets'
+                }
                 className={`w-full px-6 py-4 rounded-lg text-white font-bold text-lg flex items-center justify-center gap-2 mb-4 transition ${
-                  event?.status === 'Pre-Sale'
+                  event?.status === 'Pre-Sale' || !account
                     ? 'bg-gray-400 dark:bg-gray-700 cursor-not-allowed opacity-60'
                     : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg'
                 }`}
               >
                 <ShoppingCart className="w-5 h-5" />
-                {event?.status === 'Pre-Sale' ? 'Pre-Sale' : 'Get Tickets'}
+                {!account ? 'Connect Wallet' : event?.status === 'Pre-Sale' ? 'Pre-Sale' : 'Get Tickets'}
               </button>
 
               {/* Trust Signals */}
