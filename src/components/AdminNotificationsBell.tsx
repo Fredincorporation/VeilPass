@@ -15,13 +15,34 @@ export default function AdminNotificationsBell({ adminWallet, className = '' }: 
   const { mutate: markAsRead } = useMarkAdminNotificationsAsRead();
 
   const handleMarkAllAsRead = () => {
-    if (unreadNotifications.length > 0) {
-      markAsRead(unreadNotifications.map((n: any) => n.id));
+    console.log('[AdminNotificationsBell] handleMarkAllAsRead called', {
+      unreadCount: unreadNotifications.length,
+      adminWallet,
+    });
+    if (unreadNotifications.length > 0 && adminWallet) {
+      console.log('[AdminNotificationsBell] Calling markAsRead with:', {
+        notificationIds: unreadNotifications.map((n: any) => n.id),
+        adminWallet,
+      });
+      markAsRead({
+        notificationIds: unreadNotifications.map((n: any) => n.id),
+        adminWallet,
+      });
+    } else {
+      console.warn('[AdminNotificationsBell] Missing data:', {
+        hasNotifications: unreadNotifications.length > 0,
+        hasWallet: !!adminWallet,
+      });
     }
   };
 
   const handleNotificationClick = (notificationId: number) => {
-    markAsRead([notificationId]);
+    if (adminWallet) {
+      markAsRead({
+        notificationIds: [notificationId],
+        adminWallet,
+      });
+    }
   };
 
   const getNotificationIcon = (type: string) => {

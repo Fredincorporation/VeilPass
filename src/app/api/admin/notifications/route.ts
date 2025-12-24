@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { isAdmin } from '@/lib/wallet-roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,9 +17,17 @@ const supabase = createClient(
  *   - unread_only: true to get only unread notifications (optional)
  */
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const adminWalletRaw = searchParams.get('admin_wallet');
+
+  // Check admin authorization - pass raw address to isAdmin()
+  if (!adminWalletRaw || !isAdmin(adminWalletRaw)) {
+    console.warn('[SECURITY] Unauthorized admin notifications access from:', { raw: adminWalletRaw });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
+
   try {
-    const { searchParams } = new URL(request.url);
-    const adminWallet = searchParams.get('admin_wallet');
+    const adminWallet = adminWalletRaw.trim().toLowerCase();
     const unreadOnly = searchParams.get('unread_only') === 'true';
 
     let query = supabase
@@ -69,7 +78,17 @@ export async function GET(request: NextRequest) {
  * Body: { notification_ids: number[], read: boolean }
  */
 export async function PUT(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const adminWalletRaw = searchParams.get('admin_wallet');
+
+  // Check admin authorization - pass raw address to isAdmin()
+  if (!adminWalletRaw || !isAdmin(adminWalletRaw)) {
+    console.warn('[SECURITY] Unauthorized admin notifications update from:', { raw: adminWalletRaw });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
+
   try {
+    const adminWallet = adminWalletRaw.trim().toLowerCase();
     const body = await request.json();
     const { notification_ids, read } = body;
 

@@ -8,6 +8,12 @@ import { ConnectWallet } from './ConnectWallet';
 import { Bell, Menu, X } from 'lucide-react';
 import AdminNotificationsBell from './AdminNotificationsBell';
 
+function readCookie(name: string) {
+  if (typeof document === 'undefined') return null;
+  const m = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return m ? decodeURIComponent(m[2]) : null;
+}
+
 export function Header() {
   const [hasNotifications, setHasNotifications] = useState(false);
   const [userWallet, setUserWallet] = useState<string | null>(null);
@@ -18,7 +24,9 @@ export function Header() {
   useEffect(() => {
     const handleWalletConnected = () => {
       const wallet = localStorage.getItem('veilpass_account');
+      const role = readCookie('veilpass_role');
       setUserWallet(wallet);
+      setUserRole(role);
       setMobileMenuOpen(false); // Close mobile menu on connect
     };
 
@@ -39,7 +47,9 @@ export function Header() {
 
   useEffect(() => {
     const wallet = localStorage.getItem('veilpass_account');
+    const role = readCookie('veilpass_role');
     setUserWallet(wallet);
+    setUserRole(role);
 
     const checkNotifications = async () => {
       try {
@@ -64,23 +74,7 @@ export function Header() {
       }
     };
 
-    // Also fetch user role
-    const checkUserRole = async () => {
-      try {
-        if (!wallet) return;
-        
-        const response = await fetch(`/api/user?wallet=${encodeURIComponent(wallet)}`);
-        if (response.ok) {
-          const data = await response.json();
-          setUserRole(data.role);
-        }
-      } catch (error) {
-        console.error('Error fetching user role:', error);
-      }
-    };
-
     checkNotifications();
-    checkUserRole();
     // Check for new notifications every 30 seconds for faster updates
     const interval = setInterval(checkNotifications, 30000);
     return () => clearInterval(interval);

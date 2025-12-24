@@ -47,6 +47,22 @@ export async function verifyAdminAuth() {
 }
 
 /**
+ * Verify admin wallet authorization
+ * Checks if wallet address is registered as admin in wallet-roles
+ */
+export async function verifyAdminWallet(walletAddress: string | null): Promise<boolean> {
+  if (!walletAddress) return false;
+  
+  try {
+    const { isAdmin } = await import('./wallet-roles');
+    return isAdmin(walletAddress);
+  } catch (error) {
+    console.error('[AUTH] Error verifying admin wallet:', error);
+    return false;
+  }
+}
+
+/**
  * Verify user is a seller
  * Checks: is authenticated AND has role='seller' OR role='awaiting_seller' in users table
  */

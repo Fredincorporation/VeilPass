@@ -36,7 +36,9 @@ export default function DashboardPage() {
     userRole === 'customer' ? account : null
   );
   // Only fetch admin stats if user is admin
-  const { data: adminStats, isLoading: isAdminStatsLoading, refetch } = useAdminStats(userRole === 'admin');
+  const { data: adminStats, isLoading: isAdminStatsLoading, refetch } = useAdminStats(
+    userRole === 'admin' ? account || true : false
+  );
 
   useEffect(() => {
     setIsClient(true);

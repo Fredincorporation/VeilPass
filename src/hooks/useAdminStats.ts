@@ -9,12 +9,19 @@ export interface AdminStats {
   platformVolume: string; // ETH amount
 }
 
-export function useAdminStats(enabled: boolean = true) {
+export function useAdminStats(enabledOrWallet: boolean | string = true) {
+  // Support both boolean (for backwards compatibility) and wallet address string
+  const enabled = typeof enabledOrWallet === 'boolean' ? enabledOrWallet : !!enabledOrWallet;
+  const adminWallet = typeof enabledOrWallet === 'string' ? enabledOrWallet : null;
+
   return useQuery<AdminStats>({
-    queryKey: ['adminStats'],
+    queryKey: ['adminStats', adminWallet],
     queryFn: async () => {
       try {
-        const response = await fetch('/api/admin/stats');
+        const url = adminWallet 
+          ? `/api/admin/stats?admin_wallet=${encodeURIComponent(adminWallet)}`
+          : '/api/admin/stats';
+        const response = await fetch(url);
         console.log('Admin stats response status:', response.status);
         if (!response.ok) {
           console.error('Admin stats API error:', response.status);

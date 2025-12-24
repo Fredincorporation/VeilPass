@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
+import { getWalletRole } from '@/lib/wallet-roles';
 
 /**
  * ConnectWallet wrapper using RainbowKit's ConnectButton.
@@ -29,6 +30,11 @@ export function ConnectWallet() {
       window.dispatchEvent(new Event('walletConnected'));
       console.log('[ConnectWallet] Wallet connected:', address);
       
+      // Set role cookie based on wallet role
+      const role = getWalletRole(address);
+      document.cookie = `veilpass_role=${role}; path=/; max-age=2592000`;
+      console.log('[ConnectWallet] Role cookie set:', role);
+      
       // small delay before redirect to allow other listeners
       setTimeout(() => {
         // Only redirect to dashboard if on home page, otherwise stay on current page
@@ -46,12 +52,19 @@ export function ConnectWallet() {
     // Handle disconnection: wallet was connected, now disconnected
     else if (previousState.isConnected && !isConnected) {
       localStorage.removeItem('veilpass_account');
+      document.cookie = 'veilpass_role=; path=/; max-age=0';
       window.dispatchEvent(new Event('walletDisconnected'));
       console.log('[ConnectWallet] Wallet disconnected');
     }
     // Handle address change (wallet switched)
     else if (isConnected && previousState.address && address && previousState.address !== address) {
       localStorage.setItem('veilpass_account', address);
+      
+      // Update role cookie for new address
+      const role = getWalletRole(address);
+      document.cookie = `veilpass_role=${role}; path=/; max-age=2592000`;
+      console.log('[ConnectWallet] Role cookie updated:', role);
+      
       window.dispatchEvent(new Event('walletConnected'));
       console.log('[ConnectWallet] Wallet address changed:', address);
     }

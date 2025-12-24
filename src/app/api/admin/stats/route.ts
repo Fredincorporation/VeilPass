@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
+import { isAdmin } from '@/lib/wallet-roles';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -13,7 +14,14 @@ const supabase = createClient(
   supabaseAnonKey || ''
 );
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Check admin authorization
+  const adminWalletRaw = request.nextUrl.searchParams.get('admin_wallet');
+  if (!adminWalletRaw || !isAdmin(adminWalletRaw)) {
+    console.warn('[SECURITY] Unauthorized admin stats access from:', { raw: adminWalletRaw });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
+
   try {
     console.log('📊 Fetching admin stats...');
 

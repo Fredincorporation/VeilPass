@@ -50,16 +50,25 @@ export function useMarkAdminNotificationsAsRead() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (notificationIds: number[]) => {
-      const { data } = await axios.put('/api/admin/notifications', {
-        notification_ids: notificationIds,
-        read: true,
-      });
+    mutationFn: async ({ notificationIds, adminWallet }: { notificationIds: number[]; adminWallet: string }) => {
+      console.log('[useMarkAdminNotificationsAsRead] Starting mutation:', { notificationIds, adminWallet });
+      const { data } = await axios.put(
+        `/api/admin/notifications?admin_wallet=${encodeURIComponent(adminWallet)}`,
+        {
+          notification_ids: notificationIds,
+          read: true,
+        }
+      );
+      console.log('[useMarkAdminNotificationsAsRead] Success:', data);
       return data;
     },
     onSuccess: () => {
+      console.log('[useMarkAdminNotificationsAsRead] Invalidating queries');
       queryClient.invalidateQueries({ queryKey: ['adminNotifications'] });
       queryClient.invalidateQueries({ queryKey: ['adminUnreadNotifications'] });
+    },
+    onError: (error) => {
+      console.error('[useMarkAdminNotificationsAsRead] Error:', error);
     },
   });
 }

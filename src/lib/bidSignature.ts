@@ -63,11 +63,11 @@ export async function signBid(bidData: BidSignaturePayload, signerAddress?: stri
         let amountWeiStr: string;
         try {
           if (typeof bidData.amount === 'number') {
-            amountWeiStr = ethers.parseEther(String(bidData.amount)).toString();
+            amountWeiStr = parseEther(String(bidData.amount)).toString();
           } else if (typeof bidData.amount === 'string') {
             // If it contains a decimal point, treat as ETH decimal and parse to wei
             if (bidData.amount.indexOf('.') >= 0) {
-              amountWeiStr = ethers.parseEther(bidData.amount).toString();
+              amountWeiStr = parseEther(bidData.amount).toString();
             } else {
               // assume it's already a wei integer string
               amountWeiStr = bidData.amount;

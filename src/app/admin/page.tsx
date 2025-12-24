@@ -1,12 +1,21 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { BarChart3, Users, AlertCircle, FileText, Shield, CheckCircle, RotateCw } from 'lucide-react';
 import { useAdminStats } from '@/hooks/useAdminStats';
 
 export default function AdminPage() {
-  const { data: stats, isLoading, error, refetch } = useAdminStats();
+  const [adminWallet, setAdminWallet] = useState<string | null>(null);
+
+  useEffect(() => {
+    const savedAccount = localStorage.getItem('veilpass_account');
+    if (savedAccount) {
+      setAdminWallet(savedAccount);
+    }
+  }, []);
+
+  const { data: stats, isLoading, error, refetch } = useAdminStats(adminWallet || true);
 
   const adminSections = [
     {

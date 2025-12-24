@@ -15,6 +15,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Normalize wallet address to lowercase for consistency
+    const normalizedAddress = walletAddress.toLowerCase();
+
     // Allow clients to request only specific fields (comma-separated) to reduce payload
     // Example: /api/user?wallet=0x...&fields=role,wallet_address
     const selectFields = fieldsParam && fieldsParam.trim().length > 0 ? fieldsParam : '*';
@@ -22,21 +25,49 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from('users')
       .select(selectFields)
-      .eq('wallet_address', walletAddress)
+      .ilike('wallet_address', normalizedAddress)
       .single();
 
     if (error && error.code === 'PGRST116') {
       // User doesn't exist, create one
-      return createUser(walletAddress);
+      return createUser(normalizedAddress);
     }
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error fetching user:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        status: error.status,
+      });
+      
+      // Return a fallback user object if database isn't ready yet
+      // This allows the frontend to continue functioning during setup
+      console.warn(`Database unavailable, returning fallback user for ${normalizedAddress}`);
+      return NextResponse.json({
+        wallet_address: normalizedAddress,
+        role: 'customer',
+        loyalty_points: 0,
+      });
+    }
 
     return NextResponse.json(data);
   } catch (error: any) {
     console.error('Error fetching user:', error);
+    
+    // Fallback response to prevent blocking the UI
+    const walletAddress = request.nextUrl.searchParams.get('wallet');
+    if (walletAddress) {
+      return NextResponse.json({
+        wallet_address: walletAddress.toLowerCase(),
+        role: 'customer',
+        loyalty_points: 0,
+      });
+    }
+    
     return NextResponse.json(
-      { error: error.message },
+      { error: error.message || 'Failed to fetch user' },
       { status: 500 }
     );
   }
@@ -44,6 +75,8 @@ export async function GET(request: NextRequest) {
 
 async function createUser(walletAddress: string) {
   try {
+    console.log('Creating new user:', walletAddress);
+    
     const { data, error } = await supabase
       .from('users')
       .insert([{
@@ -54,15 +87,35 @@ async function createUser(walletAddress: string) {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error creating user:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        status: error.status,
+      });
+      
+      // Return fallback if database isn't ready
+      console.warn(`Failed to create user in DB, returning fallback for ${walletAddress}`);
+      return NextResponse.json({
+        wallet_address: walletAddress,
+        role: 'customer',
+        loyalty_points: 0,
+      });
+    }
 
+    console.log('User created successfully:', data);
     return NextResponse.json(data, { status: 201 });
   } catch (error: any) {
     console.error('Error creating user:', error);
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+    
+    // Return fallback on error
+    return NextResponse.json({
+      wallet_address: walletAddress,
+      role: 'customer',
+      loyalty_points: 0,
+    });
   }
 }
 

@@ -33,7 +33,18 @@ export function hasRole(address: string | null, role: WalletRole): boolean {
  * Check if a wallet is admin
  */
 export function isAdmin(address: string | null): boolean {
-  return hasRole(address, 'admin');
+  if (!address) return false;
+  
+  // Check hardcoded admin wallet
+  if (hasRole(address, 'admin')) return true;
+  
+  // Also check against environment variable for flexibility
+  const envAdmin = process.env.NEXT_PUBLIC_ADMIN_ADDRESS;
+  if (envAdmin && address.toLowerCase() === envAdmin.toLowerCase()) {
+    return true;
+  }
+  
+  return false;
 }
 
 /**
