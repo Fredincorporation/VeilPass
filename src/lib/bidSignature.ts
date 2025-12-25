@@ -37,6 +37,8 @@ function toWeiString(amount: number | string): string {
     return String(amount);
   }
 }
+
+export interface BidSignaturePayload {
   auction_id: number;
   bidder_address: string;
   // `amount` may be provided as an ETH decimal (number or string like "0.0022")
