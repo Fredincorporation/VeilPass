@@ -39,7 +39,6 @@ export async function GET(request: NextRequest) {
         message: error.message,
         details: error.details,
         hint: error.hint,
-        status: error.status,
       });
       
       // Return a fallback user object if database isn't ready yet
@@ -97,7 +96,6 @@ async function createUser(walletAddress: string) {
         message: error.message,
         details: error.details,
         hint: error.hint,
-        status: error.status,
       });
       
       // Return fallback if database isn't ready
