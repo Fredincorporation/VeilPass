@@ -6,7 +6,37 @@
 import { parseEther, BrowserProvider, id, Signature, zeroPadValue, toBeHex, verifyTypedData } from 'ethers';
 import { _TypedDataEncoder } from '@ethersproject/hash';
 
-export interface BidSignaturePayload {
+/**
+ * Safely convert an ETH amount (number, string, or wei string) to a wei string
+ * Handles edge cases and provides better error messages
+ */
+function toWeiString(amount: number | string): string {
+  try {
+    if (typeof amount === 'number') {
+      // Handle numbers safely - convert to string first
+      const amountStr = amount.toString();
+      return parseEther(amountStr).toString();
+    } else if (typeof amount === 'string') {
+      // Check if it's already a wei integer string (no decimal point, all digits)
+      const trimmed = amount.trim();
+      if (trimmed.indexOf('.') === -1 && /^\d+$/.test(trimmed)) {
+        // It's already a wei integer string
+        return trimmed;
+      }
+      // Otherwise, try to parse as ETH decimal
+      return parseEther(trimmed).toString();
+    } else {
+      // Fallback for other types
+      return parseEther(String(amount)).toString();
+    }
+  } catch (error) {
+    console.warn(
+      `Failed to convert amount to wei: ${amount}. Error: ${(error as any)?.message || error}. Falling back to raw string.`
+    );
+    // Return as plain string if all else fails
+    return String(amount);
+  }
+}
   auction_id: number;
   bidder_address: string;
   // `amount` may be provided as an ETH decimal (number or string like "0.0022")
@@ -57,30 +87,8 @@ export async function signBid(bidData: BidSignaturePayload, signerAddress?: stri
         const domain = BID_DOMAIN;
         const types = BID_TYPES;
 
-        // Normalize numeric fields to string form to ensure canonical EIP-712 encoding
-        // Convert ETH decimal to wei integer string when possible. If the caller
-        // already provided a wei integer string, keep it as-is.
-        let amountWeiStr: string;
-        try {
-          if (typeof bidData.amount === 'number') {
-            amountWeiStr = parseEther(String(bidData.amount)).toString();
-          } else if (typeof bidData.amount === 'string') {
-            // If it contains a decimal point, treat as ETH decimal and parse to wei
-            if (bidData.amount.indexOf('.') >= 0) {
-              amountWeiStr = parseEther(bidData.amount).toString();
-            } else {
-              // assume it's already a wei integer string
-              amountWeiStr = bidData.amount;
-            }
-          } else {
-            amountWeiStr = String(bidData.amount);
-          }
-        } catch (amtErr) {
-          // Fallback: fall back to plain string form if parseEther fails
-          // eslint-disable-next-line no-console
-          console.warn('Failed to canonicalize amount to wei, using raw value:', (amtErr as any)?.message || amtErr);
-          amountWeiStr = String(bidData.amount);
-        }
+        // Normalize amount to wei string using the safe helper
+        const amountWeiStr = toWeiString(bidData.amount);
         const amountUsdCentsStr = String(Math.round(Number(bidData.amount_usd ?? 0) * 100));
 
         const messageValue = {
@@ -230,21 +238,9 @@ export function verifyBidSignature(bidData: BidSignaturePayload, signature: stri
     // Use integer cents for amount_usd to match signing logic
     const amountUsdCents = BigInt(Math.round(Number(bidData.amount_usd ?? 0) * 100));
 
-    // Normalise amount to a wei bigint for verification. Accept either an
-    // ETH decimal (number or string with '.') or a wei integer string.
-    let amountWeiBigInt: bigint;
-    if (typeof bidData.amount === 'number') {
-      amountWeiBigInt = parseEther(String(bidData.amount));
-    } else if (typeof bidData.amount === 'string') {
-      if (bidData.amount.indexOf('.') >= 0) {
-        amountWeiBigInt = parseEther(bidData.amount);
-      } else {
-        // assume wei integer string
-        amountWeiBigInt = BigInt(bidData.amount);
-      }
-    } else {
-      amountWeiBigInt = BigInt(String(bidData.amount));
-    }
+    // Normalise amount to a wei bigint for verification using the safe helper
+    const weiStr = toWeiString(bidData.amount);
+    const amountWeiBigInt = BigInt(weiStr);
 
     const value = {
       auction_id: BigInt(bidData.auction_id),

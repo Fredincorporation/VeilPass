@@ -57,17 +57,21 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching user:', error);
     
     // Fallback response to prevent blocking the UI
-    const walletAddress = request.nextUrl.searchParams.get('wallet');
-    if (walletAddress) {
-      return NextResponse.json({
-        wallet_address: walletAddress.toLowerCase(),
-        role: 'customer',
-        loyalty_points: 0,
-      });
+    try {
+      const walletAddress = request.nextUrl.searchParams.get('wallet');
+      if (walletAddress) {
+        return NextResponse.json({
+          wallet_address: walletAddress.toLowerCase(),
+          role: 'customer',
+          loyalty_points: 0,
+        });
+      }
+    } catch (e) {
+      console.error('Error extracting wallet from request:', e);
     }
     
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch user' },
+      { error: error.message || 'Failed to fetch user', isUnavailable: true },
       { status: 500 }
     );
   }
