@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +36,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (error) {
-      console.error('Supabase error fetching user:', {
+      captureException('Supabase error fetching user:', {
         code: error.code,
         message: error.message,
         details: error.details,
@@ -43,7 +45,7 @@ export async function GET(request: NextRequest) {
       
       // Return a fallback user object if database isn't ready yet
       // This allows the frontend to continue functioning during setup
-      console.warn(`Database unavailable, returning fallback user for ${normalizedAddress}`);
+      logger.warn(`Database unavailable, returning fallback user for ${normalizedAddress}`);
       return NextResponse.json({
         wallet_address: normalizedAddress,
         role: 'customer',
@@ -53,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Error fetching user:', error);
+    captureException('Error fetching user:', error);
     
     // Fallback response to prevent blocking the UI
     try {
@@ -66,7 +68,7 @@ export async function GET(request: NextRequest) {
         });
       }
     } catch (e) {
-      console.error('Error extracting wallet from request:', e);
+      captureException('Error extracting wallet from request:', e);
     }
     
     return NextResponse.json(
@@ -78,7 +80,7 @@ export async function GET(request: NextRequest) {
 
 async function createUser(walletAddress: string) {
   try {
-    console.log('Creating new user:', walletAddress);
+    logger.info('Creating new user:', walletAddress);
     
     const { data, error } = await supabase
       .from('users')
@@ -91,7 +93,7 @@ async function createUser(walletAddress: string) {
       .single();
 
     if (error) {
-      console.error('Supabase error creating user:', {
+      captureException('Supabase error creating user:', {
         code: error.code,
         message: error.message,
         details: error.details,
@@ -99,7 +101,7 @@ async function createUser(walletAddress: string) {
       });
       
       // Return fallback if database isn't ready
-      console.warn(`Failed to create user in DB, returning fallback for ${walletAddress}`);
+      logger.warn(`Failed to create user in DB, returning fallback for ${walletAddress}`);
       return NextResponse.json({
         wallet_address: walletAddress,
         role: 'customer',
@@ -107,10 +109,10 @@ async function createUser(walletAddress: string) {
       });
     }
 
-    console.log('User created successfully:', data);
+    logger.info('User created successfully:', data);
     return NextResponse.json(data, { status: 201 });
   } catch (error: any) {
-    console.error('Error creating user:', error);
+    captureException('Error creating user:', error);
     
     // Return fallback on error
     return NextResponse.json({
@@ -157,14 +159,14 @@ export async function PUT(request: NextRequest) {
             .insert(notifications);
         }
       } catch (notificationError) {
-        console.error('Error creating admin notification:', notificationError);
+        captureException('Error creating admin notification:', notificationError);
         // Don't fail the request if notification fails
       }
     }
 
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Error updating user:', error);
+    captureException('Error updating user:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }

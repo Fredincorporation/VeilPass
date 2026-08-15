@@ -4,6 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 import { fetchEthPrice } from '@/lib/currency-utils';
 import { verifyBidSignature, BidSignaturePayload } from '@/lib/bidSignature';
 import { getMinimumNextBid, validateBidIncrement } from '@/lib/bidConfig';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,7 +87,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(transformedData);
   } catch (error: any) {
-    console.error('Error fetching bids:', error);
+    captureException('Error fetching bids:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
@@ -125,7 +127,7 @@ export async function POST(request: NextRequest) {
 
     const isSignatureValid = verifyBidSignature(bidSignatureData, signature);
     if (!isSignatureValid) {
-      console.warn(`Invalid bid signature from ${body.bidder_address} for auction ${body.auction_id}`);
+      logger.warn(`Invalid bid signature from ${body.bidder_address} for auction ${body.auction_id}`);
       return NextResponse.json(
         { error: 'Bid signature verification failed' },
         { status: 401 }
@@ -153,12 +155,12 @@ export async function POST(request: NextRequest) {
       }).single<BidValidationRpcResult>();
 
       if (rpcRes.error) {
-        console.warn('validate_and_place_bid RPC returned error:', rpcRes.error);
+        logger.warn('validate_and_place_bid RPC returned error:', rpcRes.error);
       } else {
         rpcResult = rpcRes.data as BidValidationRpcResult;
       }
     } catch (e) {
-      console.warn('validate_and_place_bid RPC call failed:', e);
+      logger.warn('validate_and_place_bid RPC call failed:', e);
     }
 
     // If RPC failed to provide a result, fall back to a service-role upsert approach
@@ -174,7 +176,7 @@ export async function POST(request: NextRequest) {
           .limit(1);
 
         if (selectErr) {
-          console.error('Error selecting existing bid in fallback path:', selectErr);
+          captureException('Error selecting existing bid in fallback path:', selectErr);
         }
 
         if (existingBids && existingBids.length > 0) {
@@ -193,7 +195,7 @@ export async function POST(request: NextRequest) {
             .single();
 
           if (updateErr) {
-            console.error('Error updating existing bid in fallback path:', updateErr);
+            captureException('Error updating existing bid in fallback path:', updateErr);
             return NextResponse.json({ error: 'Database error during fallback bid update' }, { status: 500 });
           }
 
@@ -222,7 +224,7 @@ export async function POST(request: NextRequest) {
             .single();
 
           if (insertErr) {
-            console.error('Error inserting bid in fallback path:', insertErr);
+            captureException('Error inserting bid in fallback path:', insertErr);
             return NextResponse.json({ error: 'Database error during fallback bid insert' }, { status: 500 });
           }
 
@@ -236,14 +238,14 @@ export async function POST(request: NextRequest) {
           } as BidValidationRpcResult;
         }
       } catch (fallbackErr) {
-        console.error('Fallback upsert failed:', fallbackErr);
+        captureException('Fallback upsert failed:', fallbackErr);
         return NextResponse.json({ error: 'Database error during bid placement' }, { status: 500 });
       }
     }
 
     // Check if RPC returned validation failure
     if (!rpcResult?.success) {
-      console.warn(`Bid validation failed for ${body.bidder_address}:`, rpcResult?.error);
+      logger.warn(`Bid validation failed for ${body.bidder_address}:`, rpcResult?.error);
       return NextResponse.json(
         {
           error: rpcResult?.error || 'Bid validation failed',
@@ -263,7 +265,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (selectError || !newBidData) {
-      console.error('Error fetching newly created bid:', selectError);
+      captureException('Error fetching newly created bid:', selectError);
       return NextResponse.json(
         { error: 'Bid was placed but could not be retrieved' },
         { status: 500 }
@@ -309,13 +311,13 @@ export async function POST(request: NextRequest) {
         }
       }
     } catch (notificationError) {
-      console.error('Error creating bid notifications:', notificationError);
+      captureException('Error creating bid notifications:', notificationError);
       // Don't fail the request if notifications fail
     }
 
     return NextResponse.json(newBid, { status: 201 });
   } catch (error: any) {
-    console.error('Error placing bid:', error);
+    captureException('Error placing bid:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }

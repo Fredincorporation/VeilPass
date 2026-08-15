@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { captureException } from '@/lib/logger';
 
 export async function PUT(
   request: NextRequest,
@@ -48,7 +49,7 @@ export async function PUT(
 
     return NextResponse.json(updatedDispute[0]);
   } catch (error) {
-    console.error('Error updating dispute:', error);
+    captureException('Error updating dispute:', error);
     return NextResponse.json(
       { error: 'Failed to update dispute' },
       { status: 500 }

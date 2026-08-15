@@ -10,6 +10,7 @@ import Image from 'next/image';
 import { formatDate } from '@/lib/date-formatter';
 import { formatAddress } from '@/lib/utils';
 import { isValidOrganizerAddress } from '@/lib/organizer-utils';
+import { captureException } from '@/lib/logger';
 
 export default function ViewEventPage() {
   const router = useRouter();
@@ -38,7 +39,7 @@ export default function ViewEventPage() {
           setEthPrice(data.ethereum.usd);
         }
       } catch (err) {
-        console.error('Failed to fetch ETH price:', err);
+        captureException('Failed to fetch ETH price:', err);
         // Keep default price on error
       }
     };

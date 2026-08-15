@@ -1,4 +1,5 @@
 import { createConfig, http } from 'wagmi';
+import logger from '@/lib/logger';
 
 // Define an explicit Base Sepolia chain configuration (chainId 84532)
 // Avoid relying on wagmi's built-in `sepolia` which is the Ethereum Sepolia testnet.
@@ -62,7 +63,7 @@ export const isMobileDevice = () => {
 export const validateWalletConnectProjectId = () => {
   const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
   if (!projectId) {
-    console.warn('NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not set. WalletConnect features may not work properly.');
+    logger.warn('NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not set. WalletConnect features may not work properly.');
     return false;
   }
   return true;

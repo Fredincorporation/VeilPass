@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { fetchEthPrice } from '@/lib/currency-utils';
+import { captureException } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,7 +94,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(enriched);
   } catch (error: any) {
-    console.error('Error fetching auctions:', error);
+    captureException('Error fetching auctions:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
@@ -162,7 +163,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(data[0], { status: 201 });
   } catch (error: any) {
-    console.error('Error creating auction:', error);
+    captureException('Error creating auction:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }

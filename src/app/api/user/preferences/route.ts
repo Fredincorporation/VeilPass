@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { captureException } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
           .single();
 
         if (createError) {
-          console.error('Error creating preferences:', createError);
+          captureException('Error creating preferences:', createError);
           return NextResponse.json(
             { error: 'Failed to create preferences' },
             { status: 500 }
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
         return NextResponse.json(newPrefs);
       }
 
-      console.error('Error fetching preferences:', error);
+      captureException('Error fetching preferences:', error);
       return NextResponse.json(
         { error: 'Failed to fetch preferences' },
         { status: 500 }
@@ -63,7 +64,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Preferences GET error:', error);
+    captureException('Preferences GET error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -98,7 +99,7 @@ export async function PUT(request: Request) {
       .single();
 
     if (error) {
-      console.error('Error updating preferences:', error);
+      captureException('Error updating preferences:', error);
       return NextResponse.json(
         { error: 'Failed to update preferences' },
         { status: 500 }
@@ -107,7 +108,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Preferences PUT error:', error);
+    captureException('Preferences PUT error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

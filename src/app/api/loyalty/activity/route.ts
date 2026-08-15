@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { captureException } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
       .limit(20);
 
     if (txError) {
-      console.error('Error fetching loyalty transactions:', txError);
+      captureException('Error fetching loyalty transactions:', txError);
       return NextResponse.json([]);
     }
 
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(activities);
   } catch (error) {
-    console.error('Error in /api/loyalty/activity:', error);
+    captureException('Error in /api/loyalty/activity:', error);
     return NextResponse.json([]);
   }
 }

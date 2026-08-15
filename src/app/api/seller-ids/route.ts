@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase';
 import serverKeyManager from '@/lib/serverKeyManager';
 import blacklistManager from '@/lib/blacklistManager';
 import tfheEncryption from '@/lib/tfheEncryption';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 /**
  * POST /api/seller-ids
@@ -15,7 +17,7 @@ export async function POST(request: NextRequest) {
     try {
       body = await request.json();
     } catch (parseErr) {
-      console.error('Error parsing request JSON:', parseErr);
+      captureException('Error parsing request JSON:', parseErr);
       return NextResponse.json({ error: 'Invalid JSON', detail: String(parseErr) }, { status: 400 });
     }
     const { wallet_address, name, business_type, encrypted_id, id_type, location } = body;
@@ -51,7 +53,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (fetchErr && fetchErr.code !== 'PGRST116') {
-      console.warn('Warning fetching existing seller_id row:', fetchErr);
+      logger.warn('Warning fetching existing seller_id row:', fetchErr);
     }
 
     if (existing) {
@@ -70,7 +72,7 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (updErr) {
-        console.error('Error updating seller_ids row:', updErr);
+        captureException('Error updating seller_ids row:', updErr);
         return NextResponse.json({ error: 'Failed to update seller_ids' }, { status: 500 });
       }
 
@@ -97,7 +99,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Error inserting seller_ids row:', error);
+      captureException('Error inserting seller_ids row:', error);
       // Return Supabase error detail for debugging
       return NextResponse.json({ error: 'Failed to insert seller_ids', detail: error }, { status: 500 });
     }
@@ -180,21 +182,21 @@ export async function POST(request: NextRequest) {
               verified: verification.verified,
             });
           } catch (logErr) {
-            console.warn('Warning: could not log verification:', logErr);
+            logger.warn('Warning: could not log verification:', logErr);
           }
         } catch (decErrInner: any) {
-          console.warn('Could not decrypt/verify encrypted_id in-memory:', decErrInner);
+          logger.warn('Could not decrypt/verify encrypted_id in-memory:', decErrInner);
           verification.reasons.push('decryption_failed:' + String(decErrInner?.message || decErrInner));
         }
       }
     } catch (decErr) {
-      console.warn('Could not decrypt/verify encrypted_id in-memory:', decErr);
+      logger.warn('Could not decrypt/verify encrypted_id in-memory:', decErr);
       verification.reasons.push('decryption_failed');
     }
 
     return NextResponse.json({ success: true, data, verification });
   } catch (error: any) {
-    console.error('Error in seller-ids POST:', error);
+    captureException('Error in seller-ids POST:', error);
     return NextResponse.json({ error: 'Server error', detail: String(error?.message || error) }, { status: 500 });
   }
 }

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(disputes || []);
   } catch (error) {
-    console.error('Error fetching disputes:', error);
+    captureException('Error fetching disputes:', error);
     return NextResponse.json([], { status: 200 });
   }
 }
@@ -69,11 +71,11 @@ export async function POST(request: NextRequest) {
       const crypto = require('crypto');
       const hash = crypto.createHash('sha1').update(ticketId).digest('hex');
       ticketId = `${hash.substr(0, 8)}-${hash.substr(8, 4)}-${hash.substr(12, 4)}-${hash.substr(16, 4)}-${hash.substr(20, 12)}`;
-      console.log('[Disputes API POST] Converted ticket_id to UUID:', body.ticket_id, '->', ticketId);
+      logger.info('[Disputes API POST] Converted ticket_id to UUID:', body.ticket_id, '->', ticketId);
     }
 
     // Log for debugging
-    console.log('[Disputes API POST] Creating dispute:', {
+    logger.info('[Disputes API POST] Creating dispute:', {
       user_address: body.user_address,
       ticket_id: body.ticket_id,
       reason: body.reason,
@@ -83,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     // If no Supabase keys, store mock response for development
     if (!supabaseUrl || !supabaseKey) {
-      console.warn('[Disputes API POST] No Supabase keys found, using mock store');
+      logger.warn('[Disputes API POST] No Supabase keys found, using mock store');
       const mockDispute = {
         id: Math.floor(Math.random() * 10000),
         user_address: body.user_address,
@@ -115,7 +117,7 @@ export async function POST(request: NextRequest) {
       status: 'OPEN',
     };
 
-    console.log('[Disputes API POST] Inserting dispute data:', disputeData);
+    logger.info('[Disputes API POST] Inserting dispute data:', disputeData);
 
     const { data: newDispute, error } = await supabase
       .from('disputes')
@@ -123,8 +125,8 @@ export async function POST(request: NextRequest) {
       .select();
 
     if (error) {
-      console.error('[Disputes API POST] Database error:', error);
-      console.error('[Disputes API POST] Error details:', {
+      captureException('[Disputes API POST] Database error:', error);
+      captureException('[Disputes API POST] Error details:', {
         code: error.code,
         message: error.message,
         details: (error as any).details,
@@ -132,10 +134,10 @@ export async function POST(request: NextRequest) {
       throw error;
     }
 
-    console.log('[Disputes API POST] Dispute created successfully:', newDispute?.[0]);
+    logger.info('[Disputes API POST] Dispute created successfully:', newDispute?.[0]);
     return NextResponse.json(newDispute?.[0], { status: 201 });
   } catch (error: any) {
-    console.error('[Disputes API POST] Catch block error:', error.message || error);
+    captureException('[Disputes API POST] Catch block error:', error.message || error);
     return NextResponse.json(
       { 
         error: 'Failed to create dispute',

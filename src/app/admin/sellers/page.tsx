@@ -5,6 +5,7 @@ import { CheckCircle, XCircle, Upload, FileCheck, Calendar, Search, Filter, Eye,
 import { useToast } from '@/components/ToastContainer';
 import { useAdminSellers } from '@/hooks/useAdmin';
 import { useQueryClient } from '@tanstack/react-query';
+import { captureException } from '@/lib/logger';
 
 export default function AdminSellersPage() {
   const { showSuccess, showError } = useToast();
@@ -47,7 +48,7 @@ export default function AdminSellersPage() {
       queryClient.invalidateQueries({ queryKey: ['adminSellers'] });
     } catch (error) {
       showError(`Failed to approve ${sellerName}`);
-      console.error(error);
+      captureException(error);
     } finally {
       setApprovingId(null);
     }
@@ -73,7 +74,7 @@ export default function AdminSellersPage() {
       queryClient.invalidateQueries({ queryKey: ['adminSellers'] });
     } catch (error) {
       showError(`Failed to reject ${sellerName}`);
-      console.error(error);
+      captureException(error);
     } finally {
       setRejectingId(null);
     }

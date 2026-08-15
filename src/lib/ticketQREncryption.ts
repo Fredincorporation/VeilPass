@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { captureException } from '@/lib/logger';
 
 /**
  * Secure Ticket QR Code Encryption
@@ -101,7 +102,7 @@ export function encryptTicketQR(
       expiresAt,
     };
   } catch (error) {
-    console.error('Error encrypting ticket QR:', error);
+    captureException('Error encrypting ticket QR:', error);
     throw new Error('Failed to encrypt ticket QR code');
   }
 }
@@ -156,7 +157,7 @@ export function decryptTicketQR(qrData: EncryptedTicketQR): TicketScanResult {
       scannerVerified: true,
     };
   } catch (error) {
-    console.error('Error decrypting ticket QR:', error);
+    captureException('Error decrypting ticket QR:', error);
     return {
       valid: false,
       error: 'Failed to decrypt QR code - invalid format',

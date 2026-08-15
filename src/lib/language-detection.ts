@@ -1,3 +1,4 @@
+import { captureException } from '@/lib/logger';
 // IP-based geolocation and language detection utility
 const LANGUAGE_MAP: { [key: string]: string } = {
   // English
@@ -104,7 +105,7 @@ export async function detectLanguageFromIP(): Promise<string> {
     // Fallback to browser language
     return getBrowserLanguage();
   } catch (error) {
-    console.error('Error detecting language from IP:', error);
+    captureException('Error detecting language from IP:', error);
     // Fallback to browser language
     return getBrowserLanguage();
   }
@@ -140,10 +141,10 @@ export function setSavedLanguage(language: string): void {
             language_preference: language,
           }),
         }).catch(error => {
-          console.error('Failed to save language preference:', error);
+          captureException('Failed to save language preference:', error);
         });
       } catch (error) {
-        console.error('Failed to save language preference:', error);
+        captureException('Failed to save language preference:', error);
       }
     }
   }

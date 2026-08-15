@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { captureException } from '@/lib/logger';
 
 export interface RedeemableItem {
   id: number;
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(redeemables);
   } catch (error) {
-    console.error('Error in /api/loyalty/redeemables:', error);
+    captureException('Error in /api/loyalty/redeemables:', error);
     return NextResponse.json(
       { error: 'Failed to fetch redeemables' },
       { status: 500 }

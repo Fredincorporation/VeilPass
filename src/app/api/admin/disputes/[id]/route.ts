@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,7 +32,7 @@ export async function PUT(
       );
     }
 
-    console.log(`Updating dispute ${id} to status: ${status}`);
+    logger.info(`Updating dispute ${id} to status: ${status}`);
 
     // Update the dispute status in database
     const { data, error } = await supabase
@@ -43,14 +45,14 @@ export async function PUT(
       .select();
 
     if (error) {
-      console.error('Error updating dispute:', error);
+      captureException('Error updating dispute:', error);
       return NextResponse.json(
         { error: 'Failed to update dispute', details: error.message },
         { status: 500 }
       );
     }
 
-    console.log(`Successfully updated dispute ${id}:`, data);
+    logger.info(`Successfully updated dispute ${id}:`, data);
 
     const updatedDispute = data?.[0];
 
@@ -94,7 +96,7 @@ export async function PUT(
         });
       }
     } catch (notificationError) {
-      console.error('Error creating dispute notifications:', notificationError);
+      captureException('Error creating dispute notifications:', notificationError);
       // Don't fail the request if notifications fail
     }
 
@@ -107,7 +109,7 @@ export async function PUT(
       { status: 200 }
     );
   } catch (error) {
-    console.error('Error in dispute update:', error);
+    captureException('Error in dispute update:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: String(error) },
       { status: 500 }

@@ -7,6 +7,7 @@
     "dev": "next dev",
     "db:test": "bash ./scripts/validate-schema.sh",
     "test": "jest",
+    "migrate:logger": "node ./scripts/convert-console-to-logger.js",
     "test:ci": "jest --coverage --runInBand",
     "test:payment-fallback": "node ./scripts/payment-fallback-test-runner.js",
     "test:payment-fallback:e2e": "node ./scripts/payment-fallback-e2e.js",

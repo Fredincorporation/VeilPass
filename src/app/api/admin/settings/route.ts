@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { captureException } from '@/lib/logger';
 
 /**
  * GET /api/admin/settings
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
           .single();
 
         if (createError) {
-          console.error('Error creating platform settings:', createError);
+          captureException('Error creating platform settings:', createError);
           return NextResponse.json(
             { error: 'Failed to create settings' },
             { status: 500 }
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
         return NextResponse.json(newSettings);
       }
 
-      console.error('Error fetching settings:', error);
+      captureException('Error fetching settings:', error);
       return NextResponse.json(
         { error: 'Failed to fetch settings' },
         { status: 500 }
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Settings GET error:', error);
+    captureException('Settings GET error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -84,7 +85,7 @@ export async function PUT(request: Request) {
       .single();
 
     if (error) {
-      console.error('Error updating settings:', error);
+      captureException('Error updating settings:', error);
       return NextResponse.json(
         { error: 'Failed to update settings' },
         { status: 500 }
@@ -93,7 +94,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Settings PUT error:', error);
+    captureException('Settings PUT error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

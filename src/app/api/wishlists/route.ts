@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(data || []);
   } catch (error: any) {
-    console.error('Error fetching wishlists:', error);
+    captureException('Error fetching wishlists:', error);
     // Return empty array on error instead of 500 to prevent cascading failures
     return NextResponse.json([], { status: 200 });
   }
@@ -75,10 +77,10 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error;
 
-    console.log('Added to wishlist:', data[0]);
+    logger.info('Added to wishlist:', data[0]);
     return NextResponse.json(data[0], { status: 201 });
   } catch (error: any) {
-    console.error('Error adding to wishlist:', error);
+    captureException('Error adding to wishlist:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
@@ -106,10 +108,10 @@ export async function DELETE(request: NextRequest) {
 
     if (error) throw error;
 
-    console.log('Removed from wishlist');
+    logger.info('Removed from wishlist');
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error: any) {
-    console.error('Error removing from wishlist:', error);
+    captureException('Error removing from wishlist:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }

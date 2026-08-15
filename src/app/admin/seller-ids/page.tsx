@@ -5,6 +5,7 @@ import { Shield, Search, Filter, CheckCircle, Clock, AlertCircle, Download, Lock
 import { useToast } from '@/components/ToastContainer';
 import { useAdminSellerIds } from '@/hooks/useAdmin';
 import { useQueryClient } from '@tanstack/react-query';
+import { captureException } from '@/lib/logger';
 
 export default function AdminSellerIDsPage() {
   const { showSuccess, showError, showInfo, showWarning } = useToast();
@@ -79,7 +80,7 @@ export default function AdminSellerIDsPage() {
       queryClient.invalidateQueries({ queryKey: ['adminSellerIds'] });
     } catch (error) {
       showError(`Failed to approve ${selectedSeller.name}`);
-      console.error(error);
+      captureException(error);
     } finally {
       setApproving(false);
     }
@@ -117,7 +118,7 @@ export default function AdminSellerIDsPage() {
       queryClient.invalidateQueries({ queryKey: ['adminSellerIds'] });
     } catch (error) {
       showError(`Failed to reject ${selectedSeller.name}`);
-      console.error(error);
+      captureException(error);
     } finally {
       setRejecting(false);
     }

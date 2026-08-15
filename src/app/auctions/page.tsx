@@ -10,6 +10,7 @@ import { computeTimeLeft } from '@/lib/auctionCountdown';
 import { useSafeWallet as useWallet } from '@/lib/wallet-context';
 import { signBid, BidSignaturePayload } from '@/lib/bidSignature';
 import { getMinimumNextBid, formatBidIncrementInfo, validateBidIncrement } from '@/lib/bidConfig';
+import { captureException } from '@/lib/logger';
 
 export default function AuctionsPage() {
   const { showSuccess, showInfo } = useToast();
@@ -166,7 +167,7 @@ export default function AuctionsPage() {
         setShowBidModal(false);
         setBidAmount('');
       } catch (err: any) {
-        console.error('Error placing bid:', err);
+        captureException('Error placing bid:', err);
         showInfo('Failed to place bid. Try again.');
       }
     })();

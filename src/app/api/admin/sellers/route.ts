@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
 import { SellerFilterSchema, ApproveSellerSchema, validateInput, checkRateLimit, sanitizeString } from '@/lib/validation';
 import { verifyAdminAuth } from '@/lib/auth-middleware';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +39,7 @@ export async function GET(request: NextRequest) {
     // 2. Verify admin auth
     const admin = await verifyAdminAuth();
     if (!admin) {
-      console.warn('[SECURITY] Unauthorized access to /api/admin/sellers');
+      logger.warn('[SECURITY] Unauthorized access to /api/admin/sellers');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
@@ -84,7 +86,7 @@ export async function GET(request: NextRequest) {
       .range(offsetVal, offsetVal + limitVal - 1);
 
     if (error) {
-      console.error('[ERROR] Failed to fetch sellers:', error);
+      captureException('[ERROR] Failed to fetch sellers:', error);
       return NextResponse.json({ error: 'Failed to fetch sellers' }, { status: 500 });
     }
 
@@ -115,7 +117,7 @@ export async function GET(request: NextRequest) {
       offset: offsetVal,
     });
   } catch (error) {
-    console.error('[ERROR] /api/admin/sellers GET:', error);
+    captureException('[ERROR] /api/admin/sellers GET:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -150,7 +152,7 @@ export async function PUT(request: NextRequest) {
     // 2. Verify admin auth
     const admin = await verifyAdminAuth();
     if (!admin) {
-      console.warn('[SECURITY] Unauthorized PUT to /api/admin/sellers');
+      logger.warn('[SECURITY] Unauthorized PUT to /api/admin/sellers');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
@@ -172,7 +174,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const validation = validateInput(ApproveSellerSchema, { ...body, sellerId });
     if (!validation.valid) {
-      console.warn('[SECURITY] Invalid seller approval input:', validation.error);
+      logger.warn('[SECURITY] Invalid seller approval input:', validation.error);
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
@@ -190,10 +192,10 @@ export async function PUT(request: NextRequest) {
     // If approving seller, change role from awaiting_seller to seller
     if (statusAction === 'APPROVED') {
       updatePayload.role = 'seller';
-      console.log('🔄 Changing role to seller for approved seller');
+      logger.info('🔄 Changing role to seller for approved seller');
     }
 
-    console.log('📦 Update payload:', JSON.stringify(updatePayload));
+    logger.info('📦 Update payload:', JSON.stringify(updatePayload));
 
     const { data: updatedSeller, error } = await supabase
       .from('users')
@@ -203,7 +205,7 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('❌ Error updating seller:', error);
+      captureException('❌ Error updating seller:', error);
       // Handle missing column in Supabase/PostgREST schema cache (PGRST204)
       if (error.code === 'PGRST204' || (error.message && error.message.includes("Could not find the 'seller_status'"))) {
         return NextResponse.json(
@@ -217,13 +219,13 @@ export async function PUT(request: NextRequest) {
       throw error;
     }
 
-    console.log('✅ Seller updated:', JSON.stringify(updatedSeller));
-    console.log('📊 New role:', updatedSeller?.role, 'New status:', updatedSeller?.seller_status);
+    logger.info('✅ Seller updated:', JSON.stringify(updatedSeller));
+    logger.info('📊 New role:', updatedSeller?.role, 'New status:', updatedSeller?.seller_status);
 
     return NextResponse.json(updatedSeller);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
-    console.error('❌ Error updating seller:', errorMessage);
+    captureException('❌ Error updating seller:', errorMessage);
 
     return NextResponse.json(
       { error: 'Failed to update seller', details: errorMessage },

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -120,7 +122,7 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (err: any) {
-    console.error('Error in fallback-response endpoint:', err);
+    captureException('Error in fallback-response endpoint:', err);
     return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
   }
 }
@@ -142,7 +144,7 @@ async function handleRejection(
       .single();
 
     if (resultErr) {
-      console.error('Error fetching auction result for rejection handling:', resultErr);
+      captureException('Error fetching auction result for rejection handling:', resultErr);
       return;
     }
 
@@ -168,7 +170,7 @@ async function handleRejection(
         })
         .eq('id', auctionResultId);
 
-      console.log(`[Fallback] Auction result ${auctionResultId}: All fallback attempts exhausted`);
+      logger.info(`[Fallback] Auction result ${auctionResultId}: All fallback attempts exhausted`);
       return;
     }
 
@@ -181,7 +183,7 @@ async function handleRejection(
       });
 
     if (fallbackErr || !fallbackBidders || fallbackBidders.length === 0) {
-      console.warn(`[Fallback] No more fallback bidders for auction ${result.auction_id}`);
+      logger.warn(`[Fallback] No more fallback bidders for auction ${result.auction_id}`);
       await supabaseAdmin
         .from('auction_results')
         .update({
@@ -227,9 +229,9 @@ async function handleRejection(
       })
       .eq('id', auctionResultId);
 
-    console.log(`[Fallback] Auction result ${auctionResultId}: Offered to next bidder ${nextBidder.bidder_address}`);
+    logger.info(`[Fallback] Auction result ${auctionResultId}: Offered to next bidder ${nextBidder.bidder_address}`);
 
   } catch (err) {
-    console.error('Error in handleRejection:', err);
+    captureException('Error in handleRejection:', err);
   }
 }

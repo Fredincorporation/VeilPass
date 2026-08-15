@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { generateKeyPairSync, privateDecrypt } from 'crypto';
+import { captureException } from '@/lib/logger';
 
 const KEY_DIR = path.resolve(process.cwd(), '.keys');
 const PRIV_PATH = path.join(KEY_DIR, 'server_priv.pem');
@@ -43,7 +44,7 @@ export function decryptBase64(encryptedB64: string): string {
 
     return decrypted.toString('utf8');
   } catch (err) {
-    console.error('Error decrypting payload:', err);
+    captureException('Error decrypting payload:', err);
     throw err;
   }
 }

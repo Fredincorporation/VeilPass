@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, CheckCircle, ShoppingBag, Lock, FileText, ArrowRight } from 'lucide-react';
 import { encryptIDDataWithZama } from '@/lib/contractInteraction';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 export default function SellerRegisterPage() {
   const [step, setStep] = useState(1);
@@ -84,10 +86,10 @@ export default function SellerRegisterPage() {
                   }),
                 });
               } catch (postErr) {
-                console.warn('Failed to POST encrypted ID to /api/seller-ids:', postErr);
+                logger.warn('Failed to POST encrypted ID to /api/seller-ids:', postErr);
               }
             } catch (encErr) {
-              console.warn('Failed to encrypt ID document:', encErr);
+              logger.warn('Failed to encrypt ID document:', encErr);
             }
           }
 
@@ -98,14 +100,14 @@ export default function SellerRegisterPage() {
             // Notify other components about the disconnect so UI updates
             window.dispatchEvent(new Event('walletDisconnected'));
           } catch (err) {
-            console.warn('Error clearing wallet on submit:', err);
+            logger.warn('Error clearing wallet on submit:', err);
           }
           // Redirect to homepage so user can reconnect their wallet
           router.push('/');
           return;
         }
       } catch (error) {
-        console.error('Failed to save business info to database:', error);
+        captureException('Failed to save business info to database:', error);
       }
     }
     

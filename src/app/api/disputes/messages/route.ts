@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     // If no Supabase keys, return empty array for development
     if (!supabaseUrl || !supabaseKey) {
-      console.log('[Dispute Messages API GET] No Supabase configured');
+      logger.info('[Dispute Messages API GET] No Supabase configured');
       return NextResponse.json([], { status: 200 });
     }
 
@@ -36,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(messages || []);
   } catch (error) {
-    console.error('Error fetching dispute messages:', error);
+    captureException('Error fetching dispute messages:', error);
     return NextResponse.json([], { status: 200 });
   }
 }
@@ -57,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Log for debugging
-    console.log('[Dispute Messages API POST] Creating message:', {
+    logger.info('[Dispute Messages API POST] Creating message:', {
       dispute_id: body.dispute_id,
       sender: body.sender_role,
       hasSupabase: !!supabaseUrl && !!supabaseKey,
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     // If no Supabase keys, return mock response for development
     if (!supabaseUrl || !supabaseKey) {
-      console.warn('[Dispute Messages API POST] No Supabase keys found, using mock response');
+      logger.warn('[Dispute Messages API POST] No Supabase keys found, using mock response');
       const mockMessage = {
         id: Math.floor(Math.random() * 10000),
         dispute_id: body.dispute_id,
@@ -91,7 +93,7 @@ export async function POST(request: NextRequest) {
       is_status_change: body.is_status_change || false,
     };
 
-    console.log('[Dispute Messages API POST] Inserting message:', messageData);
+    logger.info('[Dispute Messages API POST] Inserting message:', messageData);
 
     const { data: newMessage, error } = await supabase
       .from('dispute_messages')
@@ -99,14 +101,14 @@ export async function POST(request: NextRequest) {
       .select();
 
     if (error) {
-      console.error('[Dispute Messages API POST] Database error:', error);
+      captureException('[Dispute Messages API POST] Database error:', error);
       throw error;
     }
 
-    console.log('[Dispute Messages API POST] Message created successfully:', newMessage?.[0]);
+    logger.info('[Dispute Messages API POST] Message created successfully:', newMessage?.[0]);
     return NextResponse.json(newMessage?.[0], { status: 201 });
   } catch (error: any) {
-    console.error('[Dispute Messages API POST] Catch block error:', error.message || error);
+    captureException('[Dispute Messages API POST] Catch block error:', error.message || error);
     return NextResponse.json(
       {
         error: 'Failed to create message',

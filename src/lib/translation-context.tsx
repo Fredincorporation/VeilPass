@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { detectLanguageFromIP, getSavedLanguage, setSavedLanguage } from '@/lib/language-detection';
 import { translations, LanguageCode } from '@/lib/translations';
+import { captureException } from '@/lib/logger';
 
 interface TranslationContextType {
   language: LanguageCode;
@@ -36,7 +37,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
           }
         }
       } catch (error) {
-        console.error('Error initializing language:', error);
+        captureException('Error initializing language:', error);
         setLanguageState('en');
       } finally {
         setIsLoading(false);

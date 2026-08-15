@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
+import { captureException } from '@/lib/logger';
 
 /**
  * Fetch ticket sales count for a specific event
@@ -13,7 +14,7 @@ export function useEventTicketCount(eventId: number) {
         const { data } = await axios.get(`/api/events/${eventId}/tickets`);
         return data.count || 0;
       } catch (err) {
-        console.error('Error fetching ticket count:', err);
+        captureException('Error fetching ticket count:', err);
         return 0;
       }
     },
@@ -34,7 +35,7 @@ export function useEventBidsCount(eventId: number) {
         const { data } = await axios.get(`/api/events/${eventId}/bids`);
         return data.count || 0;
       } catch (err) {
-        console.error('Error fetching bids count:', err);
+        captureException('Error fetching bids count:', err);
         return 0;
       }
     },

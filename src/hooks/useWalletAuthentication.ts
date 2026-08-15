@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useUser, useUpdateUser } from './useUser';
 import { useToast } from '@/components/ToastContainer';
+import { captureException } from '@/lib/logger';
 
 export function useWalletAuthentication(walletAddress: string | null) {
   const { showError } = useToast();
@@ -9,7 +10,7 @@ export function useWalletAuthentication(walletAddress: string | null) {
 
   useEffect(() => {
     if (error) {
-      console.error('User authentication error:', error);
+      captureException('User authentication error:', error);
       showError('Failed to load user profile');
     }
   }, [error, showError]);

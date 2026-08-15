@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { captureException } from '@/lib/logger';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Debug error:', error);
+    captureException('Debug error:', error);
     return NextResponse.json({
       error: 'Internal server error',
       details: String(error),

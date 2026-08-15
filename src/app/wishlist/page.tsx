@@ -6,6 +6,7 @@ import { useToast } from '@/components/ToastContainer';
 import { useWishlists, useRemoveFromWishlist } from '@/hooks/useWishlists';
 import { formatDate } from '@/lib/date-formatter';
 import Link from 'next/link';
+import { captureException } from '@/lib/logger';
 
 interface WishlistItem {
   event_id: number;
@@ -61,14 +62,14 @@ export default function WishlistPage() {
                 return { ...wishlist, event };
               }
             } catch (error) {
-              console.error(`Error fetching event ${wishlist.event_id}:`, error);
+              captureException(`Error fetching event ${wishlist.event_id}:`, error);
             }
             return wishlist;
           })
         );
         setWishlistItems(itemsWithEvents);
       } catch (error) {
-        console.error('Error fetching event details:', error);
+        captureException('Error fetching event details:', error);
       } finally {
         setIsLoadingEvents(false);
       }

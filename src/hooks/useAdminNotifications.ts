@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 export interface AdminNotification {
   id: number;
@@ -51,7 +53,7 @@ export function useMarkAdminNotificationsAsRead() {
 
   return useMutation({
     mutationFn: async ({ notificationIds, adminWallet }: { notificationIds: number[]; adminWallet: string }) => {
-      console.log('[useMarkAdminNotificationsAsRead] Starting mutation:', { notificationIds, adminWallet });
+      logger.info('[useMarkAdminNotificationsAsRead] Starting mutation:', { notificationIds, adminWallet });
       const { data } = await axios.put(
         `/api/admin/notifications?admin_wallet=${encodeURIComponent(adminWallet)}`,
         {
@@ -59,16 +61,16 @@ export function useMarkAdminNotificationsAsRead() {
           read: true,
         }
       );
-      console.log('[useMarkAdminNotificationsAsRead] Success:', data);
+      logger.info('[useMarkAdminNotificationsAsRead] Success:', data);
       return data;
     },
     onSuccess: () => {
-      console.log('[useMarkAdminNotificationsAsRead] Invalidating queries');
+      logger.info('[useMarkAdminNotificationsAsRead] Invalidating queries');
       queryClient.invalidateQueries({ queryKey: ['adminNotifications'] });
       queryClient.invalidateQueries({ queryKey: ['adminUnreadNotifications'] });
     },
     onError: (error) => {
-      console.error('[useMarkAdminNotificationsAsRead] Error:', error);
+      captureException('[useMarkAdminNotificationsAsRead] Error:', error);
     },
   });
 }

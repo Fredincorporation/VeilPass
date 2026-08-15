@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { captureException } from '@/lib/logger';
 
 export async function GET(
   request: NextRequest,
@@ -26,7 +27,7 @@ export async function GET(
 
     return NextResponse.json({ count: count || 0 });
   } catch (error: any) {
-    console.error('Error fetching ticket count:', error);
+    captureException('Error fetching ticket count:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { captureException } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (userError || !user) {
-      console.error('Error fetching user:', userError);
+      captureException('Error fetching user:', userError);
       return NextResponse.json({
         pointsEarnedThisMonth: 0,
         referralCount: 0,
@@ -115,7 +116,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error in /api/loyalty/stats:', error);
+    captureException('Error in /api/loyalty/stats:', error);
     return NextResponse.json({
       pointsEarnedThisMonth: 0,
       referralCount: 0,

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -16,18 +18,18 @@ export async function GET(request: NextRequest) {
     
     if (seller) {
       // Debug log
-      console.log('Fetching events for seller:', seller);
+      logger.info('Fetching events for seller:', seller);
       query = query.eq('organizer', seller);
     }
 
     const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Database error:', error);
+      captureException('Database error:', error);
       throw error;
     }
 
-    console.log('Fetched events:', data?.length || 0, 'for seller:', seller);
+    logger.info('Fetched events:', data?.length || 0, 'for seller:', seller);
 
     // Enrich events with actual ticket counts from tickets table
     const enrichedData = await Promise.all(
@@ -47,7 +49,7 @@ export async function GET(request: NextRequest) {
     // Return data as-is without status transformation
     return NextResponse.json(enrichedData || []);
   } catch (error: any) {
-    console.error('Error fetching events:', error);
+    captureException('Error fetching events:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
@@ -96,7 +98,7 @@ export async function POST(request: NextRequest) {
     if (error) throw error;
 
     const createdEvent = data[0];
-    console.log('Event created successfully:', createdEvent);
+    logger.info('Event created successfully:', createdEvent);
 
     // If tiers are provided, create them as well
     if (tiers.length > 0) {
@@ -118,10 +120,10 @@ export async function POST(request: NextRequest) {
         .insert(tierData);
 
       if (tiersError) {
-        console.error('Error creating ticket tiers:', tiersError);
+        captureException('Error creating ticket tiers:', tiersError);
         // Don't fail the whole request if tiers fail, but log it
       } else {
-        console.log('Ticket tiers created successfully:', tierData.length);
+        logger.info('Ticket tiers created successfully:', tierData.length);
       }
     }
 
@@ -152,13 +154,13 @@ export async function POST(request: NextRequest) {
         });
       }
     } catch (notificationError) {
-      console.error('Error creating event notifications:', notificationError);
+      captureException('Error creating event notifications:', notificationError);
       // Don't fail the request if notifications fail
     }
 
     return NextResponse.json(createdEvent, { status: 201 });
   } catch (error: any) {
-    console.error('Error creating event:', error);
+    captureException('Error creating event:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
@@ -202,10 +204,10 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    console.log('Event updated successfully:', data[0]);
+    logger.info('Event updated successfully:', data[0]);
     return NextResponse.json(data[0], { status: 200 });
   } catch (error: any) {
-    console.error('Error updating event:', error);
+    captureException('Error updating event:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }

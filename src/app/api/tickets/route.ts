@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { determineTicketStatus } from '@/lib/ticketStatusUtils';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(ticketsWithEventData);
   } catch (error: any) {
-    console.error('Error fetching tickets:', error);
+    captureException('Error fetching tickets:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
@@ -57,7 +59,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    console.log('📝 Creating ticket with data:', body);
+    logger.info('📝 Creating ticket with data:', body);
 
     // Validate required fields
     if (!body.event_id || !body.owner_address) {
@@ -83,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     // Determine ticket status based on event date
     const ticketStatus = determineTicketStatus(event.date, body.status);
-    console.log(`📅 Event date: ${event.date} → Ticket status: ${ticketStatus}`);
+    logger.info(`📅 Event date: ${event.date} → Ticket status: ${ticketStatus}`);
 
     // Ensure we have required fields - only include fields that exist in the schema
     const ticketData: any = {
@@ -98,7 +100,7 @@ export async function POST(request: NextRequest) {
     // Include transaction_hash if provided (for blockchain transaction tracking)
     if (body.transaction_hash) {
       ticketData.transaction_hash = body.transaction_hash;
-      console.log('✅ Transaction hash included:', body.transaction_hash);
+      logger.info('✅ Transaction hash included:', body.transaction_hash);
     }
 
     // Include ticket_number if provided
@@ -112,11 +114,11 @@ export async function POST(request: NextRequest) {
       .select();
 
     if (error) {
-      console.error('❌ Supabase error:', error);
+      captureException('❌ Supabase error:', error);
       throw error;
     }
 
-    console.log('✅ Ticket created successfully:', data[0]);
+    logger.info('✅ Ticket created successfully:', data[0]);
 
     // Notify seller/organizer about new ticket sale
     try {
@@ -143,13 +145,13 @@ export async function POST(request: NextRequest) {
         await supabaseAdmin.from('notifications').insert(adminNotifications);
       }
     } catch (notificationError) {
-      console.error('Error creating ticket sale notifications:', notificationError);
+      captureException('Error creating ticket sale notifications:', notificationError);
       // Don't fail the request if notifications fail
     }
 
     return NextResponse.json(data[0], { status: 201 });
   } catch (error: any) {
-    console.error('❌ Error creating ticket:', error);
+    captureException('❌ Error creating ticket:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
@@ -171,7 +173,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(data[0]);
   } catch (error: any) {
-    console.error('Error updating ticket:', error);
+    captureException('Error updating ticket:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }

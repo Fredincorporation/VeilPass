@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { captureException } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
       .eq('organizer', seller);
 
     if (eventsError) {
-      console.error('Error fetching events:', eventsError);
+      captureException('Error fetching events:', eventsError);
       return NextResponse.json(
         { error: 'Failed to fetch events' },
         { status: 500 }
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
       .select('event_id, price');
 
     if (ticketsError) {
-      console.error('Error fetching tickets:', ticketsError);
+      captureException('Error fetching tickets:', ticketsError);
       // Fallback to base_price calculation
       const revenue = events.reduce((sum: number, e: any) => {
         return sum + ((e.base_price || 0) * (e.tickets_sold || 0));
@@ -100,7 +101,7 @@ export async function GET(request: NextRequest) {
       breakdown,
     });
   } catch (error: any) {
-    console.error('Error calculating revenue:', error);
+    captureException('Error calculating revenue:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -1,12 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse, NextRequest } from 'next/server';
 import { isAdmin } from '@/lib/wallet-roles';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase credentials');
+  captureException('Missing Supabase credentials');
 }
 
 const supabase = createClient(
@@ -18,12 +20,12 @@ export async function GET(request: NextRequest) {
   // Check admin authorization
   const adminWalletRaw = request.nextUrl.searchParams.get('admin_wallet');
   if (!adminWalletRaw || !isAdmin(adminWalletRaw)) {
-    console.warn('[SECURITY] Unauthorized admin stats access from:', { raw: adminWalletRaw });
+    logger.warn('[SECURITY] Unauthorized admin stats access from:', { raw: adminWalletRaw });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
   try {
-    console.log('📊 Fetching admin stats...');
+    logger.info('📊 Fetching admin stats...');
 
     // Get total users count
     const { count: usersCount, error: usersError } = await supabase
@@ -31,10 +33,10 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true });
 
     if (usersError) {
-      console.error('❌ Users count error:', usersError);
+      captureException('❌ Users count error:', usersError);
       throw usersError;
     }
-    console.log('✅ Total users:', usersCount);
+    logger.info('✅ Total users:', usersCount);
 
     // Get active sellers count (users with 'seller' role)
     let sellersCount = 0;
@@ -46,10 +48,10 @@ export async function GET(request: NextRequest) {
 
       if (!sellersError) {
         sellersCount = count || 0;
-        console.log('✅ Active sellers:', sellersCount);
+        logger.info('✅ Active sellers:', sellersCount);
       }
     } catch (e) {
-      console.error('❌ Sellers count error:', e);
+      captureException('❌ Sellers count error:', e);
       sellersCount = 0;
     }
 
@@ -61,7 +63,7 @@ export async function GET(request: NextRequest) {
         .select('*');
 
       if (disputesError) {
-        console.error('❌ Disputes fetch error:', disputesError);
+        captureException('❌ Disputes fetch error:', disputesError);
         throw disputesError;
       }
 
@@ -70,9 +72,9 @@ export async function GET(request: NextRequest) {
         d.status !== 'RESOLVED' && d.status !== 'REJECTED'
       ).length;
       
-      console.log('✅ Open/active disputes:', disputesCount);
+      logger.info('✅ Open/active disputes:', disputesCount);
     } catch (err) {
-      console.error('❌ Error counting disputes:', err);
+      captureException('❌ Error counting disputes:', err);
       disputesCount = 0;
     }
 
@@ -82,10 +84,10 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true });
 
     if (eventsError) {
-      console.error('❌ Events count error:', eventsError);
+      captureException('❌ Events count error:', eventsError);
       throw eventsError;
     }
-    console.log('✅ Total events:', eventsCount);
+    logger.info('✅ Total events:', eventsCount);
 
     // Get total transactions (count of all tickets - each ticket = 1 transaction)
     const { count: transactionsCount, error: transactionsError } = await supabase
@@ -93,10 +95,10 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true });
 
     if (transactionsError) {
-      console.error('❌ Transactions count error:', transactionsError);
+      captureException('❌ Transactions count error:', transactionsError);
       throw transactionsError;
     }
-    console.log('✅ Total transactions (tickets):', transactionsCount);
+    logger.info('✅ Total transactions (tickets):', transactionsCount);
 
     // Get platform volume (sum of all ticket prices in ETH)
     const { data: ticketData, error: volumeError } = await supabase
@@ -104,18 +106,18 @@ export async function GET(request: NextRequest) {
       .select('price');
 
     if (volumeError) {
-      console.error('❌ Platform volume error:', volumeError);
+      captureException('❌ Platform volume error:', volumeError);
       throw volumeError;
     }
 
-    console.log('📋 Ticket data:', ticketData);
+    logger.info('📋 Ticket data:', ticketData);
     const platformVolumeEth = (ticketData || []).reduce((sum, ticket) => {
       const price = ticket.price || 0;
-      console.log('  Ticket price:', price);
+      logger.info('  Ticket price:', price);
       return sum + price;
     }, 0);
     const platformVolume = platformVolumeEth.toFixed(4);
-    console.log('✅ Platform volume (ETH):', platformVolume);
+    logger.info('✅ Platform volume (ETH):', platformVolume);
 
     const response = {
       totalUsers: usersCount || 0,
@@ -126,11 +128,11 @@ export async function GET(request: NextRequest) {
       platformVolume: platformVolume,
     };
 
-    console.log('✅ Final response:', response);
+    logger.info('✅ Final response:', response);
     return NextResponse.json(response);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
-    console.error('❌ Error fetching admin stats:', errorMessage);
+    captureException('❌ Error fetching admin stats:', errorMessage);
     
     // Return success with zero values instead of error
     return NextResponse.json({

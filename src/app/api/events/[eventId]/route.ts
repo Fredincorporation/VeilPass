@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { captureException } from '@/lib/logger';
 
 // Disable caching for dynamic event data
 export const dynamic = 'force-dynamic';
@@ -27,7 +28,7 @@ export async function GET(
       .single();
 
     if (error) {
-      console.error('Error fetching event:', error);
+      captureException('Error fetching event:', error);
       return NextResponse.json(
         { error: 'Event not found' },
         { status: 404 }
@@ -63,7 +64,7 @@ export async function GET(
       .order('display_order', { ascending: true });
 
     if (tiersError) {
-      console.error('Error fetching ticket tiers:', tiersError);
+      captureException('Error fetching ticket tiers:', tiersError);
     }
 
     // Transform old status values for backward compatibility
@@ -76,7 +77,7 @@ export async function GET(
 
     return NextResponse.json(transformedData);
   } catch (error: any) {
-    console.error('Error fetching event:', error);
+    captureException('Error fetching event:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

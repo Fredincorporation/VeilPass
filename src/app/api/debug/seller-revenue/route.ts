@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
       const eventTickets = ticketsForEvents.filter((t: any) => t.event_id === event.id);
       const totalPrice = eventTickets.reduce((sum: number, t: any) => {
         const price = typeof t.price === 'string' ? parseFloat(t.price) : (t.price || 0);
-        console.log(`Ticket ${t.id}: price=${t.price} (type: ${typeof t.price})`);
+        logger.info(`Ticket ${t.id}: price=${t.price} (type: ${typeof t.price})`);
         return sum + price;
       }, 0);
 

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Settings, Save, RotateCcw, Database, Shield, Bell, DollarSign, Globe, Lock, Eye, EyeOff, Check } from 'lucide-react';
 import { useToast } from '@/components/ToastContainer';
 import { usePlatformSettings, useUpdatePlatformSettings } from '@/hooks/usePlatformSettings';
+import { captureException } from '@/lib/logger';
 
 export default function AdminSettingsPage() {
   const { showSuccess, showError } = useToast();
@@ -100,7 +101,7 @@ export default function AdminSettingsPage() {
       });
       showSuccess('System settings updated successfully');
     } catch (error) {
-      console.error('Failed to save settings:', error);
+      captureException('Failed to save settings:', error);
       showError('Failed to save settings');
     } finally {
       setIsSaving(false);

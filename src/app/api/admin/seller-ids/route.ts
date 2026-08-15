@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import serverKeyManager from '@/lib/serverKeyManager';
 import blacklistManager from '@/lib/blacklistManager';
 import tfheEncryption from '@/lib/tfheEncryption';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +22,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 
-    console.log('📋 Fetching seller ID applicants with status filter:', status);
+    logger.info('📋 Fetching seller ID applicants with status filter:', status);
 
     // Query users who are in 'awaiting_seller' role (applied to be sellers, awaiting review)
     let query = supabase
@@ -36,11 +38,11 @@ export async function GET(request: NextRequest) {
     const { data: sellerApplicants, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
-      console.error('❌ Error fetching seller ID applicants:', error);
+      captureException('❌ Error fetching seller ID applicants:', error);
       return NextResponse.json([]);
     }
 
-    console.log('✅ Found', sellerApplicants?.length || 0, 'seller ID applicants');
+    logger.info('✅ Found', sellerApplicants?.length || 0, 'seller ID applicants');
 
     // Fetch any seller_ids records for these applicants so we can include encrypted hashes
     const walletAddresses = (sellerApplicants || []).map((a: any) => a.wallet_address).filter(Boolean);
@@ -53,7 +55,7 @@ export async function GET(request: NextRequest) {
         .in('wallet_address', walletAddresses);
 
       if (sError) {
-        console.warn('Warning: could not fetch seller_ids rows:', sError);
+        logger.warn('Warning: could not fetch seller_ids rows:', sError);
       } else {
         sellerIdRows = sRows || [];
       }
@@ -164,7 +166,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(formattedSellers);
   } catch (error) {
-    console.error('❌ Error in seller-ids GET:', error);
+    captureException('❌ Error in seller-ids GET:', error);
     return NextResponse.json([]);
   }
 }
@@ -185,7 +187,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    console.log('📝 Updating seller KYC verification for:', id, 'Status:', status);
+    logger.info('📝 Updating seller KYC verification for:', id, 'Status:', status);
 
     // Update user's KYC status based on ID verification
     const { data: updatedUser, error } = await supabase
@@ -199,7 +201,7 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('❌ Error updating seller KYC:', error);
+      captureException('❌ Error updating seller KYC:', error);
       // Handle missing column in Supabase/PostgREST schema cache (PGRST204)
       if (error.code === 'PGRST204' || (error.message && error.message.includes("Could not find the 'kyc_status'"))) {
         return NextResponse.json(
@@ -213,7 +215,7 @@ export async function PUT(request: NextRequest) {
       throw error;
     }
 
-    console.log('✅ Seller KYC status updated:', updatedUser);
+    logger.info('✅ Seller KYC status updated:', updatedUser);
 
     // Send notification to the applicant about their KYC status
     try {
@@ -237,7 +239,7 @@ export async function PUT(request: NextRequest) {
           });
       }
     } catch (notificationError) {
-      console.error('Error creating KYC notification:', notificationError);
+      captureException('Error creating KYC notification:', notificationError);
       // Don't fail the request if notification fails
     }
 
@@ -247,7 +249,7 @@ export async function PUT(request: NextRequest) {
       data: updatedUser,
     });
   } catch (error) {
-    console.error('❌ Error in seller-ids PUT:', error);
+    captureException('❌ Error in seller-ids PUT:', error);
     return NextResponse.json(
       { error: 'Failed to update seller ID verification' },
       { status: 500 }

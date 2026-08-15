@@ -1,4 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 export interface AdminStats {
   totalUsers: number;
@@ -22,16 +24,16 @@ export function useAdminStats(enabledOrWallet: boolean | string = true) {
           ? `/api/admin/stats?admin_wallet=${encodeURIComponent(adminWallet)}`
           : '/api/admin/stats';
         const response = await fetch(url);
-        console.log('Admin stats response status:', response.status);
+        logger.info('Admin stats response status:', response.status);
         if (!response.ok) {
-          console.error('Admin stats API error:', response.status);
+          captureException('Admin stats API error:', response.status);
           throw new Error('Failed to fetch admin stats');
         }
         const data = await response.json();
-        console.log('Admin stats data:', data);
+        logger.info('Admin stats data:', data);
         return data;
       } catch (error) {
-        console.error('Admin stats fetch error:', error);
+        captureException('Admin stats fetch error:', error);
         throw error;
       }
     },

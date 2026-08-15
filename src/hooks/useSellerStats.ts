@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
+import { captureException } from '@/lib/logger';
 
 interface SellerStats {
   eventsCreated: number;
@@ -24,7 +25,7 @@ export function useSellerStats(sellerAddress: string | null) {
         });
         return response.data;
       } catch (error) {
-        console.error('Failed to fetch seller stats:', error);
+        captureException('Failed to fetch seller stats:', error);
         return { eventsCreated: 0, ticketsSold: 0, totalRevenue: { eth: '0.0000 ETH', usd: '$0.00' } };
       }
     },

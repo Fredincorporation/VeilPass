@@ -3,6 +3,7 @@
  */
 
 import { supabase } from '@/lib/supabase';
+import { captureException } from '@/lib/logger';
 
 export interface BidValidationResult {
   isValid: boolean;
@@ -46,7 +47,7 @@ export async function validateBidAgainstAuction(
       .single<ValidateBidAgainstAuctionResult>();
 
     if (error) {
-      console.error('RPC validation error:', error);
+      captureException('RPC validation error:', error);
       return {
         isValid: false,
         currentHighest: null,
@@ -64,7 +65,7 @@ export async function validateBidAgainstAuction(
       errorMessage: data?.error_message ?? null,
     };
   } catch (err: any) {
-    console.error('Unexpected error during bid validation:', err);
+    captureException('Unexpected error during bid validation:', err);
     return {
       isValid: false,
       currentHighest: null,
@@ -89,7 +90,7 @@ export async function getAuctionBidState(auctionId: number) {
       .single<GetAuctionBidStateResult>();
 
     if (error) {
-      console.error('Error fetching bid state:', error);
+      captureException('Error fetching bid state:', error);
       return {
         highestBid: null,
         bidCount: 0,
@@ -105,7 +106,7 @@ export async function getAuctionBidState(auctionId: number) {
       error: null,
     };
   } catch (err: any) {
-    console.error('Unexpected error fetching bid state:', err);
+    captureException('Unexpected error fetching bid state:', err);
     return {
       highestBid: null,
       bidCount: 0,

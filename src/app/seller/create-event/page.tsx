@@ -7,6 +7,7 @@ import { useToast } from '@/components/ToastContainer';
 import { useCreateEvent } from '@/hooks/useSellerEvents';
 import { useEthPrice } from '@/hooks/useEthPrice';
 import { useSafeWallet } from '@/lib/wallet-context';
+import { captureException } from '@/lib/logger';
 
 interface PricingTier {
   id: string;
@@ -343,7 +344,7 @@ export default function CreateEventPage() {
         },
         onError: (error: any) => {
           showError(`Failed to create event: ${error.message}`);
-          console.error('Event creation error:', error);
+          captureException('Event creation error:', error);
         },
       });
     }

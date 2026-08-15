@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdmin } from '@/lib/wallet-roles';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   // Check admin authorization - pass raw address to isAdmin()
   if (!adminWalletRaw || !isAdmin(adminWalletRaw)) {
-    console.warn('[SECURITY] Unauthorized admin notifications access from:', { raw: adminWalletRaw });
+    logger.warn('[SECURITY] Unauthorized admin notifications access from:', { raw: adminWalletRaw });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
@@ -61,13 +63,13 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching admin notifications:', error);
+      captureException('Error fetching admin notifications:', error);
       return NextResponse.json([]);
     }
 
     return NextResponse.json(data || []);
   } catch (error) {
-    console.error('Error in admin notifications GET:', error);
+    captureException('Error in admin notifications GET:', error);
     return NextResponse.json([]);
   }
 }
@@ -83,7 +85,7 @@ export async function PUT(request: NextRequest) {
 
   // Check admin authorization - pass raw address to isAdmin()
   if (!adminWalletRaw || !isAdmin(adminWalletRaw)) {
-    console.warn('[SECURITY] Unauthorized admin notifications update from:', { raw: adminWalletRaw });
+    logger.warn('[SECURITY] Unauthorized admin notifications update from:', { raw: adminWalletRaw });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
@@ -106,7 +108,7 @@ export async function PUT(request: NextRequest) {
       .select();
 
     if (error) {
-      console.error('Error updating notifications:', error);
+      captureException('Error updating notifications:', error);
       throw error;
     }
 
@@ -116,7 +118,7 @@ export async function PUT(request: NextRequest) {
       data,
     });
   } catch (error) {
-    console.error('Error in admin notifications PUT:', error);
+    captureException('Error in admin notifications PUT:', error);
     return NextResponse.json(
       { error: 'Failed to update notifications' },
       { status: 500 }

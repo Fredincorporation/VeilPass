@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
+import { captureException } from '@/lib/logger';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
     const { data: auctionsData, error: auctionsErr } = await auctionsQuery;
 
     if (auctionsErr) {
-      console.error('Error fetching auctions to close:', auctionsErr);
+      captureException('Error fetching auctions to close:', auctionsErr);
       return NextResponse.json({ error: auctionsErr.message }, { status: 500 });
     }
 
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
           .order('revealed_amount', { ascending: false });
 
         if (bidsErr) {
-          console.error(`Error fetching bids for auction ${auction.id}:`, bidsErr);
+          captureException(`Error fetching bids for auction ${auction.id}:`, bidsErr);
           continue;
         }
 
@@ -103,7 +104,7 @@ export async function POST(request: NextRequest) {
           .eq('id', auction.id);
 
       } catch (auctionErr) {
-        console.error(`Error processing auction ${auction.id}:`, auctionErr);
+        captureException(`Error processing auction ${auction.id}:`, auctionErr);
         results.push({
           auctionId: auction.id,
           status: 'error',
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, closed: results }, { status: 200 });
   } catch (err: any) {
-    console.error('Error in auto-close endpoint:', err);
+    captureException('Error in auto-close endpoint:', err);
     return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
   }
 }

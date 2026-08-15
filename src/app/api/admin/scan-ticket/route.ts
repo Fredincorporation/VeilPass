@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { decryptTicketQR, parseQRPayload, generateScannerToken, TicketScanResult } from '@/lib/ticketQREncryption';
 import { formatAddress } from '@/lib/utils';
+import { captureException } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -139,7 +140,7 @@ export async function POST(request: NextRequest) {
       });
 
     if (scanError) {
-      console.error('Error recording scan:', scanError);
+      captureException('Error recording scan:', scanError);
       // Don't fail the response, scan still succeeded
     }
 
@@ -162,7 +163,7 @@ export async function POST(request: NextRequest) {
       scanTime: new Date().toISOString(),
     });
   } catch (error: any) {
-    console.error('Scanner error:', error);
+    captureException('Scanner error:', error);
     return NextResponse.json(
       { error: 'Server error during ticket verification', details: error.message },
       { status: 500 }
@@ -209,7 +210,7 @@ export async function GET(request: NextRequest) {
       count: data?.length || 0,
     });
   } catch (error: any) {
-    console.error('Error fetching scans:', error);
+    captureException('Error fetching scans:', error);
     return NextResponse.json(
       { error: 'Error fetching scan history' },
       { status: 500 }

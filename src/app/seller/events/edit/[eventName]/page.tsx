@@ -7,6 +7,7 @@ import { useToast } from '@/components/ToastContainer';
 import { useSellerEvents } from '@/hooks/useSellerEvents';
 import { useSafeWallet } from '@/lib/wallet-context';
 import { ChevronLeft, Save, X } from 'lucide-react';
+import { captureException } from '@/lib/logger';
 
 export default function EditEventPage() {
   const router = useRouter();
@@ -45,7 +46,7 @@ export default function EditEventPage() {
           setEthPrice(data.ethereum.usd);
         }
       } catch (err) {
-        console.error('Failed to fetch ETH price:', err);
+        captureException('Failed to fetch ETH price:', err);
         // Keep default price on error
       }
     };
@@ -114,7 +115,7 @@ export default function EditEventPage() {
       
       return { date: dateFormatted, time: timeFormatted };
     } catch (err) {
-      console.error('Error formatting date:', err);
+      captureException('Error formatting date:', err);
       return { date: '', time: '' };
     }
   };
@@ -169,7 +170,7 @@ export default function EditEventPage() {
       }, 1500);
     } catch (err) {
       showError(`Failed to save event: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      console.error('Save error:', err);
+      captureException('Save error:', err);
     } finally {
       setIsSaving(false);
     }

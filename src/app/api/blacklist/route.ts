@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import blacklistManager from '@/lib/blacklistManager';
+import { captureException } from '@/lib/logger';
 
 /**
  * GET /api/blacklist
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
       data: entries,
     });
   } catch (error) {
-    console.error('Error fetching blacklist:', error);
+    captureException('Error fetching blacklist:', error);
     return NextResponse.json({ error: 'Failed to fetch blacklist' }, { status: 500 });
   }
 }
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
       data: entry,
     });
   } catch (error) {
-    console.error('Error adding to blacklist:', error);
+    captureException('Error adding to blacklist:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
@@ -86,7 +87,7 @@ export async function DELETE(request: NextRequest) {
       message: 'Entry removed from blacklist',
     });
   } catch (error) {
-    console.error('Error removing from blacklist:', error);
+    captureException('Error removing from blacklist:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

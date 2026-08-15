@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { useTheme } from 'next-themes';
+import { captureException } from '@/lib/logger';
 
 interface ThemeContextType {
   theme: string;
@@ -32,7 +33,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           }),
         });
       } catch (error) {
-        console.error('Failed to save theme preference:', error);
+        captureException('Failed to save theme preference:', error);
       }
     }
   }, [setTheme]);

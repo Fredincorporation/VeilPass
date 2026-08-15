@@ -7,6 +7,7 @@ import { LanguageSelector } from './LanguageSelector';
 import { ConnectWallet } from './ConnectWallet';
 import { Bell, Menu, X } from 'lucide-react';
 import AdminNotificationsBell from './AdminNotificationsBell';
+import { captureException } from '@/lib/logger';
 
 function readCookie(name: string) {
   if (typeof document === 'undefined') return null;
@@ -69,7 +70,7 @@ export function Header() {
           setHasNotifications(false);
         }
       } catch (error) {
-        console.error('Error checking notifications:', error);
+        captureException('Error checking notifications:', error);
         setHasNotifications(false);
       }
     };

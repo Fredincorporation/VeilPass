@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,7 +17,7 @@ export async function PUT(
     const sellerId = params.sellerId;
     const body = await request.json();
 
-    console.log('📝 Updating seller', sellerId, 'with status:', body.status);
+    logger.info('📝 Updating seller', sellerId, 'with status:', body.status);
 
     // Prepare update object
     const updateData: any = {
@@ -25,11 +27,11 @@ export async function PUT(
     // If status is APPROVED, change role from 'awaiting_seller' to 'seller'
     if (body.status === 'APPROVED') {
       updateData.role = 'seller';
-      console.log('✅ Changing role from awaiting_seller to seller on approval');
+      logger.info('✅ Changing role from awaiting_seller to seller on approval');
     } else if (body.status === 'REJECTED') {
       // If rejected, revert to customer
       updateData.role = 'customer';
-      console.log('✅ Reverting role to customer on rejection');
+      logger.info('✅ Reverting role to customer on rejection');
     }
 
     const { data: updatedSeller, error } = await supabase
@@ -40,11 +42,11 @@ export async function PUT(
       .single();
 
     if (error) {
-      console.error('❌ Error updating seller:', error);
+      captureException('❌ Error updating seller:', error);
       throw error;
     }
 
-    console.log('✅ Seller updated:', updatedSeller);
+    logger.info('✅ Seller updated:', updatedSeller);
 
     // Send notifications based on the status
     if (body.status === 'APPROVED') {
@@ -59,7 +61,7 @@ export async function PUT(
             message: `Congratulations! Your seller application has been approved. You can now create and manage events on VeilPass.`,
           });
       } catch (notificationError) {
-        console.error('Error creating seller approval notification:', notificationError);
+        captureException('Error creating seller approval notification:', notificationError);
         // Don't fail the request if notification fails
       }
     } else if (body.status === 'REJECTED') {
@@ -74,7 +76,7 @@ export async function PUT(
             message: `Your seller application has been rejected. Please review your information and try again.`,
           });
       } catch (notificationError) {
-        console.error('Error creating seller rejection notification:', notificationError);
+        captureException('Error creating seller rejection notification:', notificationError);
         // Don't fail the request if notification fails
       }
     }
@@ -82,7 +84,7 @@ export async function PUT(
     return NextResponse.json(updatedSeller);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
-    console.error('❌ Error updating seller:', errorMessage);
+    captureException('❌ Error updating seller:', errorMessage);
 
     return NextResponse.json(
       { error: 'Failed to update seller', details: errorMessage },

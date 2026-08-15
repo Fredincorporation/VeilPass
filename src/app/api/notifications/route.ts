@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { captureException } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,14 +30,14 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Notifications GET error:', error);
+      captureException('Notifications GET error:', error);
       // Return empty array on error so UI doesn't break
       return NextResponse.json([]);
     }
 
     return NextResponse.json(data || []);
   } catch (error) {
-    console.error('Notifications GET error:', error);
+    captureException('Notifications GET error:', error);
     // Return empty array on error instead of 500 so UI doesn't break
     return NextResponse.json([]);
   }

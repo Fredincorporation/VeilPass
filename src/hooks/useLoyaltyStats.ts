@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
+import { captureException } from '@/lib/logger';
 
 export interface LoyaltyStats {
   pointsEarnedThisMonth: number;
@@ -34,7 +35,7 @@ export function useLoyaltyStats(userAddress: string | null) {
         });
         return data;
       } catch (error) {
-        console.error('Failed to fetch loyalty stats:', error);
+        captureException('Failed to fetch loyalty stats:', error);
         return {
           pointsEarnedThisMonth: 0,
           referralCount: 0,

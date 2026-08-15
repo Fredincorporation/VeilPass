@@ -6,6 +6,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { captureException } from '@/lib/logger';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -41,7 +42,7 @@ export async function verifyAdminAuth() {
     // No user context available here; require proper auth integration
     return null;
   } catch (error) {
-    console.error('[AUTH] Error verifying admin auth:', error);
+    captureException('[AUTH] Error verifying admin auth:', error);
     return null;
   }
 }
@@ -57,7 +58,7 @@ export async function verifyAdminWallet(walletAddress: string | null): Promise<b
     const { isAdmin } = await import('./wallet-roles');
     return isAdmin(walletAddress);
   } catch (error) {
-    console.error('[AUTH] Error verifying admin wallet:', error);
+    captureException('[AUTH] Error verifying admin wallet:', error);
     return false;
   }
 }
@@ -85,7 +86,7 @@ export async function verifySellerAuth() {
 
     return user;
   } catch (error) {
-    console.error('[AUTH] Error verifying seller auth:', error);
+    captureException('[AUTH] Error verifying seller auth:', error);
     return null;
   }
 }
@@ -112,7 +113,7 @@ export async function verifyUserAuth() {
 
     return user;
   } catch (error) {
-    console.error('[AUTH] Error verifying user auth:', error);
+    captureException('[AUTH] Error verifying user auth:', error);
     return null;
   }
 }

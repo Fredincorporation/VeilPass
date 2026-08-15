@@ -1,3 +1,4 @@
+import React from 'react';
 import QRCode from 'qrcode.react';
 import { createRoot } from 'react-dom/client';
 import { captureException } from './logger';
@@ -14,7 +15,6 @@ export async function downloadTicketAsPrintable(ticket: any, eventName: string, 
 
     const root = createRoot(container);
     root.render(
-      // @ts-ignore - QRCode typing in DOM render
       <QRCode value={encryptedPayload} size={400} level="H" includeMargin={true} />
     );
 

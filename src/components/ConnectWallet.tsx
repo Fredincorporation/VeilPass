@@ -5,6 +5,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
 import { getWalletRole } from '@/lib/wallet-roles';
+import logger from '@/lib/logger';
 
 /**
  * ConnectWallet wrapper using RainbowKit's ConnectButton.
@@ -28,12 +29,12 @@ export function ConnectWallet() {
     if (!previousState.isConnected && isConnected && address) {
       localStorage.setItem('veilpass_account', address);
       window.dispatchEvent(new Event('walletConnected'));
-      console.log('[ConnectWallet] Wallet connected:', address);
+      logger.info('[ConnectWallet] Wallet connected:', address);
       
       // Set role cookie based on wallet role
       const role = getWalletRole(address);
       document.cookie = `veilpass_role=${role}; path=/; max-age=2592000`;
-      console.log('[ConnectWallet] Role cookie set:', role);
+      logger.info('[ConnectWallet] Role cookie set:', role);
       
       // small delay before redirect to allow other listeners
       setTimeout(() => {
@@ -45,7 +46,7 @@ export function ConnectWallet() {
           }
           // If on any other page (like /tickets), don't redirect - let the page handle it
         } catch (e) {
-          console.warn('Navigation error:', e);
+          logger.warn('Navigation error:', e);
         }
       }, 400);
     }
@@ -54,7 +55,7 @@ export function ConnectWallet() {
       localStorage.removeItem('veilpass_account');
       document.cookie = 'veilpass_role=; path=/; max-age=0';
       window.dispatchEvent(new Event('walletDisconnected'));
-      console.log('[ConnectWallet] Wallet disconnected');
+      logger.info('[ConnectWallet] Wallet disconnected');
     }
     // Handle address change (wallet switched)
     else if (isConnected && previousState.address && address && previousState.address !== address) {
@@ -63,10 +64,10 @@ export function ConnectWallet() {
       // Update role cookie for new address
       const role = getWalletRole(address);
       document.cookie = `veilpass_role=${role}; path=/; max-age=2592000`;
-      console.log('[ConnectWallet] Role cookie updated:', role);
+      logger.info('[ConnectWallet] Role cookie updated:', role);
       
       window.dispatchEvent(new Event('walletConnected'));
-      console.log('[ConnectWallet] Wallet address changed:', address);
+      logger.info('[ConnectWallet] Wallet address changed:', address);
     }
 
     // Update ref for next comparison

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { captureException } from '@/lib/logger';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,7 +39,7 @@ export async function PUT(
       .select();
 
     if (error) {
-      console.error('Error updating event:', error);
+      captureException('Error updating event:', error);
       return NextResponse.json(
         { error: `Failed to update event: ${error.message}` },
         { status: 500 }
@@ -59,7 +60,7 @@ export async function PUT(
             message: `Your event "${updatedEvent.title}" has been rejected. Reason: ${rejection_reason}`,
           });
       } catch (notificationError) {
-        console.error('Error creating notification:', notificationError);
+        captureException('Error creating notification:', notificationError);
         // Don't fail the request if notification fails
       }
     }
@@ -76,7 +77,7 @@ export async function PUT(
             message: `Your event "${updatedEvent.title}" has been approved and is now live!`,
           });
       } catch (notificationError) {
-        console.error('Error creating notification:', notificationError);
+        captureException('Error creating notification:', notificationError);
         // Don't fail the request if notification fails
       }
     }
@@ -88,7 +89,7 @@ export async function PUT(
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
-    console.error('Error in event update:', errorMessage);
+    captureException('Error in event update:', errorMessage);
     return NextResponse.json(
       { error: errorMessage },
       { status: 500 }

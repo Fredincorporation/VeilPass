@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { formatAddress } from '@/lib/utils';
 import { isValidOrganizerAddress } from '@/lib/organizer-utils';
+import { captureException } from '@/lib/logger';
 
 export default function EventApprovalsPage() {
   const { data: allEvents = [] } = useEvents();
@@ -40,7 +41,7 @@ export default function EventApprovalsPage() {
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to approve event' });
-      console.error('Error approving event:', error);
+      captureException('Error approving event:', error);
     } finally {
       setApprovingId(null);
     }
@@ -83,7 +84,7 @@ export default function EventApprovalsPage() {
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to reject event' });
-      console.error('Error rejecting event:', error);
+      captureException('Error rejecting event:', error);
     } finally {
       setRejectingId(null);
     }

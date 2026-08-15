@@ -12,6 +12,8 @@
 import fs from 'fs';
 import path from 'path';
 import { generateKeyPairSync, privateDecrypt } from 'crypto';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 export type KeyBackend = 'local' | 'aws-kms' | 'vault' | 'azure-keyvault' | 'hsm-pkcs11';
 
@@ -71,7 +73,7 @@ class LocalKeyBackend {
       fs.writeFileSync(this.privPath, privateKey, { mode: 0o600 });
       fs.writeFileSync(this.pubPath, publicKey, { mode: 0o644 });
 
-      console.log('🔐 Generated new RSA key pair in', this.keyDir);
+      logger.info('🔐 Generated new RSA key pair in', this.keyDir);
     }
   }
 
@@ -94,7 +96,7 @@ class LocalKeyBackend {
 
       return decrypted.toString('utf8');
     } catch (err) {
-      console.error('Error decrypting payload with local backend:', err);
+      captureException('Error decrypting payload with local backend:', err);
       throw err;
     }
   }
@@ -114,9 +116,9 @@ class AWSKMSBackend {
     try {
       const { KMSClient } = require('@aws-sdk/client-kms');
       this.kmsClient = new KMSClient({ region });
-      console.log('✅ AWS KMS backend initialized');
+      logger.info('✅ AWS KMS backend initialized');
     } catch (err) {
-      console.warn('⚠️  AWS KMS not available:', err);
+      logger.warn('⚠️  AWS KMS not available:', err);
     }
   }
 
@@ -144,7 +146,7 @@ class VaultBackend {
   constructor(vaultAddr: string, vaultToken: string) {
     this.vaultAddr = vaultAddr;
     this.vaultToken = vaultToken;
-    console.log('✅ Vault backend initialized');
+    logger.info('✅ Vault backend initialized');
   }
 
   getPublicKeyPEM(): string {
@@ -169,7 +171,7 @@ class HSMBackend {
   constructor(slot: number, pin: string) {
     this.slot = slot;
     this.pin = pin;
-    console.log('✅ HSM backend initialized (slot:', slot, ')');
+    logger.info('✅ HSM backend initialized (slot:', slot, ')');
   }
 
   getPublicKeyPEM(): string {

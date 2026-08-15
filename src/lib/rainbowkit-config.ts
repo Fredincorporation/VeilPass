@@ -1,6 +1,7 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
 import { base, baseSepolia } from 'wagmi/chains';
 import { http } from 'wagmi';
+import logger from '@/lib/logger';
 
 // Get RPC URLs from environment
 const BASE_SEPOLIA_RPC = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC || 'https://sepolia.base.org';
@@ -14,7 +15,7 @@ if (typeof window === 'undefined' && !initWarningsSuppressed) {
 }
 
 if (!WALLETCONNECT_PROJECT_ID) {
-  console.warn(
+  logger.warn(
     'NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not set. Please add it to your environment variables. ' +
     'Get one free at https://cloud.walletconnect.com'
   );
@@ -71,7 +72,7 @@ export const isMobileDevice = () => {
 export const validateWalletConnectConfig = () => {
   const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
   if (!projectId || projectId === 'placeholder-project-id') {
-    console.warn(
+    logger.warn(
       'WalletConnect Project ID is not configured. Get one free at https://cloud.walletconnect.com'
     );
     return false;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getDualCurrency } from '@/lib/currency-utils';
+import { captureException } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error fetching seller stats:', error);
+    captureException('Error fetching seller stats:', error);
     return NextResponse.json(
       { eventsCreated: 0, ticketsSold: 0, totalRevenue: { eth: '0.0000 ETH', usd: '$0.00' } },
       { status: 200 }

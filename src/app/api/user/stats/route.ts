@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getDualCurrency } from '@/lib/currency-utils';
+import { captureException } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
       .eq('owner_address', address);
 
     if (error) {
-      console.error('Error fetching tickets:', error);
+      captureException('Error fetching tickets:', error);
       return NextResponse.json(
         { activeTickets: 0, totalSpent: { eth: '0.0000 ETH', usd: '$0.00' } }
       );
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error in /api/user/stats:', error);
+    captureException('Error in /api/user/stats:', error);
     return NextResponse.json(
       { activeTickets: 0, totalSpent: { eth: '0.0000 ETH', usd: '$0.00' } }
     );

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { InitiateFallbackSchema, validateInput, checkRateLimit, validateFutureTimestamp } from '@/lib/validation';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +40,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const validation = validateInput(InitiateFallbackSchema, body);
     if (!validation.valid) {
-      console.warn('[SECURITY] Invalid fallback initiation input:', validation.error);
+      logger.warn('[SECURITY] Invalid fallback initiation input:', validation.error);
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
@@ -60,7 +62,7 @@ export async function POST(request: NextRequest) {
     const { data: expiredPayments, error: expiredErr } = await query;
 
     if (expiredErr) {
-      console.error('Error fetching expired payments:', expiredErr);
+      captureException('Error fetching expired payments:', expiredErr);
       return NextResponse.json({ error: expiredErr.message }, { status: 500 });
     }
 
@@ -87,7 +89,7 @@ export async function POST(request: NextRequest) {
           .eq('id', payment.id);
 
         if (failErr) {
-          console.error(`Error marking payment as failed for result ${payment.id}:`, failErr);
+          captureException(`Error marking payment as failed for result ${payment.id}:`, failErr);
           results.push({
             resultId: payment.id,
             auctionId: payment.auction_id,
@@ -106,7 +108,7 @@ export async function POST(request: NextRequest) {
           });
 
         if (fallbackErr) {
-          console.error(`Error fetching fallback bidders for auction ${payment.auction_id}:`, fallbackErr);
+          captureException(`Error fetching fallback bidders for auction ${payment.auction_id}:`, fallbackErr);
           results.push({
             resultId: payment.id,
             auctionId: payment.auction_id,
@@ -156,7 +158,7 @@ export async function POST(request: NextRequest) {
           .select('id');
 
         if (logErr) {
-          console.error(`Error logging fallback attempt for result ${payment.id}:`, logErr);
+          captureException(`Error logging fallback attempt for result ${payment.id}:`, logErr);
           continue;
         }
 
@@ -188,10 +190,10 @@ export async function POST(request: NextRequest) {
 
         // TODO: Send notification to fallback bidder
         // This should trigger an in-app notification and optional email
-        console.log(`[Notification] Fallback offer to ${fallbackBidder.bidder_address} for auction ${payment.auction_id}`);
+        logger.info(`[Notification] Fallback offer to ${fallbackBidder.bidder_address} for auction ${payment.auction_id}`);
 
       } catch (auctionErr) {
-        console.error(`Error processing expired payment ${payment.id}:`, auctionErr);
+        captureException(`Error processing expired payment ${payment.id}:`, auctionErr);
         results.push({
           resultId: payment.id,
           auctionId: payment.auction_id,
@@ -208,7 +210,7 @@ export async function POST(request: NextRequest) {
     }, { status: 200 });
 
   } catch (err: any) {
-    console.error('Error in payment-fallback endpoint:', err);
+    captureException('Error in payment-fallback endpoint:', err);
     return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
   }
 }

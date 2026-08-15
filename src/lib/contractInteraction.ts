@@ -1,5 +1,6 @@
 import { Contract, isAddress } from 'ethers';
 import { CONTRACT_ADDRESSES } from './constants';
+import { captureException } from '@/lib/logger';
 
 /**
  * ABI for GovernmentIDVerification contract
@@ -117,7 +118,7 @@ export async function encryptIDDataWithZama(idData: string): Promise<string> {
     const b64 = btoa(String.fromCharCode(...new Uint8Array(encrypted)));
     return b64;
   } catch (error) {
-    console.error('Error encrypting ID data with server key:', error);
+    captureException('Error encrypting ID data with server key:', error);
     throw new Error('Failed to encrypt ID data');
   }
 }
@@ -166,7 +167,7 @@ export async function submitSellerID(
     
     return receipt.hash;
   } catch (error: any) {
-    console.error('Error submitting ID to contract:', error);
+    captureException('Error submitting ID to contract:', error);
     throw new Error(`Failed to submit ID: ${error.message}`);
   }
 }
@@ -222,7 +223,7 @@ export async function getSellerVerificationRecord(
       notBlacklisted: record.notBlacklisted,
     };
   } catch (error: any) {
-    console.error('Error fetching seller record:', error);
+    captureException('Error fetching seller record:', error);
     throw new Error(`Failed to fetch verification record: ${error.message}`);
   }
 }
@@ -256,7 +257,7 @@ export async function checkSellerVerified(
 
     return await contract.isSellerVerified(sellerAddress);
   } catch (error) {
-    console.error('Error checking seller verification:', error);
+    captureException('Error checking seller verification:', error);
     return false;
   }
 }
@@ -291,7 +292,7 @@ export async function getVerificationScore(
     const score = await contract.getVerificationScore(sellerAddress);
     return parseInt(score.toString(), 10);
   } catch (error) {
-    console.error('Error fetching verification score:', error);
+    captureException('Error fetching verification score:', error);
     return 0;
   }
 }
@@ -320,7 +321,7 @@ export async function getVerifiedSellersCount(
     const count = await contract.getVerifiedSellersCount();
     return parseInt(count.toString(), 10);
   } catch (error) {
-    console.error('Error fetching verified sellers count:', error);
+    captureException('Error fetching verified sellers count:', error);
     return 0;
   }
 }

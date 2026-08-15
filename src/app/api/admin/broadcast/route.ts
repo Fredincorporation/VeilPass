@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { captureException } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
     const { data: users, error: usersError } = await query;
 
     if (usersError) {
-      console.error('Error fetching users:', usersError);
+      captureException('Error fetching users:', usersError);
       throw usersError;
     }
 
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
       .insert(notifications);
 
     if (insertError) {
-      console.error('Error creating notifications:', insertError);
+      captureException('Error creating notifications:', insertError);
       throw insertError;
     }
 
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
       });
 
     if (broadcastError) {
-      console.error('Error recording broadcast:', broadcastError);
+      captureException('Error recording broadcast:', broadcastError);
       // Don't throw - notifications were created successfully, just log the error
     }
 
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
       sent_count: users.length,
     });
   } catch (error) {
-    console.error('Error sending broadcast:', error);
+    captureException('Error sending broadcast:', error);
     return NextResponse.json(
       { error: 'Failed to send broadcast' },
       { status: 500 }
@@ -121,7 +122,7 @@ export async function GET(request: NextRequest) {
       .range(offset, offset + limit - 1);
 
     if (error) {
-      console.error('Error fetching broadcasts:', error);
+      captureException('Error fetching broadcasts:', error);
       throw error;
     }
 
@@ -131,7 +132,7 @@ export async function GET(request: NextRequest) {
       count: data?.length || 0,
     });
   } catch (error) {
-    console.error('Error getting broadcasts:', error);
+    captureException('Error getting broadcasts:', error);
     return NextResponse.json(
       { error: 'Failed to fetch broadcasts' },
       { status: 500 }

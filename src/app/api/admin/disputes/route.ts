@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { captureException } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
     const { data: disputes, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching disputes:', error);
+      captureException('Error fetching disputes:', error);
       // Return empty array on error instead of 500
       return NextResponse.json([], { status: 200 });
     }
@@ -123,7 +124,7 @@ export async function GET(request: NextRequest) {
             priority,
           };
         } catch (error) {
-          console.error('Error enriching dispute:', error);
+          captureException('Error enriching dispute:', error);
           // Return basic dispute info even if enrichment fails
           return {
             id: dispute.id,
@@ -146,7 +147,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(validDisputes, { status: 200 });
   } catch (error) {
-    console.error('Error in disputes API:', error);
+    captureException('Error in disputes API:', error);
     // Return empty array on error instead of 500
     return NextResponse.json([], { status: 200 });
   }

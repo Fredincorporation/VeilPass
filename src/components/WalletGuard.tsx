@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { ConnectWallet } from './ConnectWallet';
 import { useRouter, usePathname } from 'next/navigation';
 import { Wallet } from 'lucide-react';
+import logger from '@/lib/logger';
 
 interface WalletGuardProps {
   children: React.ReactNode;
@@ -62,7 +63,7 @@ export function WalletGuard({ children }: WalletGuardProps) {
       setAccount(savedAccount);
       setConnectionError('');
       updateOverlay(savedAccount);
-      console.log('[WalletGuard] Wallet connected:', savedAccount);
+      logger.info('[WalletGuard] Wallet connected:', savedAccount);
     };
 
     window.addEventListener('walletConnected', handleWalletConnected);
@@ -75,7 +76,7 @@ export function WalletGuard({ children }: WalletGuardProps) {
       setAccount(null);
       setConnectionError('');
       updateOverlay(null);
-      console.log('[WalletGuard] Wallet disconnected');
+      logger.info('[WalletGuard] Wallet disconnected');
     };
 
     window.addEventListener('walletDisconnected', handleDisconnect);

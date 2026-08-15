@@ -10,6 +10,7 @@ import { useSendTransaction, useAccount, useConnect } from 'wagmi';
 import { parseEther } from 'ethers';
 import { useToast } from '@/components/ToastContainer';
 import { NETWORK_CONFIG } from '@/lib/wallet-utils';
+import { captureException } from '@/lib/logger';
 
 interface PaymentParams {
   to: string;
@@ -83,7 +84,7 @@ export function useWalletPayment(): UseWalletPaymentReturn {
       return result;
 
     } catch (error: any) {
-      console.error('Payment error:', error);
+      captureException('Payment error:', error);
       
       let displayMsg = 'Payment failed';
       
@@ -113,7 +114,7 @@ export function useWalletPayment(): UseWalletPaymentReturn {
         showError('No wallet connectors available');
       }
     } catch (error: any) {
-      console.error('Wallet connection error:', error);
+      captureException('Wallet connection error:', error);
       showError('Failed to connect wallet');
     }
   }, [connectors, connect]);

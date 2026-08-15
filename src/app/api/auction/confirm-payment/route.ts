@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { ConfirmPaymentSchema, validateInput, checkRateLimit } from '@/lib/validation';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validation = validateInput(ConfirmPaymentSchema, body);
     if (!validation.valid) {
-      console.warn('[SECURITY] Invalid payment confirmation input:', validation.error);
+      logger.warn('[SECURITY] Invalid payment confirmation input:', validation.error);
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
@@ -87,7 +89,7 @@ export async function POST(request: NextRequest) {
       .eq('id', auctionResultId);
 
     if (updateErr) {
-      console.error('Error updating auction result:', updateErr);
+      captureException('Error updating auction result:', updateErr);
       return NextResponse.json({ error: updateErr.message }, { status: 500 });
     }
 
@@ -104,7 +106,7 @@ export async function POST(request: NextRequest) {
         .eq('response_status', 'pending');
 
       if (logErr) {
-        console.warn('Error updating fallback log:', logErr);
+        logger.warn('Error updating fallback log:', logErr);
       }
     }
 
@@ -121,7 +123,7 @@ export async function POST(request: NextRequest) {
     }, { status: 200 });
 
   } catch (err: any) {
-    console.error('Error in confirm-payment endpoint:', err);
+    captureException('Error in confirm-payment endpoint:', err);
     return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
   }
 }
@@ -191,7 +193,7 @@ export async function GET(request: NextRequest) {
     }, { status: 200 });
 
   } catch (err: any) {
-    console.error('[ERROR] confirm-payment GET:', err.message);
+    captureException('[ERROR] confirm-payment GET:', err.message);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -5,6 +5,8 @@
 
 import { parseEther, BrowserProvider, id, Signature, zeroPadValue, toBeHex, verifyTypedData } from 'ethers';
 import { _TypedDataEncoder } from '@ethersproject/hash';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 /**
  * Safely convert an ETH amount (number, string, or wei string) to a wei string
@@ -30,7 +32,7 @@ function toWeiString(amount: number | string): string {
       return parseEther(String(amount)).toString();
     }
   } catch (error) {
-    console.warn(
+    logger.warn(
       `Failed to convert amount to wei: ${amount}. Error: ${(error as any)?.message || error}. Falling back to raw string.`
     );
     // Return as plain string if all else fails
@@ -122,7 +124,7 @@ export async function signBid(bidData: BidSignaturePayload, signerAddress?: stri
         // Debug log to make mismatches visible during development
         try {
           // eslint-disable-next-line no-console
-          console.log('EIP-712 payload (signBid):', { domain: domainForPayload, types: typesWithDomain, message: messageValue });
+          logger.info('EIP-712 payload (signBid):', { domain: domainForPayload, types: typesWithDomain, message: messageValue });
         } catch (e) {}
 
         // Use the provider RPC to perform a v4 typed-data signature so the wallet
@@ -203,15 +205,15 @@ export async function signBid(bidData: BidSignaturePayload, signerAddress?: stri
         } catch (signerErr) {
           // if fallback also fails, let outer catch handle mock
           // eslint-disable-next-line no-console
-          console.warn('Signer-based typed-data fallback failed:', (signerErr as any)?.message || signerErr);
+          logger.warn('Signer-based typed-data fallback failed:', (signerErr as any)?.message || signerErr);
         }
       } catch (walletErr: any) {
-        console.warn('Failed to sign with wallet provider, falling back to mock:', walletErr.message);
+        logger.warn('Failed to sign with wallet provider, falling back to mock:', walletErr.message);
         // Fall back to mock if signing fails
       }
     }
   } catch (err: any) {
-    console.warn('Wallet provider not available, using mock signature:', err.message);
+    logger.warn('Wallet provider not available, using mock signature:', err.message);
   }
 
   // Fallback: create a deterministic mock signature for testing
@@ -286,7 +288,7 @@ export function verifyBidSignature(bidData: BidSignaturePayload, signature: stri
     const recoveredAddress = verifyTypedData(domain, types, value, signature);
     const matches = recoveredAddress.toLowerCase() === bidData.bidder_address.toLowerCase();
     if (!matches) {
-      console.warn('Bid signature mismatch', {
+      logger.warn('Bid signature mismatch', {
         expected: bidData.bidder_address,
         recovered: recoveredAddress,
         value,
@@ -295,7 +297,7 @@ export function verifyBidSignature(bidData: BidSignaturePayload, signature: stri
     }
     return matches;
   } catch (err) {
-    console.error('Error verifying bid signature:', err);
+    captureException('Error verifying bid signature:', err);
     return false;
   }
 }

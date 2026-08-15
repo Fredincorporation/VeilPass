@@ -13,6 +13,8 @@ import { formatEth, ethToUsd } from '@/lib/currency-utils';
 import { getPaymentOrganizerAddress, needsOrganizerMigration } from '@/lib/organizer-utils';
 import { useSendTransaction, useAccount, useChainId } from 'wagmi';
 import { parseEther } from 'ethers';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -140,7 +142,7 @@ export default function EventDetailPage() {
       // Get payment organizer address
       const paymentOrganizer = getPaymentOrganizerAddress(event.organizer);
       if (needsOrganizerMigration(event.organizer)) {
-        console.log(`Using fallback organizer address: ${paymentOrganizer} for event: ${event.organizer}`);
+        logger.info(`Using fallback organizer address: ${paymentOrganizer} for event: ${event.organizer}`);
       }
 
       // Check network (Base Sepolia = chainId 84532)
@@ -156,7 +158,7 @@ export default function EventDetailPage() {
       // Format amount to wei
       const amountInWei = parseEther(totalPrice.toString());
       
-      console.log('Sending transaction via Wagmi:', {
+      logger.info('Sending transaction via Wagmi:', {
         from: account,
         to: paymentOrganizer,
         value: amountInWei.toString(),
@@ -173,7 +175,7 @@ export default function EventDetailPage() {
           },
           {
             onSuccess: async (txHash) => {
-              console.log('Transaction submitted with hash:', txHash);
+              logger.info('Transaction submitted with hash:', txHash);
               showSuccess(`✓ Transaction submitted! Hash: ${txHash.slice(0, 10)}...`);
               
               try {
@@ -200,7 +202,7 @@ export default function EventDetailPage() {
 
                   if (!response.ok) {
                     const errorData = await response.json();
-                    console.error('Ticket creation error:', errorData);
+                    captureException('Ticket creation error:', errorData);
                     throw new Error(errorData.error || 'Failed to create ticket');
                   }
                 }
@@ -220,10 +222,10 @@ export default function EventDetailPage() {
                   });
 
                   if (!updateResponse.ok) {
-                    console.warn('Failed to update event tickets_sold count, but tickets were created');
+                    logger.warn('Failed to update event tickets_sold count, but tickets were created');
                   }
                 } catch (updateError) {
-                  console.warn('Failed to update event tickets_sold:', updateError);
+                  logger.warn('Failed to update event tickets_sold:', updateError);
                 }
 
                 const loyaltyPoints = Math.floor((totalPrice * 1000) / 10);
@@ -241,7 +243,7 @@ export default function EventDetailPage() {
 
                 resolve();
               } catch (ticketError: any) {
-                console.error('Error creating tickets:', ticketError);
+                captureException('Error creating tickets:', ticketError);
                 showError(`Tickets created but failed to save: ${ticketError.message}`);
                 resolve();
               } finally {
@@ -249,7 +251,7 @@ export default function EventDetailPage() {
               }
             },
             onError: (error: any) => {
-              console.error('Payment error:', error);
+              captureException('Payment error:', error);
               
               let displayMsg = 'Unknown error occurred';
               
@@ -269,7 +271,7 @@ export default function EventDetailPage() {
         );
       });
     } catch (error: any) {
-      console.error('Unexpected error in handlePayment:', error);
+      captureException('Unexpected error in handlePayment:', error);
       showError('An unexpected error occurred. Please try again.');
       setIsProcessingPayment(false);
     }

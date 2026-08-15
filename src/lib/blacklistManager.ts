@@ -7,6 +7,8 @@
  */
 
 import { supabase } from './supabase';
+import { captureException } from '@/lib/logger';
+import logger from '@/lib/logger';
 
 export interface BlacklistEntry {
   id: string;
@@ -43,13 +45,13 @@ export async function addToBlacklist(
       .single();
 
     if (error) {
-      console.error('Error adding to blacklist:', error);
+      captureException('Error adding to blacklist:', error);
       return null;
     }
 
     return data;
   } catch (err) {
-    console.error('Exception in addToBlacklist:', err);
+    captureException('Exception in addToBlacklist:', err);
     return null;
   }
 }
@@ -73,13 +75,13 @@ export async function isBlacklisted(idHash: string): Promise<boolean> {
     }
 
     if (error) {
-      console.warn('Error checking blacklist:', error);
+      logger.warn('Error checking blacklist:', error);
       return false; // Fail open: don't block on DB error
     }
 
     return !!data;
   } catch (err) {
-    console.warn('Exception in isBlacklisted:', err);
+    logger.warn('Exception in isBlacklisted:', err);
     return false;
   }
 }
@@ -101,13 +103,13 @@ export async function getBlacklistEntries(
     const { data, error } = await query;
 
     if (error) {
-      console.error('Error fetching blacklist:', error);
+      captureException('Error fetching blacklist:', error);
       return [];
     }
 
     return data || [];
   } catch (err) {
-    console.error('Exception in getBlacklistEntries:', err);
+    captureException('Exception in getBlacklistEntries:', err);
     return [];
   }
 }
@@ -123,13 +125,13 @@ export async function removeFromBlacklist(idHash: string): Promise<boolean> {
       .eq('id_hash', idHash);
 
     if (error) {
-      console.error('Error removing from blacklist:', error);
+      captureException('Error removing from blacklist:', error);
       return false;
     }
 
     return true;
   } catch (err) {
-    console.error('Exception in removeFromBlacklist:', err);
+    captureException('Exception in removeFromBlacklist:', err);
     return false;
   }
 }

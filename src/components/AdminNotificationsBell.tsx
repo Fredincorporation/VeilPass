@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, X, Check, AlertCircle } from 'lucide-react';
 import { useAdminUnreadNotifications, useMarkAdminNotificationsAsRead } from '@/hooks/useAdminNotifications';
+import logger from '@/lib/logger';
 
 interface AdminNotificationsBellProps {
   adminWallet?: string;
@@ -15,12 +16,12 @@ export default function AdminNotificationsBell({ adminWallet, className = '' }: 
   const { mutate: markAsRead } = useMarkAdminNotificationsAsRead();
 
   const handleMarkAllAsRead = () => {
-    console.log('[AdminNotificationsBell] handleMarkAllAsRead called', {
+    logger.info('[AdminNotificationsBell] handleMarkAllAsRead called', {
       unreadCount: unreadNotifications.length,
       adminWallet,
     });
     if (unreadNotifications.length > 0 && adminWallet) {
-      console.log('[AdminNotificationsBell] Calling markAsRead with:', {
+      logger.info('[AdminNotificationsBell] Calling markAsRead with:', {
         notificationIds: unreadNotifications.map((n: any) => n.id),
         adminWallet,
       });
@@ -29,7 +30,7 @@ export default function AdminNotificationsBell({ adminWallet, className = '' }: 
         adminWallet,
       });
     } else {
-      console.warn('[AdminNotificationsBell] Missing data:', {
+      logger.warn('[AdminNotificationsBell] Missing data:', {
         hasNotifications: unreadNotifications.length > 0,
         hasWallet: !!adminWallet,
       });

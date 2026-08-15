@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { captureException } from '@/lib/logger';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -112,7 +113,7 @@ export async function GET() {
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : JSON.stringify(error);
-    console.error('Error fetching audit logs:', errorMessage);
+    captureException('Error fetching audit logs:', errorMessage);
 
     // Return empty array on error
     return NextResponse.json([]);

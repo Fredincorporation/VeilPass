@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { captureException } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -110,7 +111,7 @@ export async function GET(request: NextRequest) {
       revenueData,
     });
   } catch (error) {
-    console.error('Error fetching seller analytics:', error);
+    captureException('Error fetching seller analytics:', error);
     return NextResponse.json(
       { 
         metrics: {

@@ -5,6 +5,7 @@ import { Users, Search, ChevronDown, CheckCircle, AlertCircle, Loader } from 'lu
 import { useToast } from '@/components/ToastContainer';
 import { supabase } from '@/lib/supabase';
 import { formatDate } from '@/lib/date-formatter';
+import { captureException } from '@/lib/logger';
 
 interface UserRecord {
   id: string;
@@ -43,7 +44,7 @@ export default function AdminUsersPage() {
       setUsers(data || []);
       showSuccess('Users loaded successfully');
     } catch (err) {
-      console.error('Error loading users:', err);
+      captureException('Error loading users:', err);
       showError('Failed to load users');
     } finally {
       setLoading(false);
@@ -67,7 +68,7 @@ export default function AdminUsersPage() {
 
       showSuccess(`${walletAddress.slice(0, 6)}... updated to ${newRole}`);
     } catch (err) {
-      console.error('Error updating user role:', err);
+      captureException('Error updating user role:', err);
       showError('Failed to update user role');
     } finally {
       setUpdatingRoles(prev => {
@@ -103,7 +104,7 @@ export default function AdminUsersPage() {
       setSelectedUsers(new Set());
       setBulkRoleAction(null);
     } catch (err) {
-      console.error('Error bulk updating roles:', err);
+      captureException('Error bulk updating roles:', err);
       showError('Failed to update some users');
     } finally {
       setUpdatingRoles(prev => {
