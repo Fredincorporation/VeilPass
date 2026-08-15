@@ -2,8 +2,9 @@ import React from 'react';
 import QRCode from 'qrcode.react';
 import { createRoot } from 'react-dom/client';
 import { captureException } from './logger';
+import type { Ticket } from '@/types';
 
-export async function downloadTicketAsPrintable(ticket: any, eventName: string, showInfo: (s:string)=>void, showSuccess: (s:string)=>void) {
+export async function downloadTicketAsPrintable(ticket: Ticket, eventName: string, showInfo: (s:string)=>void, showSuccess: (s:string)=>void) {
   try {
     const encryptedPayload = 'placeholder';
 

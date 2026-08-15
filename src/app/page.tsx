@@ -7,6 +7,7 @@ import { useEvents } from '@/hooks/useEvents';
 import { formatDate } from '@/lib/date-formatter';
 import { formatAddress } from '@/lib/utils';
 import { isValidOrganizerAddress } from '@/lib/organizer-utils';
+import type { Event } from '@/types';
 
 export default function HomePage() {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
@@ -42,7 +43,7 @@ export default function HomePage() {
   ];
 
   // Use events from database, filter out rejected events, show only first few
-  const featuredEvents = allEvents.filter((event: any) => event.status !== 'Rejected').slice(0, 9);
+  const featuredEvents = (allEvents as Event[]).filter((event: Event) => event.status !== 'Rejected').slice(0, 9);
 
   return (
     <>

@@ -586,7 +586,7 @@ export default function DisputesPage() {
                 {messages.length === 0 ? (
                   <p className="text-center text-gray-500 dark:text-gray-400 py-8">No messages yet. Start the conversation!</p>
                 ) : (
-                  messages.map((msg: any) => (
+                  messages.map((msg: DisputeMessage) => (
                     <div
                       key={msg.id}
                       className={`flex ${msg.sender_role === 'admin' ? 'justify-start' : 'justify-end'}`}

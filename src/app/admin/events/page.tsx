@@ -23,7 +23,7 @@ export default function EventApprovalsPage() {
   });
 
   // Filter only Pre-Sale events that need approval
-  const preeSaleEvents = (allEvents as any[]).filter((event: any) => event.status === 'Pre-Sale' || event.status === 'draft') as import('@/types').Event[];
+  const preeSaleEvents = (allEvents as import('@/types').Event[]).filter((event: import('@/types').Event) => event.status === 'Pre-Sale' || event.status === 'draft');
 
   const handleApproveEvent = async (eventId: number, eventTitle: string) => {
     setApprovingId(eventId);

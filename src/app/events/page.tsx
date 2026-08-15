@@ -7,6 +7,7 @@ import { useEvents } from '@/hooks/useEvents';
 import { useEthPrice } from '@/hooks/useEthPrice';
 import { formatDate } from '@/lib/date-formatter';
 import { formatEth, ethToUsd } from '@/lib/currency-utils';
+import type { Event } from '@/types';
 
 export default function EventsPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -14,10 +15,10 @@ export default function EventsPage() {
   const { data: events = [], isLoading, error } = useEvents();
   const { price: ethPrice } = useEthPrice();
 
-  const filteredEvents = events.filter((event: any) => {
+  const filteredEvents = events.filter((event: Event) => {
     const matchesSearch =
-      event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.location.toLowerCase().includes(searchQuery.toLowerCase());
+      (event.title ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (event.location ?? '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = selectedStatus === 'all' || event.status === selectedStatus;
     const isNotRejected = event.status !== 'Rejected';
     return matchesSearch && matchesStatus && isNotRejected;

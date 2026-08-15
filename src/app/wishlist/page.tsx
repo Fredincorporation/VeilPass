@@ -54,7 +54,7 @@ export default function WishlistPage() {
       setIsLoadingEvents(true);
       try {
         const itemsWithEvents = await Promise.all(
-          wishlists.map(async (wishlist: any) => {
+          wishlists.map(async (wishlist: WishlistItem) => {
             try {
               const response = await fetch(`/api/events/${wishlist.event_id}`);
               if (response.ok) {
@@ -78,7 +78,7 @@ export default function WishlistPage() {
     fetchEventDetails();
   }, [JSON.stringify(wishlists)]);
 
-  const filteredItems = wishlistItems.filter((item: any) => {
+  const filteredItems = wishlistItems.filter((item: WishlistItem) => {
     const eventTitle = item.event?.title || '';
     const eventLocation = item.event?.location || '';
     return (
@@ -161,7 +161,7 @@ export default function WishlistPage() {
         {/* Wishlist Items Grid */}
         {!isLoading && !isLoadingEvents && filteredItems.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredItems.map((item: any) => (
+            {filteredItems.map((item: WishlistItem) => (
               <div
                 key={`${item.user_address}-${item.event_id}`}
                 className="bg-white dark:bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 hover:shadow-lg transition group"

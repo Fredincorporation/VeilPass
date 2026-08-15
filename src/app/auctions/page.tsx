@@ -11,12 +11,13 @@ import { useSafeWallet as useWallet } from '@/lib/wallet-context';
 import { signBid, BidSignaturePayload } from '@/lib/bidSignature';
 import { getMinimumNextBid, formatBidIncrementInfo, validateBidIncrement } from '@/lib/bidConfig';
 import { captureException } from '@/lib/logger';
+import type { Auction } from '@/types';
 
 export default function AuctionsPage() {
   const { showSuccess, showInfo } = useToast();
   const [activeFilter, setActiveFilter] = useState('all');
   const [showBidModal, setShowBidModal] = useState(false);
-  const [selectedAuction, setSelectedAuction] = useState<any>(null);
+  const [selectedAuction, setSelectedAuction] = useState<Auction | null>(null);
   const [bidAmount, setBidAmount] = useState('');
   const [timeState, setTimeState] = useState<{[key: number]: {timeLeft: string; progress: number}}>({});
   const [account, setAccount] = useState<string | null>(null);
@@ -26,7 +27,7 @@ export default function AuctionsPage() {
   const { data: dbAuctions = [], isLoading } = useAuctions(activeFilter === 'all' ? undefined : activeFilter);
 
   // Use only database auctions - no mock data fallback
-  const auctions: any[] = dbAuctions;
+  const auctions: Auction[] = dbAuctions as Auction[];
 
   const { price: ethPrice } = useEthPrice();
 
@@ -84,7 +85,7 @@ export default function AuctionsPage() {
     if (wallet?.address) setAccount(wallet.address);
   }, [wallet?.address]);
 
-  const handlePlaceBid = (auction: any) => {
+  const handlePlaceBid = (auction: Auction) => {
     setSelectedAuction(auction);
     setBidAmount('');
     setShowBidModal(true);
@@ -141,7 +142,7 @@ export default function AuctionsPage() {
         // Sign the bid (for now, returns a mock signature; integrate with real wallet provider)
         const signature = await signBid(bidSignatureData, account);
 
-        const payload: any = {
+        const payload: Record<string, unknown> = {
           ...bidSignatureData,
           signature, // Include the signature in the payload
         };
