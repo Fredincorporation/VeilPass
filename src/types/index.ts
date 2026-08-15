@@ -23,6 +23,29 @@ export interface Dispute {
   updated_at?: string;
 }
 
+export interface DisputeMessage {
+  id: string | number;
+  dispute_id: string | number;
+  sender_address: string;
+  sender_role: 'admin' | 'user' | string;
+  message: string;
+  status?: string | null;
+  is_status_change?: boolean;
+  created_at?: string;
+}
+
+export interface Event {
+  id: number | string;
+  status?: string;
+  title?: string;
+  image?: string;
+  description?: string;
+  organizer?: string;
+  date?: string;
+  location?: string;
+  base_price?: number;
+}
+
 export interface User {
   address?: string;
   role?: string;

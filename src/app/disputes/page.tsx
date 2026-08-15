@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, Clock, CheckCircle, XCircle, Search, Filter, Plus } from 'lucide-react';
 import logger, { captureException } from '@/lib/logger';
-import { Dispute, User } from '@/types';
+import { Dispute, User, DisputeMessage } from '@/types';
 import { useDisputes, useCreateDispute, useUpdateDispute } from '@/hooks/useDisputes';
 import { useDisputeMessages, useSendDisputeMessage } from '@/hooks/useDisputeMessages';
 import { useWalletAuthentication } from '@/hooks/useWalletAuthentication';
@@ -29,11 +29,11 @@ function DisputeCard({
   getStatusColor: (s: string) => string;
   getStatusIcon: (s: string) => JSX.Element;
   getStatusBadgeColor: (s: string) => string;
-  getLastAdminMessage: (m: any[]) => any;
-  hasUnrepliedMessages: (m: any[]) => boolean;
+  getLastAdminMessage: (m: DisputeMessage[]) => DisputeMessage | undefined;
+  hasUnrepliedMessages: (m: DisputeMessage[]) => boolean;
 }) {
   // Hooks can now be safely called here (not in a loop)
-  const { data: disputeMessages = [] } = useDisputeMessages(dispute.id as any);
+  const { data: disputeMessages = [] } = useDisputeMessages(dispute.id as string | number);
   
   const lastAdminMsg = getLastAdminMessage(disputeMessages);
   const hasUnread = hasUnrepliedMessages(disputeMessages);
@@ -136,7 +136,7 @@ export default function DisputesPage() {
   const [showModal, setShowModal] = useState(false);
   const [showReasonModal, setShowReasonModal] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
-  const [selectedDispute, setSelectedDispute] = useState<any>(null);
+  const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
   const [account, setAccount] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     reason: '',
@@ -158,7 +158,7 @@ export default function DisputesPage() {
   const isAdmin = user?.role === 'admin';
   
   // Fetch messages for selected dispute
-  const { data: messages = [] } = useDisputeMessages(selectedDispute?.id || null);
+  const { data: messages = [] } = useDisputeMessages(selectedDispute?.id || null) as { data: DisputeMessage[] };
   const { mutate: sendMessage } = useSendDisputeMessage();
 
   useEffect(() => {
@@ -209,12 +209,12 @@ export default function DisputesPage() {
     );
   };
 
-  const handleViewReason = (dispute: any) => {
+  const handleViewReason = (dispute: Dispute) => {
     setSelectedDispute(dispute);
     setShowReasonModal(true);
   };
 
-  const handleOpenMessages = (dispute: any) => {
+  const handleOpenMessages = (dispute: Dispute) => {
     setSelectedDispute(dispute);
     setMessageData({ message: '', status: dispute.status });
     setShowMessageModal(true);
@@ -277,19 +277,19 @@ export default function DisputesPage() {
     );
   };
 
-  const getLastAdminMessage = (messages: any[]) => {
+  const getLastAdminMessage = (messages: DisputeMessage[]) => {
     return messages
       .filter((m) => m.sender_role === 'admin')
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+      .sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime())[0];
   };
 
-  const hasUnrepliedMessages = (messages: any[]) => {
+  const hasUnrepliedMessages = (messages: DisputeMessage[]) => {
     if (messages.length === 0) return false;
     const lastMessage = messages[messages.length - 1];
     return lastMessage.sender_role === 'admin' && !isAdmin;
   };
 
-  const filteredDisputes = disputes.filter((dispute: any) => {
+  const filteredDisputes = disputes.filter((dispute: Dispute) => {
     const matchesSearch =
       dispute.ticket_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       dispute.id?.toString().includes(searchTerm.toLowerCase()) ||

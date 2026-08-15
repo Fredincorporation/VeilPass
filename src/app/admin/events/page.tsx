@@ -23,7 +23,7 @@ export default function EventApprovalsPage() {
   });
 
   // Filter only Pre-Sale events that need approval
-  const preeSaleEvents = allEvents.filter((event: any) => event.status === 'Pre-Sale' || event.status === 'draft');
+  const preeSaleEvents = (allEvents as any[]).filter((event: any) => event.status === 'Pre-Sale' || event.status === 'draft') as import('@/types').Event[];
 
   const handleApproveEvent = async (eventId: number, eventTitle: string) => {
     setApprovingId(eventId);
@@ -133,7 +133,7 @@ export default function EventApprovalsPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {preeSaleEvents.map((event: any) => (
+            {preeSaleEvents.map((event) => (
               <div
                 key={event.id}
                 className="bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-800 overflow-hidden hover:border-emerald-400 dark:hover:border-emerald-600 transition-all"

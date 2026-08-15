@@ -18,7 +18,7 @@ import { captureException } from '@/lib/logger';
 import { Ticket as TicketType } from '@/types';
 
 // Simple HTML escaper for embedding user data into generated HTML
-function escapeHtml(unsafe: any) {
+function escapeHtml(unsafe: unknown) {
   if (unsafe === null || unsafe === undefined) return '';
   return String(unsafe)
     .replace(/&/g, '&amp;')
@@ -28,7 +28,7 @@ function escapeHtml(unsafe: any) {
     .replace(/'/g, '&#039;');
 }
 
-function maskAddress(addr: any) {
+function maskAddress(addr?: string | null) {
   if (!addr) return '';
   const s = String(addr);
   if (s.length <= 12) return s;
@@ -64,21 +64,21 @@ export default function TicketsPage() {
 
   // Fetch active auctions to determine which tickets are already listed
   const { data: activeAuctions = [] } = useAuctions('active');
-  const activeAuctionTicketIds = new Set((activeAuctions || []).map((a: any) => a.ticket_id));
+  const activeAuctionTicketIds = new Set((activeAuctions || []).map((a: { ticket_id?: string }) => a.ticket_id));
 
-  const filteredTickets = tickets.filter((ticket: any) =>
-    (ticket.id && ticket.id.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (ticket.section && ticket.section.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredTickets = tickets.filter((ticket: TicketType) =>
+    (String(ticket.id || '').toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (String(ticket.section || '').toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const handleShowQR = (ticketId: string, ticket: any) => {
+  const handleShowQR = (ticketId: string, ticket: TicketType) => {
     // QR code will encode the ticket ID, event ID, and owner address for verification
     setSelectedTicket(ticket);
     setShowQRModal(true);
   };
 
   const handleDownloadTicket = (ticketId: string, eventName: string) => {
-    const ticket = tickets.find((t) => t.id === ticketId) || ({ id: ticketId } as any);
+    const ticket = (tickets.find((t) => t.id === ticketId) as TicketType) || ({ id: ticketId } as TicketType);
     // Delegate to shared download utility
     // It will handle encryption, rendering, and error capture
     downloadTicketAsPrintable(ticket, eventName, showInfo, showSuccess);
@@ -86,7 +86,7 @@ export default function TicketsPage() {
 
   
 
-  const handleBidAuction = (ticket: any) => {
+  const handleBidAuction = (ticket: TicketType) => {
     const eventStart = ticket.events?.date;
     if (eventStart && !isAuctionCreationAllowed(eventStart)) {
       showInfo('Auction creation is disabled within 5 hours of event start');
@@ -158,7 +158,7 @@ export default function TicketsPage() {
       setTimeout(() => {
         window.location.reload();
       }, 1500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       captureException(error);
       showInfo('Failed to create auction. Please try again.');
     }
