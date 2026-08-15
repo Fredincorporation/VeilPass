@@ -50,3 +50,68 @@ export interface User {
   address?: string;
   role?: string;
 }
+
+export interface Auction {
+  id: string | number;
+  ticket_id: string | number;
+  status?: string;
+  highest_bid?: number;
+  highest_bidder?: string;
+  created_at?: string;
+  updated_at?: string;
+  tickets?: Ticket;
+}
+
+export interface Bid {
+  id: string | number;
+  auction_id: string | number;
+  bidder_address: string;
+  amount: number;
+  timestamp?: string;
+  created_at?: string;
+}
+
+export interface Wishlist {
+  id: string | number;
+  user_address: string;
+  event_id: number | string;
+  created_at?: string;
+  events?: Event;
+}
+
+export interface AuditLog {
+  id: string | number;
+  action: string;
+  target_type?: string;
+  target_id?: string;
+  user_address?: string;
+  details?: Record<string, unknown>;
+  timestamp?: string;
+  created_at?: string;
+}
+
+export interface RevenueData {
+  event_id?: number | string;
+  revenue: number;
+  ticketsSold?: number;
+  tickets_sold?: number;
+  [key: string]: unknown;
+}
+
+export interface Seller {
+  id: string | number;
+  wallet_address: string;
+  name?: string;
+  status?: string;
+  verified?: boolean;
+  created_at?: string;
+}
+
+export interface LoyaltyActivity {
+  id: string | number;
+  user_address: string;
+  activity_type: string;
+  points: number;
+  transaction_hash?: string;
+  created_at?: string;
+}

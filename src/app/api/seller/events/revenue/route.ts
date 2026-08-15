@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
       totalTickets,
       breakdown,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error calculating revenue:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

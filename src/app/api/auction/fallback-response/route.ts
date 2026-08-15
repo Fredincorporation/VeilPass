@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
       }, { status: 200 });
     }
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     captureException('Error in fallback-response endpoint:', err);
     return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
   }

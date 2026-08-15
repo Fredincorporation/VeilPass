@@ -3,6 +3,14 @@ import { supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { captureException } from '@/lib/logger';
 import logger from '@/lib/logger';
+import type { Event } from '@/types';
+
+interface TicketTier {
+  name: string;
+  description?: string;
+  price: number;
+  quantity: number;
+}
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -33,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     // Enrich events with actual ticket counts from tickets table
     const enrichedData = await Promise.all(
-      (data || []).map(async (event: any) => {
+      (data || []).map(async (event: Event) => {
         const { count: ticketCount } = await supabase
           .from('tickets')
           .select('*', { count: 'exact', head: true })
@@ -41,17 +49,17 @@ export async function GET(request: NextRequest) {
         
         return {
           ...event,
-          tickets_sold: ticketCount || event.tickets_sold || 0,
+          tickets_sold: ticketCount || (event as any).tickets_sold || 0,
         };
       })
     );
 
     // Return data as-is without status transformation
     return NextResponse.json(enrichedData || []);
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error fetching events:', error);
     return NextResponse.json(
-      { error: error.message },
+      { error: (error as any).message },
       { status: 500 }
     );
   }
@@ -79,7 +87,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract ticket tiers from request body
-    const tiers = body.ticket_tiers || [];
+    const tiers: TicketTier[] = body.ticket_tiers || [];
     delete body.ticket_tiers; // Remove from event data
 
     // Ensure timestamps and base_price
@@ -102,12 +110,12 @@ export async function POST(request: NextRequest) {
 
     // If tiers are provided, create them as well
     if (tiers.length > 0) {
-      const tierData = tiers.map((tier: any, index: number) => ({
+      const tierData = tiers.map((tier: TicketTier, index: number) => ({
         event_id: createdEvent.id,
         name: tier.name,
         description: tier.description || '',
-        price: parseFloat(tier.price) || 0,
-        available: parseInt(tier.quantity) || 0,
+        price: parseFloat(String(tier.price)) || 0,
+        available: parseInt(String(tier.quantity)) || 0,
         sold: 0,
         features: tier.features || [],
         display_order: index + 1,
@@ -159,7 +167,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(createdEvent, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error creating event:', error);
     return NextResponse.json(
       { error: error.message },
@@ -206,7 +214,7 @@ export async function PUT(request: NextRequest) {
 
     logger.info('Event updated successfully:', data[0]);
     return NextResponse.json(data[0], { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error updating event:', error);
     return NextResponse.json(
       { error: error.message },

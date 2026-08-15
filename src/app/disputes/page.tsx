@@ -425,7 +425,7 @@ export default function DisputesPage() {
         {/* Disputes List */}
         {filteredDisputes.length > 0 ? (
           <div className="space-y-4">
-            {filteredDisputes.map((dispute: any) => (
+            {filteredDisputes.map((dispute: Dispute) => (
               <DisputeCard
                 key={dispute.id}
                 dispute={dispute}

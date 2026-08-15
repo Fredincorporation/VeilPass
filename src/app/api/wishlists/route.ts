@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(data || []);
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error fetching wishlists:', error);
     // Return empty array on error instead of 500 to prevent cascading failures
     return NextResponse.json([], { status: 200 });
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
 
     logger.info('Added to wishlist:', data[0]);
     return NextResponse.json(data[0], { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error adding to wishlist:', error);
     return NextResponse.json(
       { error: error.message },
@@ -110,7 +110,7 @@ export async function DELETE(request: NextRequest) {
 
     logger.info('Removed from wishlist');
     return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error removing from wishlist:', error);
     return NextResponse.json(
       { error: error.message },

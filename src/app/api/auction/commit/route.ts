@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, inserted: data }, { status: 201 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
   }
 }

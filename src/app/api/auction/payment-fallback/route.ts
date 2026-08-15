@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
       count: results.length,
     }, { status: 200 });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     captureException('Error in payment-fallback endpoint:', err);
     return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
   }

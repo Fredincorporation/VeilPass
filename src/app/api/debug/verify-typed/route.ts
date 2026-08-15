@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     let hash: string;
     try {
       hash = _TypedDataEncoder.hash(domain, types, message);
-    } catch (err: any) {
+    } catch (err: unknown) {
       return NextResponse.json({ error: 'Failed to hash typed data', details: String(err?.message || err) }, { status: 400 });
     }
 
@@ -39,14 +39,14 @@ export async function POST(req: Request) {
     let recovered: string;
     try {
       recovered = recoverAddress(hash, signature).toLowerCase();
-    } catch (err: any) {
+    } catch (err: unknown) {
       return NextResponse.json({ error: 'Failed to recover address from signature', details: String(err?.message || err) }, { status: 400 });
     }
 
     const matchesExpected = typeof expected !== 'undefined' ? (String(expected).toLowerCase() === recovered) : null;
 
     return NextResponse.json({ hash, recovered, matchesExpected }, { status: 200 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
   }
 }

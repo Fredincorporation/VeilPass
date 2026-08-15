@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
       message: 'Ticket verified successfully',
       scanTime: new Date().toISOString(),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Scanner error:', error);
     return NextResponse.json(
       { error: 'Server error during ticket verification', details: error.message },
@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
       scans: data || [],
       count: data?.length || 0,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error fetching scans:', error);
     return NextResponse.json(
       { error: 'Error fetching scan history' },

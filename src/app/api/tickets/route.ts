@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(ticketsWithEventData);
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error fetching tickets:', error);
     return NextResponse.json(
       { error: error.message },
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(data[0], { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('❌ Error creating ticket:', error);
     return NextResponse.json(
       { error: error.message },
@@ -172,7 +172,7 @@ export async function PUT(request: NextRequest) {
     if (error) throw error;
 
     return NextResponse.json(data[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error updating ticket:', error);
     return NextResponse.json(
       { error: error.message },

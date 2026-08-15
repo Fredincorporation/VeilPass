@@ -2,8 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { fetchEthPrice } from '@/lib/currency-utils';
 import { captureException } from '@/lib/logger';
+import type { Auction, Ticket } from '@/types';
 
 export const dynamic = 'force-dynamic';
+
+interface TicketData {
+  id: string | number;
+  event_id: string | number;
+  section?: string;
+}
+
+interface EventData {
+  id: string | number;
+  title: string;
+}
+
+interface BidData {
+  auction_id: string | number;
+  amount: number;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,55 +40,55 @@ export async function GET(request: NextRequest) {
     if (error) throw error;
 
     // If auctions reference tickets, fetch related ticket rows to provide a friendly title/event.
-    const ticketIds = Array.from(new Set((auctions || []).map((a: any) => a.ticket_id).filter(Boolean)));
-    let ticketsById: Record<string, any> = {};
-    let eventsById: Record<string, any> = {};
+    const ticketIds = Array.from(new Set((auctions || []).map((a: Auction) => a.ticket_id).filter(Boolean)));
+    let ticketsById: Record<string, TicketData> = {};
+    let eventsById: Record<string, EventData> = {};
 
     if (ticketIds.length > 0) {
       const { data: tickets } = await supabase
         .from('tickets')
         .select('id,event_id,section')
-        .in('id', ticketIds as any[]);
+        .in('id', ticketIds);
 
       if (tickets && Array.isArray(tickets)) {
-        ticketsById = tickets.reduce((acc: Record<string, any>, t: any) => {
+        ticketsById = tickets.reduce((acc: Record<string, TicketData>, t: TicketData) => {
           acc[String(t.id)] = t;
           return acc;
-        }, {} as Record<string, any>);
+        }, {});
 
-        const eventIds = Array.from(new Set(tickets.map((t: any) => t.event_id).filter(Boolean)));
+        const eventIds = Array.from(new Set(tickets.map((t: TicketData) => t.event_id).filter(Boolean)));
         if (eventIds.length > 0) {
           const { data: events } = await supabase
             .from('events')
             .select('id,title')
-            .in('id', eventIds as any[]);
+            .in('id', eventIds);
 
           if (events && Array.isArray(events)) {
-            eventsById = events.reduce((acc: Record<string, any>, e: any) => {
+            eventsById = events.reduce((acc: Record<string, EventData>, e: EventData) => {
               acc[String(e.id)] = e;
               return acc;
-            }, {} as Record<string, any>);
+            }, {});
           }
         }
       }
     }
 
     // Compute highest bid and count per auction so UI can show current leading bid and total bids
-    const auctionIds = Array.from(new Set((auctions || []).map((a: any) => a.id).filter(Boolean)));
-    let highestByAuction: Record<string, any> = {};
+    const auctionIds = Array.from(new Set((auctions || []).map((a: Auction) => a.id).filter(Boolean)));
+    let highestByAuction: Record<string, number> = {};
     let countByAuction: Record<string, number> = {};
     if (auctionIds.length > 0) {
       const { data: bids } = await supabase
         .from('bids')
         .select('auction_id,amount')
-        .in('auction_id', auctionIds as any[])
+        .in('auction_id', auctionIds)
         .order('amount', { ascending: false });
 
       if (bids && Array.isArray(bids)) {
         // Reduce to highest amount per auction and count bids
         highestByAuction = {};
         countByAuction = {};
-        for (const b of bids) {
+        for (const b of bids as BidData[]) {
           const key = String(b.auction_id);
           if (!highestByAuction[key]) highestByAuction[key] = b.amount;
           countByAuction[key] = (countByAuction[key] || 0) + 1;
@@ -79,7 +96,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const enriched = (auctions || []).map((a: any) => {
+    const enriched = (auctions || []).map((a: Auction) => {
       const t = a.ticket_id ? ticketsById[String(a.ticket_id)] : null;
       const ev = t?.event_id ? eventsById[String(t.event_id)] : null;
       return {
@@ -93,10 +110,10 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(enriched);
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error fetching auctions:', error);
     return NextResponse.json(
-      { error: error.message },
+      { error: (error as any).message },
       { status: 500 }
     );
   }
@@ -162,7 +179,7 @@ export async function POST(request: NextRequest) {
     if (error) throw error;
 
     return NextResponse.json(data[0], { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error creating auction:', error);
     return NextResponse.json(
       { error: error.message },

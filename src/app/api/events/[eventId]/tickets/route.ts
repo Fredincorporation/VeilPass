@@ -26,7 +26,7 @@ export async function GET(
     if (error) throw error;
 
     return NextResponse.json({ count: count || 0 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error fetching ticket count:', error);
     return NextResponse.json(
       { error: error.message },

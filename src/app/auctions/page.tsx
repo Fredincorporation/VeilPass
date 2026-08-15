@@ -166,7 +166,7 @@ export default function AuctionsPage() {
         showSuccess(`Encrypted bid of ${bidEth} ETH (${usdApprox}) placed on "${selectedAuction?.title ?? selectedAuction?.ticket_id ?? `#${selectedAuction?.id}`}"!`);
         setShowBidModal(false);
         setBidAmount('');
-      } catch (err: any) {
+      } catch (err: unknown) {
         captureException('Error placing bid:', err);
         showInfo('Failed to place bid. Try again.');
       }

@@ -6,6 +6,7 @@ import { verifyBidSignature, BidSignaturePayload } from '@/lib/bidSignature';
 import { getMinimumNextBid, validateBidIncrement } from '@/lib/bidConfig';
 import { captureException } from '@/lib/logger';
 import logger from '@/lib/logger';
+import type { Bid } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,21 @@ interface BidValidationRpcResult {
   bid_count: number;
   minimum_required: number | null;
   error: string | null;
+}
+
+interface BidWithAuction extends Bid {
+  auctions?: {
+    id: string | number;
+    ticket_id: string | number;
+    seller_address?: string;
+    start_bid?: number;
+    listing_price?: number;
+    reserve_price?: number;
+    duration_hours?: number;
+    end_time?: string;
+    status?: string;
+    created_at?: string;
+  };
 }
 
 const supabaseAdmin = createClient(
@@ -66,7 +82,7 @@ export async function GET(request: NextRequest) {
     if (error) throw error;
 
     // Transform the data to flatten auction info
-    const transformedData = (data || []).map((bid: any) => ({
+    const transformedData = (data || []).map((bid: BidWithAuction) => ({
       id: bid.id,
       auction_id: bid.auction_id,
       bidder_address: bid.bidder_address,
@@ -86,10 +102,10 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json(transformedData);
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error fetching bids:', error);
     return NextResponse.json(
-      { error: error.message },
+      { error: (error as any).message },
       { status: 500 }
     );
   }
@@ -316,7 +332,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(newBid, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error placing bid:', error);
     return NextResponse.json(
       { error: error.message },

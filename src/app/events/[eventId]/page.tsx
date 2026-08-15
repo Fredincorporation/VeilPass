@@ -270,7 +270,7 @@ export default function EventDetailPage() {
           }
         );
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       captureException('Unexpected error in handlePayment:', error);
       showError('An unexpected error occurred. Please try again.');
       setIsProcessingPayment(false);

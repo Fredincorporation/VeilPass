@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, MapPin, Users, TrendingUp, Search, Filter, Plus, Edit, Eye, MoreVertical, Clock, Zap, AlertCircle, X } from 'lucide-react';
+import type { Event } from '@/types';
 import Image from 'next/image';
 import { useToast } from '@/components/ToastContainer';
 import { useSellerEvents } from '@/hooks/useSellerEvents';
@@ -40,10 +41,10 @@ export default function SellerEventsPage() {
   const { data: revenueData } = useSellerRevenue(isClient && account ? account : null);
 
   // Use only database events - no mock data fallback
-  const events = dbEvents;
+  const events: Event[] = dbEvents || [];
 
-  const filteredEvents = events.filter((event: any) => {
-    const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredEvents = events.filter((event: Event) => {
+    const matchesSearch = event.title?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false;
     const matchesFilter = filterStatus === 'all' || event.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
@@ -78,25 +79,25 @@ export default function SellerEventsPage() {
   };
 
   // Helper function to get attendees count (placeholder - will be calculated from bids/tickets)
-  const getAttendees = (event: any) => {
+  const getAttendees = (event: Event) => {
     // For now, return 0 as we don't have ticket/bid data in events table
     // This can be updated when ticket system is fully integrated
-    return event.tickets_sold || 0;
+    return (event as any).tickets_sold || 0;
   };
 
   // Helper function to calculate revenue (base_price * attendees or tickets sold)
-  const getRevenue = (event: any) => {
+  const getRevenue = (event: Event) => {
     const basePrice = event.base_price || 0;
-    const ticketsSold = event.tickets_sold || 0;
+    const ticketsSold = (event as any).tickets_sold || 0;
     const revenue = basePrice * ticketsSold;
     return `${revenue.toFixed(2)} ETH`;
   };
 
   // Helper function to get occupancy percentage (placeholder)
-  const getOccupancy = (event: any) => {
+  const getOccupancy = (event: Event) => {
     // Calculate occupancy based on tickets sold vs capacity
-    const capacity = event.capacity || 0;
-    const ticketsSold = event.tickets_sold || 0;
+    const capacity = (event as any).capacity || 0;
+    const ticketsSold = (event as any).tickets_sold || 0;
     
     if (capacity === 0) return 0;
     
@@ -123,9 +124,9 @@ export default function SellerEventsPage() {
 
   const stats = {
     totalEvents: events.length,
-    activeEvents: events.filter((e: any) => e.status === 'On Sale').length,
+    activeEvents: events.filter((e: Event) => e.status === 'On Sale').length,
     totalRevenue: revenueData?.totalRevenue || '0.00',
-    totalAttendees: revenueData?.totalTickets || events.reduce((sum: number, e: any) => sum + (e.tickets_sold || 0), 0),
+    totalAttendees: revenueData?.totalTickets || events.reduce((sum: number, e: Event) => sum + ((e as any).tickets_sold || 0), 0),
   };
 
   return (

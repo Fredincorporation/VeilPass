@@ -44,7 +44,7 @@ export function usePaymentStatus(auctionResultId: string | null) {
         } else {
           setError(data.error || 'Failed to fetch status');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError(err.message || 'Unknown error');
       } finally {
         setLoading(false);
@@ -96,7 +96,7 @@ export function useConfirmPayment() {
 
       const data = await response.json();
       return data.result;
-    } catch (err: any) {
+    } catch (err: unknown) {
       const message = err.message || 'Unknown error';
       setError(message);
       throw err;
@@ -145,7 +145,7 @@ export function useFallbackResponse() {
 
       const data = await result.json();
       return data.result;
-    } catch (err: any) {
+    } catch (err: unknown) {
       const message = err.message || 'Unknown error';
       setError(message);
       throw err;

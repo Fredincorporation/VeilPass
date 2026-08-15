@@ -64,7 +64,7 @@ export async function validateBidAgainstAuction(
       status: data?.status ?? null,
       errorMessage: data?.error_message ?? null,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     captureException('Unexpected error during bid validation:', err);
     return {
       isValid: false,
@@ -105,7 +105,7 @@ export async function getAuctionBidState(auctionId: number) {
       bidderAddress: data?.bidder_address ?? null,
       error: null,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     captureException('Unexpected error fetching bid state:', err);
     return {
       highestBid: null,

@@ -82,7 +82,7 @@ export default function ScannerPage() {
         }
         setLastScanResult(result);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorMsg = error.response?.data?.error || 'Verification failed';
       showError(errorMsg);
       setLastScanResult({

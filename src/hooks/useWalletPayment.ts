@@ -83,7 +83,7 @@ export function useWalletPayment(): UseWalletPaymentReturn {
 
       return result;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       captureException('Payment error:', error);
       
       let displayMsg = 'Payment failed';
@@ -113,7 +113,7 @@ export function useWalletPayment(): UseWalletPaymentReturn {
       } else {
         showError('No wallet connectors available');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       captureException('Wallet connection error:', error);
       showError('Failed to connect wallet');
     }

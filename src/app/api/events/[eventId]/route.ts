@@ -76,7 +76,7 @@ export async function GET(
     };
 
     return NextResponse.json(transformedData);
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error fetching event:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

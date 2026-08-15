@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error fetching user:', error);
     
     // Fallback response to prevent blocking the UI
@@ -111,7 +111,7 @@ async function createUser(walletAddress: string) {
 
     logger.info('User created successfully:', data);
     return NextResponse.json(data, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error creating user:', error);
     
     // Return fallback on error
@@ -165,7 +165,7 @@ export async function PUT(request: NextRequest) {
     }
 
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error updating user:', error);
     return NextResponse.json(
       { error: error.message },

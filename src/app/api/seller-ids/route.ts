@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true, data, verification });
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error in seller-ids POST:', error);
     return NextResponse.json({ error: 'Server error', detail: String(error?.message || error) }, { status: 500 });
   }

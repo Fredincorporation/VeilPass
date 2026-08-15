@@ -166,7 +166,7 @@ export async function submitSellerID(
     }
     
     return receipt.hash;
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error submitting ID to contract:', error);
     throw new Error(`Failed to submit ID: ${error.message}`);
   }
@@ -222,7 +222,7 @@ export async function getSellerVerificationRecord(
       ageVerified: record.ageVerified,
       notBlacklisted: record.notBlacklisted,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('Error fetching seller record:', error);
     throw new Error(`Failed to fetch verification record: ${error.message}`);
   }

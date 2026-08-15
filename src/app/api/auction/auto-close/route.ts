@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ ok: true, closed: results }, { status: 200 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     captureException('Error in auto-close endpoint:', err);
     return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
   }

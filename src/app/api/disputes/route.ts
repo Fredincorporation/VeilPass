@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
 
     logger.info('[Disputes API POST] Dispute created successfully:', newDispute?.[0]);
     return NextResponse.json(newDispute?.[0], { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('[Disputes API POST] Catch block error:', error.message || error);
     return NextResponse.json(
       { 

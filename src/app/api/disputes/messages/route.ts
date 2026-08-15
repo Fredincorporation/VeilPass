@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
 
     logger.info('[Dispute Messages API POST] Message created successfully:', newMessage?.[0]);
     return NextResponse.json(newMessage?.[0], { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     captureException('[Dispute Messages API POST] Catch block error:', error.message || error);
     return NextResponse.json(
       {

@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
       },
     }, { status: 200 });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     captureException('Error in confirm-payment endpoint:', err);
     return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
   }
@@ -192,7 +192,7 @@ export async function GET(request: NextRequest) {
       },
     }, { status: 200 });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     captureException('[ERROR] confirm-payment GET:', err.message);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

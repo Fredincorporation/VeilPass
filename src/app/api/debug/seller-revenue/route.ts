@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
       totalRevenue,
       events: breakdown,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json({
       error: error.message,
       stack: error.stack,

@@ -212,7 +212,7 @@ export async function signBid(bidData: BidSignaturePayload, signerAddress?: stri
         // Fall back to mock if signing fails
       }
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     logger.warn('Wallet provider not available, using mock signature:', err.message);
   }
 
