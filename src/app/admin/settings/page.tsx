@@ -122,7 +122,7 @@ export default function AdminSettingsPage() {
     }));
   };
 
-  const handleInputChange = (category: string, field: string, value: any) => {
+  const handleInputChange = (category: string, field: string, value: string | number | boolean) => {
     setSettings(prev => ({
       ...prev,
       [category]: {

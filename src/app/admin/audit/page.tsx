@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Activity, Search, Filter, Download, Clock, User, Target, FileText, AlertCircle } from 'lucide-react';
 import { useAdminAuditLogs } from '@/hooks/useAdmin';
+import type { AuditLogEntry } from '@/types';
 
 export default function AuditPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -11,7 +12,7 @@ export default function AuditPage() {
   // Fetch audit logs from database
   const { data: auditLogs = [], isLoading, error } = useAdminAuditLogs();
 
-  const filteredLogs = auditLogs.filter((log: any) => {
+  const filteredLogs = auditLogs.filter((log: AuditLogEntry) => {
     const matchesSearch = log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           log.actor.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           log.target.toLowerCase().includes(searchTerm.toLowerCase());
@@ -109,9 +110,9 @@ export default function AuditPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredLogs.map((log: any) => (
+                  {filteredLogs.map((log: AuditLogEntry) => (
                     <tr
-                      key={log.id}
+                      key={String(log.id)}
                       className="border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                     >
                       <td className="px-6 py-4">

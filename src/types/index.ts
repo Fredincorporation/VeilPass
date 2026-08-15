@@ -90,6 +90,27 @@ export interface AuditLog {
   created_at?: string;
 }
 
+export interface SellerVerification {
+  id: string | number;
+  name: string;
+  email?: string;
+  businessType?: string;
+  walletAddress?: string;
+  submittedAt?: string;
+  status?: string;
+}
+
+export interface AuditLogEntry {
+  id: string | number;
+  action: string;
+  actor: string;
+  target: string;
+  timestamp: string;
+  details?: string;
+  color?: string;
+  textColor?: string;
+}
+
 export interface RevenueData {
   event_id?: number | string;
   revenue: number;

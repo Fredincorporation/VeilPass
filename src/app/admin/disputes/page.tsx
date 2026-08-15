@@ -6,6 +6,7 @@ import { useToast } from '@/components/ToastContainer';
 import { useAdminDisputes, useUpdateDisputeStatus } from '@/hooks/useAdmin';
 import { useDisputeMessages, useSendDisputeMessage } from '@/hooks/useDisputeMessages';
 import { useSafeWallet } from '@/lib/wallet-context';
+import type { DisputeMessage } from '@/types';
 
 export default function AdminDisputesPage() {
   const { showSuccess, showError, showInfo } = useToast();
@@ -283,9 +284,9 @@ export default function AdminDisputesPage() {
                   </div>
                 ) : messages.length > 0 ? (
                   <div className="space-y-3 max-h-48 overflow-y-auto">
-                    {messages.map((msg: any) => (
+                    {messages.map((msg: DisputeMessage) => (
                       <div
-                        key={msg.id}
+                        key={String(msg.id)}
                         className={`p-3 rounded-lg text-sm ${
                           msg.sender_role === 'admin'
                             ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'

@@ -6,6 +6,7 @@ import { useToast } from '@/components/ToastContainer';
 import { useAdminSellerIds } from '@/hooks/useAdmin';
 import { useQueryClient } from '@tanstack/react-query';
 import { captureException } from '@/lib/logger';
+import type { SellerVerification } from '@/types';
 
 export default function AdminSellerIDsPage() {
   const { showSuccess, showError, showInfo, showWarning } = useToast();
@@ -22,15 +23,15 @@ export default function AdminSellerIDsPage() {
   // Fetch seller IDs from database
   const { data: sellers = [], isLoading, refetch } = useAdminSellerIds(filterStatus === 'all' ? undefined : filterStatus);
 
-  const filteredSellers = sellers.filter((seller: any) => {
+  const filteredSellers = sellers.filter((seller: SellerVerification) => {
     const matchesSearch = 
-      seller.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      seller.id.toLowerCase().includes(searchTerm.toLowerCase());
+      (seller.name ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(seller.id).toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || seller.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
-  const selectedSeller = sellers.find((s: any) => s.id === selectedSellerId);
+  const selectedSeller = sellers.find((s: SellerVerification) => String(s.id) === selectedSellerId);
 
   const handleDecryptVerification = async () => {
     if (!encryptionPassword.trim()) {
@@ -244,9 +245,9 @@ export default function AdminSellerIDsPage() {
                   <p className="text-gray-600 dark:text-gray-400">Loading seller IDs...</p>
                 </div>
               ) : filteredSellers.length > 0 ? (
-                filteredSellers.map((seller: any) => (
+                filteredSellers.map((seller: SellerVerification) => (
                   <button
-                    key={seller.id}
+                    key={String(seller.id)}
                     onClick={() => {
                       setSelectedSellerId(seller.id);
                       setVerificationMode('encrypted');

@@ -9,6 +9,13 @@ import { useUser } from '@/hooks/useUser';
 import { useRedeemableItems, useLoyaltyActivity } from '@/hooks/useLoyalty';
 import { useLoyaltyStats } from '@/hooks/useLoyaltyStats';
 
+interface RewardItem {
+  id: number;
+  title: string;
+  points: number;
+  description: string;
+}
+
 export default function LoyaltyPage() {
   const router = useRouter();
   const { showSuccess, showWarning } = useToast();
@@ -69,7 +76,7 @@ export default function LoyaltyPage() {
 
   if (!isClient || !account) return null;
 
-  const handleRedeemReward = (reward: any) => {
+  const handleRedeemReward = (reward: RewardItem) => {
     if (points >= reward.points) {
       showSuccess(`Successfully redeemed "${reward.title}"! Points will be applied to your account.`);
     } else {
