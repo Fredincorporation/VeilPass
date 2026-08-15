@@ -12,6 +12,7 @@ import { useSellerStats } from '@/hooks/useSellerStats';
 import { useCustomerStats } from '@/hooks/useCustomerStats';
 import { useAdminStats } from '@/hooks/useAdminStats';
 import { Ticket, Gift, Gavel, UserPlus, LogOut, Calendar, Plus, BarChart3, Settings, AlertCircle, QrCode, Shield, Heart, Megaphone, Send, X, CheckCircle, Users, RotateCw, ArrowRight } from 'lucide-react';
+import { captureException } from '@/lib/logger';
 
 export default function DashboardPage() {
   const { t } = useTranslation();
@@ -176,7 +177,7 @@ export default function DashboardPage() {
       setShowBroadcastModal(false);
     } catch (error) {
       showError('Failed to send broadcast');
-      console.error('Broadcast error:', error);
+      captureException(error);
     } finally {
       setIsSending(false);
     }

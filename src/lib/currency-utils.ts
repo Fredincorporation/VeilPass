@@ -3,6 +3,8 @@
  * Uses CoinGecko API for live pricing
  */
 
+import { captureException } from './logger';
+
 // Cache for ETH price to avoid excessive API calls
 let cachedEthPrice: number | null = null;
 let lastPriceFetchTime: number = 0;
@@ -33,7 +35,7 @@ export async function fetchEthPrice(): Promise<number> {
     );
 
     if (!response.ok) {
-      console.error('CoinGecko API error:', response.status);
+      captureException(new Error(`CoinGecko API error: ${response.status}`));
       throw new Error('Failed to fetch price from CoinGecko');
     }
 
@@ -48,7 +50,7 @@ export async function fetchEthPrice(): Promise<number> {
     lastPriceFetchTime = now;
     return price;
   } catch (error) {
-    console.error('Error fetching ETH price:', error);
+    captureException(error);
     // Fallback to default price if API fails
     return 2500;
   }

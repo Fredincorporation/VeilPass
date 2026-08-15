@@ -13,6 +13,9 @@ import { useSafeWallet } from '@/lib/wallet-context';
 import { isAuctionCreationAllowed, getTimeUntilCutoff, formatTimeRemaining } from '@/lib/auctionCutoff';
 import QRCode from 'qrcode.react';
 import { encryptTicketQR, createQRPayload } from '@/lib/ticketQREncryption';
+import { downloadTicketAsPrintable } from '@/lib/ticketDownload';
+import { captureException } from '@/lib/logger';
+import { Ticket as TicketType } from '@/types';
 
 // Simple HTML escaper for embedding user data into generated HTML
 function escapeHtml(unsafe: any) {
@@ -38,7 +41,7 @@ export default function TicketsPage() {
   const [showAuctionModal, setShowAuctionModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [auctionForm, setAuctionForm] = useState({ listingPrice: '', minBid: '', reservePrice: '', duration: 24 });
-  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
   const [account, setAccount] = useState<string | null>(null);
   const wallet = useSafeWallet();
 
@@ -57,7 +60,7 @@ export default function TicketsPage() {
   }, [wallet?.address]);
 
   // Use only database tickets - no mock data fallback
-  const tickets: any[] = dbTickets;
+  const tickets: TicketType[] = dbTickets as TicketType[];
 
   // Fetch active auctions to determine which tickets are already listed
   const { data: activeAuctions = [] } = useAuctions('active');
@@ -75,118 +78,10 @@ export default function TicketsPage() {
   };
 
   const handleDownloadTicket = (ticketId: string, eventName: string) => {
-    (async () => {
-      try {
-        const ticket = tickets.find((t: any) => t.id === ticketId) || { id: ticketId };
-
-        // Build encrypted payload (same as QR modal) so printable QR does not expose raw owner address
-        const encryptedPayload = createQRPayload(
-          encryptTicketQR({
-            ticketId: ticket.id,
-            eventId: ticket.event_id,
-            // owner intentionally omitted for privacy; scanner will resolve owner server-side
-            price: ticket.price,
-            created_at: ticket.created_at,
-            section: ticket.section,
-            status: ticket.status,
-          } as any)
-        );
-
-        // Render a hidden QRCode into a temporary container to obtain a dataURL
-        const container = document.createElement('div');
-        container.style.position = 'fixed';
-        container.style.left = '-9999px';
-        container.style.top = '-9999px';
-        document.body.appendChild(container);
-
-        const root = createRoot(container);
-        root.render(
-          <QRCode value={encryptedPayload} size={400} level="H" includeMargin={true} />
-        );
-
-        // Wait for the canvas to be available
-        const dataUrl: string = await new Promise((resolve, reject) => {
-          const start = Date.now();
-          const check = () => {
-            const canvas = container.querySelector('canvas') as HTMLCanvasElement | null;
-            if (canvas) {
-              try {
-                const d = canvas.toDataURL('image/png');
-                resolve(d);
-              } catch (e) {
-                reject(e);
-              }
-              return;
-            }
-            if (Date.now() - start > 1000) {
-              reject(new Error('Timed out generating QR canvas'));
-              return;
-            }
-            requestAnimationFrame(check);
-          };
-          check();
-        });
-
-        // Clean up the rendered QR component
-        try { root.unmount(); } catch (e) {}
-        if (container.parentNode) container.parentNode.removeChild(container);
-
-        // Use masked owner for printed text to avoid exposing full wallet address
-        const maskedOwner = maskAddress(ticket.owner_address || '');
-
-        const html = `<!doctype html>
-        <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Ticket - ${escapeHtml(eventName)}</title>
-          <style>
-            body { font-family: Inter, Arial, Helvetica, sans-serif; padding: 24px; color: #0f172a }
-            .ticket { border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; width: 560px }
-            .header { display:flex; align-items:center; justify-content:space-between }
-            .title { font-size:20px; font-weight:700 }
-            .meta { margin-top:12px; display:flex; gap:12px; font-size:14px }
-            .qr { margin-top:18px; text-align:center }
-            .small { color:#6b7280 }
-          </style>
-        </head>
-        <body>
-          <div class="ticket">
-            <div class="header">
-              <div>
-                <div class="title">${escapeHtml(eventName)}</div>
-                <div class="small">Ticket ID: ${escapeHtml(String(ticket.id))}</div>
-              </div>
-              <div class="small">Issued: ${new Date().toISOString()}</div>
-            </div>
-            <div class="meta">
-              <div><strong>Section</strong><div>${escapeHtml(ticket.section || 'General')}</div></div>
-              <div><strong>Price</strong><div>$${escapeHtml(String(ticket.price || ticket.price === 0 ? ticket.price : '0'))}</div></div>
-              <div><strong>Owner</strong><div>${escapeHtml(maskedOwner)}</div></div>
-            </div>
-            <div class="qr">
-              <img src="${dataUrl}" alt="QR" style="width:240px;height:240px" />
-            </div>
-          </div>
-        </body>
-        </html>`;
-
-        const w = window.open('', '_blank');
-        if (!w) {
-          showInfo('Popup blocked. Please allow popups for this site to download tickets.');
-          return;
-        }
-        w.document.write(html);
-        w.document.close();
-        // delay to allow image to load then trigger print
-        setTimeout(() => {
-          try { w.focus(); w.print(); } catch (e) {}
-        }, 600);
-        showSuccess('Opened printable ticket — use Print → Save as PDF (or print) to download.');
-      } catch (err: any) {
-        console.error('Download ticket error:', err);
-        showInfo('Failed to open ticket for printing.');
-      }
-    })();
+    const ticket = tickets.find((t) => t.id === ticketId) || ({ id: ticketId } as any);
+    // Delegate to shared download utility
+    // It will handle encryption, rendering, and error capture
+    downloadTicketAsPrintable(ticket, eventName, showInfo, showSuccess);
   };
 
   
@@ -264,7 +159,7 @@ export default function TicketsPage() {
         window.location.reload();
       }, 1500);
     } catch (error: any) {
-      console.error('Error creating auction:', error);
+      captureException(error);
       showInfo('Failed to create auction. Please try again.');
     }
   };

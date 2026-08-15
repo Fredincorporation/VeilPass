@@ -99,6 +99,41 @@ npm test
 
 ---
 
+## Local development & CI
+
+1. Copy environment example:
+
+```bash
+cp .env.example .env.local
+```
+
+2. Start local services with Docker:
+
+```bash
+docker compose up --build
+```
+
+3. Install dependencies (CI uses `npm ci`):
+
+```bash
+npm ci
+```
+
+4. Run unit tests and coverage locally:
+
+```bash
+npm test -- --coverage
+```
+
+5. Run the Next dev server:
+
+```bash
+npm run dev
+```
+
+
+---
+
 ## Future Vision
 
 - **Mainnet launch plan** — phased rollouts with audited fhEVM modules, secure key management, and production monitoring.  

@@ -2,6 +2,8 @@
  * Ticket Status Determination Logic
  * Determines ticket status based on event date and other factors
  */
+import { captureException } from './logger';
+
 
 export type TicketStatus = 'upcoming' | 'active' | 'sold' | 'transferred';
 
@@ -44,7 +46,7 @@ export function determineTicketStatus(
     // If event is today or in the past, mark as active
     return 'active';
   } catch (error) {
-    console.error('Error parsing event date:', error);
+    captureException(error);
     // Default to active if we can't parse
     return 'active';
   }

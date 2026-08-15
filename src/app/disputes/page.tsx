@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, Clock, CheckCircle, XCircle, Search, Filter, Plus } from 'lucide-react';
+import logger, { captureException } from '@/lib/logger';
+import { Dispute, User } from '@/types';
 import { useDisputes, useCreateDispute, useUpdateDispute } from '@/hooks/useDisputes';
 import { useDisputeMessages, useSendDisputeMessage } from '@/hooks/useDisputeMessages';
 import { useWalletAuthentication } from '@/hooks/useWalletAuthentication';
@@ -19,9 +21,19 @@ function DisputeCard({
   getStatusBadgeColor,
   getLastAdminMessage,
   hasUnrepliedMessages,
-}: any) {
+}: {
+  dispute: Dispute;
+  isAdmin: boolean;
+  onViewReason: (d: Dispute) => void;
+  onOpenMessages: (d: Dispute) => void;
+  getStatusColor: (s: string) => string;
+  getStatusIcon: (s: string) => JSX.Element;
+  getStatusBadgeColor: (s: string) => string;
+  getLastAdminMessage: (m: any[]) => any;
+  hasUnrepliedMessages: (m: any[]) => boolean;
+}) {
   // Hooks can now be safely called here (not in a loop)
-  const { data: disputeMessages = [] } = useDisputeMessages(dispute.id);
+  const { data: disputeMessages = [] } = useDisputeMessages(dispute.id as any);
   
   const lastAdminMsg = getLastAdminMessage(disputeMessages);
   const hasUnread = hasUnrepliedMessages(disputeMessages);
@@ -152,12 +164,12 @@ export default function DisputesPage() {
   useEffect(() => {
     const savedAccount = localStorage.getItem('veilpass_account');
     setAccount(savedAccount);
-    console.log('[DisputesPage] Loaded account:', savedAccount);
+    logger.info('[DisputesPage] Loaded account:', savedAccount);
   }, []);
 
   // Debug hook to log disputes updates
   useEffect(() => {
-    console.log('[DisputesPage] Disputes updated:', disputes, 'Loading:', isLoading);
+    logger.info('[DisputesPage] Disputes updated', { count: disputes.length, isLoading });
   }, [disputes, isLoading]);
 
   const handleSubmit = (e: React.FormEvent) => {
